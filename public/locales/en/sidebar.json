@@ -1,0 +1,14 @@
+{
+  "nav_home": "Home",
+  "nav_orders": "Orders",
+  "nav_barista": "Barista",
+  "nav_products": "Products",
+  "nav_categories": "Categories",
+  "nav_inventory": "Inventory",
+  "nav_customers": "Customers",
+  "nav_ratings": "Ratings",
+  "nav_report": "Report",
+  "nav_settings": "Settings",
+  "auth_register": "Register",
+  "auth_login": "Login"
+}

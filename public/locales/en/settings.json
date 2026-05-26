@@ -1,0 +1,17 @@
+{
+  "theme_preferences": "Theme preferences",
+  "font_preferences": "Font preferences",
+  "language_preferences": "Language preferences",
+  "english": "English",
+  "khmer": "Khmer",
+  "light_mode": "Light mode",
+  "dark_mode": "Dark mode",
+  "english_font": "English font",
+  "khmer_font": "Khmer font",
+  "admin_settings": "Admin Settings",
+  "setup_and_edit_system_settings": "Setup and edit system settings and preferences",
+  "preferences": "Preferences",
+  "notification": "Notification",
+  "push_notifications": "Push notifications",
+  "push_notification_description": "Turn this on to get real-time updates on your web dashboard. If this is off, you'll still receive email notifications."
+}

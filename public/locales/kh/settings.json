@@ -1,0 +1,17 @@
+{
+  "theme_preferences": "ជម្រើសរចនាប័ទ្ម",
+  "font_preferences": "ជម្រើសអក្សរ",
+  "language_preferences": "ជម្រើសភាសា",
+  "english": "អង់គ្លេស",
+  "khmer": "ខ្មែរ",
+  "light_mode": "បែបភ្លឺ",
+  "dark_mode": "បែបងងឹត",
+  "english_font": "អក្សរអង់គ្លេស",
+  "khmer_font": "អក្សរខ្មែរ",
+  "admin_settings": "ការកំណត់របស់អ្នកគ្រប់គ្រង",
+  "setup_and_edit_system_settings": "កំណត់ និង កែសម្រួលការកំណត់ និងជម្រើសរចនាប័ទ្ម",
+  "preferences": "ជម្រើសផ្សេងៗ",
+  "notification": "ការជូនដំណឹង",
+  "push_notifications": "ការជូនដំណឹងបង្ហាញ",
+  "push_notification_description": "បើកនេះដើម្បីទទួលព័ត៌មានភ្លាឮមៗនៅលើផ្ទាំងវេប។ បើបិទ អ្នកនៅតែទទួលអ៊ីមែលជូនដំណឹង។"
+}
