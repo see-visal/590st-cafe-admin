@@ -16,7 +16,7 @@ export function PageHeader({ title, breadcrumbs, rightSlot }: PageHeaderProps) {
         <Breadcrumbs items={breadcrumbs} />
         {rightSlot}
       </div>
-      <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+      <h1 className="text-3xl font-semibold text-gray-950">{title}</h1>
     </div>
   );
 }

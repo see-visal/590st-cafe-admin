@@ -8,6 +8,7 @@ import {
   Settings,
   Star,
   Tags,
+  UserCog,
   UsersRound,
 } from "lucide-react";
 
@@ -72,6 +73,12 @@ const navigationSections = [
     dividerBefore: true,
     items: [
       { name: "Report", href: "/report", icon: BarChart3, label: "nav_report" },
+      {
+        name: "Staff",
+        href: "/staff",
+        icon: UserCog,
+        label: "nav_staff",
+      },
       {
         name: "Settings",
         href: "/settings",
