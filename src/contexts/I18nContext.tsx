@@ -9,10 +9,7 @@ import {
   useCallback,
 } from "react";
 import { usePathname } from "next/navigation";
-import { formatWithCommas } from "@/utils/numberFormat";
-import type { FormatInput } from "@/types/FormInputType";
-
-
+import { formatWithCommas } from "@/utils/format-currency";
 const timeUnitTranslations: Record<string, string> = {
   hour: "ម៉ោង",
   hours: "ម៉ោង",
@@ -194,7 +191,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   // Move formatNumber inside the provider where it can access locale
   const formatNumber = useCallback(
-    (num: FormatInput): string => {
+    (num: Parameters<typeof formatWithCommas>[0]): string => {
       // Format with commas first
       const formatted = formatWithCommas(num, "en-US");
 
@@ -251,3 +248,10 @@ export function usePageTranslations(pageName?: string) {
 
   return { t };
 }
+
+
+
+
+
+
+

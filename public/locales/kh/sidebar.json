@@ -1,15 +1,13 @@
 {
-  "nav_home": "Home",
-  "nav_orders": "Orders",
-  "nav_barista": "Barista",
-  "nav_products": "Products",
-  "nav_categories": "Categories",
-  "nav_inventory": "Inventory",
-  "nav_customers": "Customers",
-  "nav_ratings": "Ratings",
-  "nav_report": "Report",
-  "nav_staff": "Staff",
-  "nav_settings": "Settings",
-  "auth_register": "Register",
-  "auth_login": "Login"
+  "nav_home": "ទំព័រដើម",
+  "nav_orders": "ការបញ្ជាទិញ",
+  "nav_barista": "បារីស្តា",
+  "nav_products": "ផលិតផល",
+  "nav_categories": "ប្រភេទ",
+  "nav_inventory": "ស្តុក",
+  "nav_customers": "អតិថិជន",
+  "nav_ratings": "ការវាយតម្លៃ",
+  "nav_report": "របាយការណ៍",
+  "nav_staff": "បុគ្គលិក",
+  "nav_settings": "ការកំណត់"
 }

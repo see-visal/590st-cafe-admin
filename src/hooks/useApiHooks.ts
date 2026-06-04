@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError, apiClient } from "@/lib/services/apiClient";
+import { ApiError, apiClient } from "@/lib/apiClient";
 
 /**
  * Hook state type

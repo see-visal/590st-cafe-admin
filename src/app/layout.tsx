@@ -19,7 +19,7 @@ import {
   Siemreap,
   Dangrek,
 } from "next/font/google";
-import ClientProvider from "@/components/provider/ClientProvider";
+import ClientProvider from "@/contexts/client-provider";
 
 // English fonts
 const inter = Inter({
@@ -118,10 +118,11 @@ const dangrek = Dangrek({
 export const metadata: Metadata = {
   title: "590st CAFE",
   description: "590st CAFE Admin Dashboard",
+
   icons: {
-    icon: "/Logo/Logo.svg",
-    shortcut: "/Logo/Logo.svg",
-  },
+    icon: "/logos/logo.svg",
+    shortcut: "/logos/logo.svg",
+},
 };
 
 export default function RootLayout({

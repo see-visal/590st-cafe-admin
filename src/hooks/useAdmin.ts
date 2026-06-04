@@ -14,8 +14,8 @@ import {
   Report,
   DashboardSummary,
   Notification,
-} from "@/lib/services/adminService";
-import { ApiError } from "@/lib/services/apiClient";
+} from "@/features/dashboard/api/dashboardApi";
+import { ApiError } from "@/lib/apiClient";
 import toast from "react-hot-toast";
 
 // ==================== ORDERS HOOKS ====================
@@ -257,7 +257,7 @@ export function useStaff() {
 export function useCreateStaff() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const create = useCallback(async (data: import("@/lib/services/adminService").StaffCreatePayload) => {
+  const create = useCallback(async (data: import("@/features/dashboard/api/dashboardApi").StaffCreatePayload) => {
     setIsLoading(true);
     try {
       const result = await adminService.staff.create(data);
