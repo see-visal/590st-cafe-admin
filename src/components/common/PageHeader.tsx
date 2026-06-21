@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react";
 import { BreadcrumbItem, Breadcrumbs } from "@/components/common/Breadcrumbs";
+import { SidebarCollapseTrigger } from "@/components/layout/SidebarCollapseTrigger";
 
 interface PageHeaderProps {
   title: string;
@@ -11,12 +12,15 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, breadcrumbs, rightSlot }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-3 border-b border-gray-200 pb-4">
-      <div className="flex items-center justify-between">
-        <Breadcrumbs items={breadcrumbs} />
+    <div className="page_header">
+      <div className="header_top_row">
+        <div className="header_breadcrumb_row">
+          <SidebarCollapseTrigger />
+          <Breadcrumbs items={breadcrumbs} />
+        </div>
         {rightSlot}
       </div>
-      <h1 className="text-3xl font-semibold text-gray-950">{title}</h1>
+      <h1 className="page_title">{title}</h1>
     </div>
   );
 }

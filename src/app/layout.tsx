@@ -1,6 +1,6 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
-import "./globals.css";
+import "./globals.scss";
 import { Analytics } from "@vercel/analytics/next";
 import {
   Inter,

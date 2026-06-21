@@ -70,17 +70,8 @@ export default function Orders() {
       />
 
       <FilterPanel>
-        <TextField
-          label="Order Number"
-          placeholder="Search..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <SelectField
-          label="Status"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-        >
+        <TextField label="Order Number" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
+        <SelectField label="Status" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
           <option value="">All Status</option>
           <option value="PENDING">Pending</option>
           <option value="CONFIRMED">Confirmed</option>

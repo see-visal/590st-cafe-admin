@@ -200,20 +200,16 @@ export function FilterPanel({
   collapsible?: boolean;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg bg-white shadow-sm">
-      <div className="flex items-center gap-4 border-b border-gray-100 px-5 py-4">
-        <span className="grid h-10 w-10 place-items-center rounded-md bg-[#befe35] text-black">
-          <SlidersHorizontal className="h-5 w-5" />
+    <section className="box_collapse">
+      <div className="filter_header">
+        <span className="filter_icon_wrapper">
+          <SlidersHorizontal className="filter_icon" />
         </span>
-        <h2 className="text-xl font-semibold text-gray-800">Filters</h2>
+        <h2 className="filter_title">Filters</h2>
       </div>
       {children && (
-        <div
-          className={cn(
-            "grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-2 xl:grid-cols-4",
-            collapsible && "border-t border-gray-100"
-          )}
-        >
+        /* Outer structural grid uses Tailwind layout classes */
+        <div className={cn("grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-2 xl:grid-cols-4 filter_content_wrapper", collapsible && "has_top_border")}>
           {children}
         </div>
       )}
@@ -550,10 +546,10 @@ export function StatTile({
   }[tone];
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-semibold text-gray-900">{title}</p>
-      <p className={cn("mt-2 text-3xl font-bold", color)}>{value}</p>
-      {hint && <p className="mt-2 text-sm text-gray-400">{hint}</p>}
+    <div className="metric_card">
+      <p className="metric_title">{title}</p>
+      <p className={cn("metric_value", color)}>{value}</p>
+      {hint && <p className="metric_hint">{hint}</p>}
     </div>
   );
 }

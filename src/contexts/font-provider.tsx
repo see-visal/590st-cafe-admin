@@ -4,6 +4,11 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
 export const enFontOptions = [
+  {
+    value: "sfdisplaypro",
+    label: "SF Pro Display",
+    fontFamily: "var(--font-sfdisplaypro)",
+  },
   { value: "poppins", label: "Poppins", fontFamily: "var(--font-poppins)" },
   { value: "inter", label: "Inter", fontFamily: "var(--font-inter)" },
   { value: "roboto", label: "Roboto", fontFamily: "var(--font-roboto)" },
@@ -63,7 +68,7 @@ interface FontContextType {
 const FontContext = createContext<FontContextType | undefined>(undefined);
 
 export function FontProvider({ children }: { children: React.ReactNode }) {
-  const [englishFont, setEnglishFont] = useState("poppins");
+  const [englishFont, setEnglishFont] = useState("sfdisplaypro");
   const [khmerFont, setKhmerFont] = useState("koh-santepheap");
 
   // Load saved font preferences on mount
@@ -114,7 +119,7 @@ export function FontProvider({ children }: { children: React.ReactNode }) {
 
   const getCurrentEnglishFontFamily = () => {
     const selectedFont = enFontOptions.find((f) => f.value === englishFont);
-    return selectedFont?.fontFamily || "var(--font-poppins)";
+    return selectedFont?.fontFamily || "var(--font-sfdisplaypro)";
   };
 
   const getCurrentKhmerFontFamily = () => {
