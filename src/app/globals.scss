@@ -252,7 +252,7 @@ body {
   &.is_open { transform: translateX(0); }
 }
 
-.admin_shell { --sidebar-width: 256px; --sidebar-width-collapsed: 72px; display: flex; gap: 20px; height: 100vh; width: 100%; padding: 20px; box-sizing: border-box; overflow: hidden;}
+.admin_shell { --sidebar-width: 256px; --sidebar-width-collapsed: 72px; display: flex; gap: 20px; height: 100vh; width: 100%; padding: 20px; box-sizing: border-box; overflow: hidden; background-color: #000000; }
 .admin_main { flex: 1; min-width: 0; min-height: 0; height: 100%; overflow: hidden; border-radius: 10px; background-color: #f4f4f4; display: flex; flex-direction: column; padding-top: 64px;
   @media (min-width: 1024px) { padding-top: 0; }
 }
@@ -320,8 +320,13 @@ body {
     &.has_top_border { border-top: 1px solid #f3f4f6; }
   }
 }
-// Button
-// button { height: 36px;
-//     &.btn_primary_black { background-color: #000000;}
-//     &.lg { height: 36px; }
-// }
+// Button for use
+button { height: 36px;border-radius: 10px;padding: 16px 8px;
+    &.btn_primary_black { background-color: #000000;color: #ffffff; }
+    &.btn_primary_yellow_lg { height: 48px;padding: 12px 10px;background-color: #befe35;color: #000000; }
+    &.btn_primary_yellow { background-color: #befe35;color: #000000;}
+    &.btn_secondary { background-color: #5c2cf0;color: #ffffff;}
+    &.btn_outline_black { background: transparent;color: #000000;border: 1px solid #000000; }
+    &:hover .btn_outline_black { background-color:#befe35;color: #000000; }
+    &:hover .btn_primary_yellow { background-color: #1a1a1a;color: #ffffff;}
+}
