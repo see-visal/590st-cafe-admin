@@ -26,6 +26,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 export type FieldOption = {
@@ -35,33 +41,67 @@ export type FieldOption = {
 
 export function AdminTopActions() {
   const [open, setOpen] = useState(false);
+  const [locale, setLocale] = useState("kh");
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="relative flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-900 shadow-sm transition hover:bg-gray-50"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute -right-2 -top-2 rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-semibold text-white">
-            10
-          </span>
-        </button>
-        <button
-          type="button"
-          className="flex h-10 items-center gap-2 rounded-md border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 shadow-sm"
-          aria-label="Language"
-        >
-          <span className="grid h-5 w-5 place-items-center rounded-full bg-[#1f4fbf] text-[10px] text-white">
-            KH
-          </span>
-          <span>Kh</span>
-          <ChevronDown className="h-4 w-4" />
-        </button>
-      </div>
+     <div className="flex items-center gap-3">
+  <button
+    type="button"
+    onClick={() => setOpen(true)}
+    className="relative flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-900 shadow-sm transition hover:bg-gray-50"
+    aria-label="Notifications"
+  >
+    <Bell className="h-5 w-5" />
+    <span className="absolute -right-2 -top-2 rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-semibold text-white">
+      10
+    </span>
+  </button>
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <button
+        type="button"
+        className="flex h-10 items-center gap-2 rounded-full border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-900 shadow-sm"
+        aria-label="Language"
+      >
+        <Image
+          src={locale === "kh" ? "/images/cambodia.svg" : "/images/english.svg"}
+          alt={locale === "kh" ? "Cambodia flag" : "English flag"}
+          width={20}
+          height={20}
+          className="w-5 h-5 rounded-full object-cover"
+        />
+        <span>{locale === "kh" ? "ខ្មែរ" : "English"}</span>
+      </button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuItem onSelect={() => setLocale("kh")}
+        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm"
+      >
+        <Image
+          src="/images/cambodia.svg"
+          alt="Cambodia flag"
+          width={20}
+          height={20}
+          className="w-5 h-5 rounded-full object-cover"
+        />
+        <span className="font-family-khmer">Khmer</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => setLocale("en")}
+        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm"
+      >
+        <Image
+          src="/images/english.svg"
+          alt="English flag"
+          width={20}
+          height={20}
+          className="w-5 h-5 rounded-full object-cover"
+        />
+        <span className="font-family-english">English</span>
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+</div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[88vh] max-w-2xl gap-0 overflow-hidden rounded-lg p-0">
@@ -229,12 +269,12 @@ export function TextField({
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
-    <label className="block text-sm font-medium text-gray-700">
+    <label className="form_input_label">
       {label}
       <input
         value={value || ""}
         onChange={onChange}
-        className="mt-2 h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#7ec900] focus:ring-2 focus:ring-lime-100"
+        className="form_input_field"
         placeholder={placeholder}
       />
     </label>
@@ -300,10 +340,10 @@ export function DateField({ label, value = "Start Date - End Date" }: {
 export function FilterActions() {
   return (
     <div className="flex items-end justify-end gap-3 xl:col-span-4">
-      <button className="h-10 rounded-md border border-black bg-white px-5 text-sm font-semibold">
+      <button className="btn_outline_black">
         Clear
       </button>
-      <button className="inline-flex h-10 items-center gap-2 rounded-md bg-black px-5 text-sm font-semibold text-white">
+      <button className="btn_primary_black">
         Search
         <Search className="h-4 w-4 text-[#befe35]" />
       </button>
@@ -320,17 +360,17 @@ export function TableActions({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button className="inline-flex h-10 items-center gap-2 rounded-md border border-black bg-white px-4 text-sm font-semibold">
+      <button className="btn_outline_black">
         Download Excel
         <Download className="h-4 w-4" />
       </button>
-      <button
+      {/* <button
         onClick={onRegister}
         className="inline-flex h-10 items-center gap-2 rounded-md bg-black px-4 text-sm font-semibold text-white"
       >
         {primaryLabel}
         <Plus className="h-5 w-5 text-[#befe35]" />
-      </button>
+      </button> */}
     </div>
   );
 }

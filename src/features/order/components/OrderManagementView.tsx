@@ -19,8 +19,8 @@ import {
   SimpleTable,
   StatusBadge,
   TableActions,
-  TextField,
 } from "@/components/common/AdminKit";
+import { DatePickerWithRange } from "@/components/forms/FilterDate";
 import { useOrders, useCancelOrder } from "@/hooks/useAdmin";
 import { Order } from "@/features/dashboard/api/dashboardApi";
 
@@ -70,7 +70,6 @@ export default function Orders() {
       />
 
       <FilterPanel>
-        <TextField label="Order Number" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
         <SelectField label="Status" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
           <option value="">All Status</option>
           <option value="PENDING">Pending</option>
@@ -80,13 +79,14 @@ export default function Orders() {
           <option value="COMPLETED">Completed</option>
           <option value="CANCELLED">Cancelled</option>
         </SelectField>
+        <DatePickerWithRange />
         <FilterActions />
       </FilterPanel>
 
       <DataCard
         title="Orders History"
-        meta={`Total Orders: ${filteredOrders.length} | Total Value: ${getTotalValue.toLocaleString()} KHR`}
-        actions={<TableActions primaryLabel="New Order" />}
+        meta={`Recent Transactions: ${filteredOrders.length}`}
+        actions={<TableActions primaryLabel="Download Excel" />}
       >
         {isLoading ? (
           <div className="py-8 text-center text-gray-500">Loading orders...</div>
@@ -97,20 +97,31 @@ export default function Orders() {
             <SimpleTable
               headers={[
                 "No",
-                "Order #",
-                "Amount",
+                "Image",
+                "Order ID",
                 "Type",
+                "Items",
+                "Total Price",
+                "Orders Date",
                 "Status",
-                "Date",
                 "Action",
               ]}
             >
               {filteredOrders.map((order, index) => (
                 <Row key={order.id} striped={index % 2 === 1}>
                   <Cell>{index + 1}</Cell>
+                  <Cell>
+                    <img 
+                      src="/images/product-placeholder.png" 
+                      alt="Order" 
+                      className="h-8 w-8 rounded"
+                    />
+                  </Cell>
                   <Cell className="font-semibold">{order.orderNumber}</Cell>
-                  <Cell>{order.totalAmount.toLocaleString()} KHR</Cell>
                   <Cell>{order.type}</Cell>
+                  <Cell>x{order.items?.length || 0}</Cell>
+                  <Cell>${order.totalAmount.toFixed(2)} USD</Cell>
+                  <Cell>{new Date(order.createdAt).toLocaleString()}</Cell>
                   <Cell>
                     <StatusBadge
                       label={order.status}
@@ -123,7 +134,6 @@ export default function Orders() {
                       }
                     />
                   </Cell>
-                  <Cell>{new Date(order.createdAt).toLocaleDateString()}</Cell>
                   <Cell>
                     <RowActions
                       onView={() => handleViewDetail(order)}
