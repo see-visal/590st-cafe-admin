@@ -106,16 +106,18 @@ function PopoverContent({
       : "left-0"
 
   return (
-    <div
-      className={cn(
-        "absolute z-50 mt-2 w-auto rounded-lg border border-border bg-popover p-0 text-popover-foreground shadow-lg",
-        alignment,
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </div>
+   <div
+    className={cn(
+      "popover-container", 
+      alignment,
+      className
+    )}
+    {...props}
+  >
+    <h3 className="title_date">Calendar</h3> 
+    
+    {children}
+  </div>
   )
 }
 

@@ -60,7 +60,7 @@ export default function Orders() {
   return (
     <PageShell>
       <PageHeader
-        title="Orders Management"
+        title="Design"
         breadcrumbs={[
           { label: "Home", href: "/" },
           { label: "Orders" },

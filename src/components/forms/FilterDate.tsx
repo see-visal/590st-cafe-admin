@@ -39,19 +39,19 @@ export function DatePickerWithRange() {
   }, [open, date])
 
   return (
-    <Field className="w-full">
-      <FieldLabel htmlFor="date-picker-range">Orders Date Range</FieldLabel>
-      <div className="mt-2">
+    <Field className=".field_wrapper">
+      <FieldLabel htmlFor="date-picker-range" className="title_date">Orders Date Range</FieldLabel>
+      <div className="mt-4">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger onClick={() => setOpen(!open)}>
             <Button
               variant="outline"
               id="date-picker-range"
-              className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 pr-10 text-left text-sm text-gray-900 shadow-sm"
+              className="h-10 w-full rounded-md border border-gray-300 bg-white   px-3 pr-10 text-left text-sm text-gray-900 shadow-sm focus:border-[#7ec900] focus:ring-2 focus:ring-lime-100  "
             >
-              <span className="flex w-full items-center justify-between gap-2 text-sm text-gray-900">
+              <span className="inner_flex ">
                 <span className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4" />
+                  <CalendarIcon className="h-4 w-4 " />
                   {date?.from ? (
                     date.to ? (
                       <>
@@ -68,7 +68,7 @@ export function DatePickerWithRange() {
               </span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-4" align="start">
+          <PopoverContent className="calendar-popover w-auto p-4 " align="start">
             <Calendar
               mode="range"
               defaultMonth={tempDate?.from}
@@ -80,13 +80,13 @@ export function DatePickerWithRange() {
               <Button
                 variant="outline"
                 onClick={handleCancel}
-                className="px-4 py-2 text-sm"
+                className="btn_outline_black"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleApply}
-                className="bg-black text-white hover:bg-gray-800 px-4 py-2 text-sm"
+                className="btn_primary_black"
               >
                 Apply
               </Button>

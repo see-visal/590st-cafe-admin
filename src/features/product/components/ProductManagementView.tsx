@@ -1,9 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import { CalendarDays } from "lucide-react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
+import { DatePickerWithRange } from "@/components/forms/FilterDate";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+
 import {
   AdminTopActions,
   Cell,
@@ -14,10 +24,6 @@ import {
   DetailModal,
   FilterActions,
   FilterPanel,
-  FormInput,
-  FormModal,
-  FormSelect,
-  ModalGrid,
   PaginationFooter,
   Row,
   RowActions,
@@ -52,6 +58,8 @@ export default function Products() {
   const { create: createProduct, isLoading: isCreating } = useCreateProduct();
   const { update: updateProduct, isLoading: isUpdating } = useUpdateProduct();
   const { delete: deleteProduct, isLoading: isDeleting } = useDeleteProduct();
+  const [filterStatus, setFilterStatus] = useState("");
+
 
   // Form state
   const [formData, setFormData] = useState<ProductRequest>({
@@ -159,24 +167,22 @@ export default function Products() {
         rightSlot={<AdminTopActions />}
       />
 
-      <FilterPanel>
+      <FilterPanel onRegister={() => handleOpenForm()}>
         <TextField
-          label="Product Name"
+          label="Name"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <SelectField
-          label="Category"
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-        >
-          <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
+         <TextField
+          label="Amount"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <SelectField label="Status" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
         </SelectField>
+        <DatePickerWithRange />
         <FilterActions />
       </FilterPanel>
 
@@ -252,61 +258,16 @@ export default function Products() {
       </DataCard>
 
       {/* Create/Edit Form Modal */}
-      <FormModal
+      <ProductRegisterModal
         open={formOpen}
         onOpenChange={handleCloseForm}
-        title={isEditing ? "Edit Product" : "Create New Product"}
-        submitLabel={isEditing ? "Update Product" : "Create Product"}
+        isEditing={isEditing}
+        formData={formData}
+        setFormData={setFormData}
+        categories={categories}
         onSubmit={handleSubmitForm}
         isLoading={isCreating || isUpdating}
-      >
-        <ModalGrid>
-          <FormInput
-            label="Product Name *"
-            placeholder="e.g., Coffee, Tea"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
-          <FormInput
-            label="Price (KHR) *"
-            type="number"
-            placeholder="0"
-            value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-            required
-          />
-          <FormSelect
-            label="Category *"
-            value={formData.categoryId}
-            onChange={(e) => setFormData({ ...formData, categoryId: parseInt(e.target.value) })}
-            required
-          >
-            <option value="">Select Category</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </FormSelect>
-          <FormSelect
-            label="Status"
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value as ProductStatus })}
-          >
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
-          </FormSelect>
-          <div className="md:col-span-2">
-            <FormInput
-              label="Image URL"
-              placeholder="https://example.com/image.jpg"
-              value={formData.imageUrl}
-              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-            />
-          </div>
-        </ModalGrid>
-      </FormModal>
+      />
 
       {/* Detail Modal */}
       <DetailModal
@@ -363,5 +324,176 @@ export default function Products() {
         )}
       </DetailModal>
     </PageShell>
+  );
+}
+
+// ─── Product Register/Modify Modal ──────────────────────────────────────────
+function ProductRegisterModal({
+  open,
+  onOpenChange,
+  isEditing,
+  formData,
+  setFormData,
+  categories,
+  onSubmit,
+  isLoading,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  isEditing: boolean;
+  formData: import("@/features/product/types/product.type").ProductRequest;
+  setFormData: (data: import("@/features/product/types/product.type").ProductRequest) => void;
+  categories: { id: number; name: string }[];
+  onSubmit: () => Promise<void> | void;
+  isLoading: boolean;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState("");
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFileName(file.name);
+      setFormData({ ...formData, imageUrl: URL.createObjectURL(file) });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl gap-0 rounded-xl p-0 overflow-hidden">
+        {/* Header */}
+        <DialogHeader className="border-b border-gray-200 px-6 py-5">
+          <DialogTitle className="text-lg font-semibold">
+            Product Register/Modify
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Body */}
+        <div className="bg-gray-50 px-6 py-5 space-y-4">
+          {/* Row 1: Name | Amount | Status */}
+          <div className="grid grid-cols-3 gap-4">
+            <label className="block text-sm font-medium text-gray-700">
+              Name
+              <input
+                type="text"
+                placeholder="Placeholder"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="mt-1 h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-500 outline-none transition focus:border-[#7ec900] focus:ring-2 focus:ring-lime-100"
+              />
+            </label>
+
+            <label className="block text-sm font-medium text-gray-700">
+              Amount
+              <input
+                type="number"
+                placeholder="Placeholder"
+                value={formData.price || ""}
+                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                className="mt-1 h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-500 outline-none transition focus:border-[#7ec900] focus:ring-2 focus:ring-lime-100"
+              />
+            </label>
+
+            <label className="block text-sm font-medium text-gray-700">
+              Status
+              <span className="relative mt-1 block">
+                <select
+                  value={formData.status}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value as import("@/features/product/types/product.type").ProductStatus })
+                  }
+                  className="h-10 w-full appearance-none rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-500 outline-none transition focus:border-[#7ec900] focus:ring-2 focus:ring-lime-100"
+                >
+                  <option value="">Select Method</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
+                <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
+            </label>
+          </div>
+
+          {/* Row 2: Category | Payment Date Range */}
+          <div className="grid grid-cols-2 gap-4">
+            <label className="block text-sm font-medium text-gray-700">
+              Category
+              <span className="relative mt-1 block">
+                <select
+                  value={formData.categoryId || ""}
+                  onChange={(e) => setFormData({ ...formData, categoryId: parseInt(e.target.value) })}
+                  className="h-10 w-full appearance-none rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-500 outline-none transition focus:border-[#7ec900] focus:ring-2 focus:ring-lime-100"
+                >
+                  <option value="">Select Method</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
+            </label>
+
+            <label className="block text-sm font-medium text-gray-700">
+              Payment Date Range
+              <span className="relative mt-1 block">
+                <input
+                  readOnly
+                  value="Start Date - End Date"
+                  className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-500 outline-none"
+                />
+                <CalendarDays className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+              </span>
+            </label>
+          </div>
+
+          {/* Row 3: Upload Product Image */}
+          <div>
+            <p className="mb-1 text-sm font-medium text-gray-700">Upload Product Image</p>
+            <div className="flex items-center gap-2">
+              <div className="flex h-10 flex-1 items-center rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-400">
+                {fileName || "No File Chosen"}
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-10 whitespace-nowrap rounded-md border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition"
+              >
+                Upload Image
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <DialogFooter className="border-t border-gray-200 px-6 py-4">
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            disabled={isLoading}
+            className="h-10 rounded-md border border-black bg-white px-6 text-sm font-semibold disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={isLoading}
+            className="h-10 rounded-md bg-[#befe35] px-6 text-sm font-semibold text-black disabled:opacity-50"
+          >
+            {isLoading ? "Processing..." : isEditing ? "Update" : "Submit"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

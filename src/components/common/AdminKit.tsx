@@ -235,16 +235,23 @@ export function AdminTopActions() {
 export function FilterPanel({
   children,
   collapsible = false,
+  onRegister,
 }: {
   children?: ReactNode;
   collapsible?: boolean;
+  onRegister?: () => void;
 }) {
   return (
     <section className="box_collapse">
       <div className="filter_header">
-        <span className="filter_icon_wrapper">
-          <SlidersHorizontal className="filter_icon" />
-        </span>
+        <button
+          type="button"
+          onClick={onRegister}
+          className="filter_icon_wrapper flex items-center justify-center bg-[#b6f000] p-2 rounded-lg hover:opacity-90 transition-opacity focus:outline-none cursor-pointer"
+          aria-label="Open register form"
+        >
+          <SlidersHorizontal className="filter_icon text-black w-6 h-6 -mt-[7px]" />
+        </button>
         <h2 className="filter_title">Filters</h2>
       </div>
       {children && (
@@ -274,10 +281,10 @@ export function TextField({
       <input
         value={value || ""}
         onChange={onChange}
-        className="form_input_field"
+        className="h-10 w-full appearance-none rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-500 outline-none transition focus:border-[#7ec900] focus:ring-2 focus:ring-lime-100"
         placeholder={placeholder}
       />
-    </label>
+    </label> 
   );
 }
 
@@ -295,13 +302,13 @@ export function SelectField({
   children?: React.ReactNode;
 }) {
   return (
-    <label className="block text-sm font-medium text-gray-700">
+    <label className="form-label">
       {label}
       <span className="relative mt-2 block">
         <select
           value={value || ""}
           onChange={onChange}
-          className="h-10 w-full appearance-none rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-500 outline-none transition focus:border-[#7ec900] focus:ring-2 focus:ring-lime-100"
+          className="h-10 w-full appearance-none rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-500 outline-none transition focus:border-[#7ec900] focus:ring-2 focus:ring-lime-100 form_input_field"
         >
           <option value="">{placeholder}</option>
           {children || (
@@ -312,7 +319,7 @@ export function SelectField({
             </>
           )}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black" />
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
       </span>
     </label>
   );
@@ -323,7 +330,7 @@ export function DateField({ label, value = "Start Date - End Date" }: {
   value?: string;
 }) {
   return (
-    <label className="block text-sm font-medium text-gray-700">
+    <label className="form-label">
       {label}
       <span className="relative mt-2 block">
         <input
@@ -364,13 +371,13 @@ export function TableActions({
         Download Excel
         <Download className="h-4 w-4" />
       </button>
-      {/* <button
+      <button
         onClick={onRegister}
-        className="inline-flex h-10 items-center gap-2 rounded-md bg-black px-4 text-sm font-semibold text-white"
+        className="btn_primary_black"
       >
         {primaryLabel}
         <Plus className="h-5 w-5 text-[#befe35]" />
-      </button> */}
+      </button>
     </div>
   );
 }

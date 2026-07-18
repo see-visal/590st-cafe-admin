@@ -142,12 +142,12 @@ export default function Customers() {
       </div>
 
       <FilterPanel>
-        <TextField
+        {/* <TextField
           label="Search Customer"
           placeholder="Name or contact info..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-        />
+        /> */}
       </FilterPanel>
 
       <DataCard
