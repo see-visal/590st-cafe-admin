@@ -240,8 +240,8 @@ export default function Categories() {
         }}
       >
         {selectedCategory && (
-          <div className="rounded-lg bg-white p-4">
-            <h3 className="mb-6 text-lg font-semibold">Category Information</h3>
+          <div className="admin_modal_form_wrap">
+            <h3 className="mb-6 text-lg font-semibold text-[#1E1E1E]">Category Information</h3>
             <DetailGrid>
               <DetailItem label="Name">{selectedCategory.name}</DetailItem>
               <DetailItem label="Status">
