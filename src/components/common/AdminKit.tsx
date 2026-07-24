@@ -21,6 +21,7 @@ import {
   Search,
   SlidersHorizontal,
   Trash2,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import {
@@ -698,7 +699,7 @@ export function RowActions({
   const actions = [
     [Eye, onView, "View"],
     [Pencil, onEdit, "Edit"],
-    [onHistory ? Clock : Trash2, onHistory ?? onDelete, onHistory ? "History" : "Delete"],
+    [onHistory ? Clock : Trash2, onHistory ?? onDelete, onHistory ? "Disable" : "Delete"],
   ] as const;
 
   return (
@@ -782,6 +783,101 @@ export function StatTile({
         {hint && <p className="metric_hint">{hint}</p>}
       </div>
     </div>
+  );
+}
+
+export function AdminStatusAlert({
+  open,
+  onOpenChange,
+  variant = "success",
+  title,
+  headline,
+  description,
+  confirmLabel = "Okay",
+  cancelLabel = "Cancel",
+  onConfirm,
+  isLoading = false,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  variant?: "success" | "confirm";
+  title: string;
+  headline?: string;
+  description?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm?: () => Promise<void> | void;
+  isLoading?: boolean;
+}) {
+  const handleConfirm = async () => {
+    if (onConfirm) {
+      await onConfirm();
+    } else {
+      onOpenChange(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="admin_status_alert sm:max-w-[440px]">
+        <div className="admin_status_alert_body">
+          <div
+            className={cn(
+              "admin_status_alert_icon",
+              variant === "success" ? "is_success" : "is_confirm"
+            )}
+          >
+            {variant === "success" ? (
+              <Check className="admin_status_alert_icon_glyph" />
+            ) : (
+              <TriangleAlert className="admin_status_alert_icon_glyph" />
+            )}
+          </div>
+          <p
+            className={cn(
+              "admin_status_alert_title",
+              variant === "success" && "is_success"
+            )}
+          >
+            {title}
+          </p>
+          {headline && <p className="admin_status_alert_headline">{headline}</p>}
+          {description && (
+            <p className="admin_status_alert_desc">{description}</p>
+          )}
+        </div>
+        <DialogFooter className="admin_status_alert_footer">
+          {variant === "confirm" ? (
+            <>
+              <button
+                type="button"
+                className="btn_outline_black"
+                onClick={() => onOpenChange(false)}
+                disabled={isLoading}
+              >
+                {cancelLabel}
+              </button>
+              <button
+                type="button"
+                className="btn_primary_black admin_status_alert_confirm_btn"
+                onClick={handleConfirm}
+                disabled={isLoading}
+              >
+                {isLoading ? "Processing..." : confirmLabel}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn_primary_yellow_lg admin_status_alert_okay_btn"
+              onClick={() => onOpenChange(false)}
+            >
+              {confirmLabel}
+            </button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1107,6 +1203,81 @@ export function FormProductSelect({
           )}
         </PopoverContent>
       </Popover>
+    </div>
+  );
+}
+
+export function FormCategoryMultiSelect({
+  label,
+  options,
+  value,
+  onChange,
+  placeholder = "Select categories",
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  value: string[];
+  onChange?: (values: string[]) => void;
+  placeholder?: string;
+}) {
+  const available = options.filter((option) => !value.includes(option.value));
+
+  const addCategory = (nextValue: string) => {
+    if (!nextValue || value.includes(nextValue)) return;
+    onChange?.([...value, nextValue]);
+  };
+
+  const removeCategory = (nextValue: string) => {
+    onChange?.(value.filter((item) => item !== nextValue));
+  };
+
+  return (
+    <div className="form_field">
+      <span className="form_field_label">{label}</span>
+      <div className="form_field_control form_field_multi_select">
+        <div className="form_multi_select_inner">
+          <div className="form_multi_select_tags">
+            {value.length === 0 ? (
+              <span className="form_multi_select_placeholder">{placeholder}</span>
+            ) : (
+              value.map((item) => {
+                const option = options.find((entry) => entry.value === item);
+                return (
+                  <span key={item} className="form_multi_select_tag">
+                    {option?.label ?? item}
+                    <button
+                      type="button"
+                      className="form_multi_select_tag_remove"
+                      onClick={() => removeCategory(item)}
+                      aria-label={`Remove ${option?.label ?? item}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                );
+              })
+            )}
+          </div>
+          {available.length > 0 && (
+            <select
+              className="form_multi_select_add"
+              value=""
+              onChange={(e) => addCategory(e.target.value)}
+              aria-label={`Add ${label}`}
+            >
+              <option value="">
+                {value.length === 0 ? placeholder : "Add category"}
+              </option>
+              {available.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        <ChevronDown className="form_field_icon" />
+      </div>
     </div>
   );
 }

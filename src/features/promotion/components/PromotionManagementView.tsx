@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { type DateRange } from "react-day-picker";
 import toast from "react-hot-toast";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
+  AdminStatusAlert,
   AdminTopActions,
   Cell,
   CheckBox,
@@ -28,6 +30,10 @@ import {
   TextField,
 } from "@/components/common/AdminKit";
 import {
+  PromotionStatusBadge,
+  PromotionTypeBadge,
+} from "@/features/promotion/components/PromotionBadges";
+import {
   EMPTY_PROMOTION_FORM,
   PROMOTION_CATEGORY_OPTIONS,
   PROMOTION_PRODUCT_OPTIONS,
@@ -39,7 +45,6 @@ import {
   type PromotionStatus,
   type PromotionType,
 } from "@/features/promotion/constants/promotion.mock";
-import { cn } from "@/lib/utils";
 
 const PROMOTION_TABLE_HEADERS = [
   "No",
@@ -56,31 +61,9 @@ const PROMOTION_TABLE_HEADERS = [
   "Action",
 ] as const;
 
-function PromotionTypeBadge({ type }: { type: PromotionType }) {
-  const toneClass = {
-    Percentage: "is_percentage",
-    "Fixed Amount": "is_fixed",
-    "Buy X Get Y": "is_bogo",
-  }[type];
-
-  return (
-    <span className={cn("promotion_type_badge", toneClass)}>{type}</span>
-  );
-}
-
-function PromotionStatusBadge({ status }: { status: PromotionStatus }) {
-  const toneClass = {
-    Active: "is_active",
-    Expired: "is_expired",
-    Scheduled: "is_scheduled",
-  }[status];
-
-  return (
-    <span className={cn("promotion_status_badge", toneClass)}>{status}</span>
-  );
-}
-
 export default function PromotionManagementView() {
+  const router = useRouter();
+  const [rows, setRows] = useState<PromotionListRow[]>(STATIC_PROMOTION_ROWS);
   const [promoCode, setPromoCode] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -91,9 +74,13 @@ export default function PromotionManagementView() {
   const [formFields, setFormFields] = useState<PromotionFormFields>(
     EMPTY_PROMOTION_FORM
   );
+  const [disableTarget, setDisableTarget] = useState<PromotionListRow | null>(null);
+  const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
+  const [disableSuccessOpen, setDisableSuccessOpen] = useState(false);
+  const [disableLoading, setDisableLoading] = useState(false);
 
   const filteredRows = useMemo(() => {
-    return STATIC_PROMOTION_ROWS.filter((row) => {
+    return rows.filter((row) => {
       const matchesCode =
         !promoCode ||
         row.promoCode.toLowerCase().includes(promoCode.toLowerCase()) ||
@@ -108,7 +95,34 @@ export default function PromotionManagementView() {
 
       return matchesCode && matchesType && matchesStatus;
     });
-  }, [promoCode, typeFilter, statusFilter]);
+  }, [rows, promoCode, typeFilter, statusFilter]);
+
+  const handleDisableClick = (row: PromotionListRow) => {
+    if (row.status !== "Active") {
+      toast.error("Only active promotions can be disabled.");
+      return;
+    }
+    setDisableTarget(row);
+    setDisableConfirmOpen(true);
+  };
+
+  const handleConfirmDisable = async () => {
+    if (!disableTarget) return;
+
+    setDisableLoading(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      setRows((current) =>
+        current.map((row) =>
+          row.id === disableTarget.id ? { ...row, status: "Expired" as PromotionStatus } : row
+        )
+      );
+      setDisableConfirmOpen(false);
+      setDisableSuccessOpen(true);
+    } finally {
+      setDisableLoading(false);
+    }
+  };
 
   const handleOpenForm = (row?: PromotionListRow) => {
     setIsEditing(Boolean(row));
@@ -154,7 +168,7 @@ export default function PromotionManagementView() {
         title="Promotion List"
         breadcrumbs={[
           { label: "Home", href: "/" },
-          { label: "Promotions" },
+          { label: "Promotion" },
           { label: "Promotion List" },
         ]}
         rightSlot={<AdminTopActions />}
@@ -227,9 +241,9 @@ export default function PromotionManagementView() {
               </Cell>
               <Cell>
                 <RowActions
-                  onView={() => undefined}
+                  onView={() => router.push(`/promotions/${row.id}`)}
                   onEdit={() => handleOpenForm(row)}
-                  onHistory={() => undefined}
+                  onHistory={() => handleDisableClick(row)}
                 />
               </Cell>
             </Row>
@@ -368,6 +382,43 @@ export default function PromotionManagementView() {
           </div>
         </ModalGrid>
       </FormModal>
+
+      <AdminStatusAlert
+        open={disableConfirmOpen}
+        onOpenChange={(open) => {
+          setDisableConfirmOpen(open);
+          if (!open) setDisableTarget(null);
+        }}
+        variant="confirm"
+        title="Are you sure you want to disable this promotion?"
+        headline={disableTarget?.promoCode}
+        description={
+          disableTarget
+            ? `${disableTarget.name} will no longer be available at checkout once disabled.`
+            : undefined
+        }
+        confirmLabel="Yes, Disable"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDisable}
+        isLoading={disableLoading}
+      />
+
+      <AdminStatusAlert
+        open={disableSuccessOpen}
+        onOpenChange={(open) => {
+          setDisableSuccessOpen(open);
+          if (!open) setDisableTarget(null);
+        }}
+        variant="success"
+        title="Promotion Disabled Successfully"
+        headline={disableTarget?.promoCode}
+        description={
+          disableTarget
+            ? `${disableTarget.name} has been disabled and moved to expired status.`
+            : undefined
+        }
+        confirmLabel="Okay"
+      />
     </PageShell>
   );
 }

@@ -2,6 +2,7 @@ import {
   Archive,
   BadgePercent,
   BarChart3,
+  CircleDollarSign,
   Coffee,
   Home,
   Package,
@@ -23,6 +24,12 @@ const navigationSections = [
     title: "Operations",
     dividerBefore: true,
     items: [
+      {
+        name: "POS",
+        href: "/pos",
+        icon: CircleDollarSign,
+        label: "nav_pos",
+      },
       {
         name: "Orders",
         href: "/orders",
@@ -67,10 +74,10 @@ const navigationSections = [
         label: "nav_customers",
       },
       {
-        name: "Promotions",
+        name: "Promotion",
         href: "/promotions",
         icon: BadgePercent,
-        label: "nav_promotions",
+        label: "nav_promotion",
       },
       // { name: "Ratings", href: "/ratings", icon: Star, label: "nav_ratings" },
     ],

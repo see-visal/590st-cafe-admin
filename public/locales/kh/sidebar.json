@@ -1,11 +1,13 @@
 {
   "nav_home": "ទំព័រដើម",
+  "nav_pos": "POS",
   "nav_orders": "ការបញ្ជាទិញ",
   "nav_barista": "បារីស្តា",
   "nav_products": "ផលិតផល",
   "nav_categories": "ប្រភេទ",
   "nav_inventory": "ស្តុក",
   "nav_customers": "អតិថិជន",
+  "nav_promotion": "Promotion",
   "nav_ratings": "ការវាយតម្លៃ",
   "nav_report": "របាយការណ៍",
   "nav_staff": "បុគ្គលិក",
