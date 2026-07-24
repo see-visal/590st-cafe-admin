@@ -12,15 +12,17 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, breadcrumbs, rightSlot }: PageHeaderProps) {
   return (
-    <div className="page_header">
-      <div className="header_top_row">
-        <div className="header_breadcrumb_row">
-          <SidebarCollapseTrigger />
-          <Breadcrumbs items={breadcrumbs} />
+    <>
+      <div className="page_header">
+        <div className="header_top_row">
+          <div className="header_breadcrumb_row">
+            <SidebarCollapseTrigger />
+            <Breadcrumbs items={breadcrumbs} />
+          </div>
+          {rightSlot}
         </div>
-        {rightSlot}
       </div>
       <h1 className="page_title">{title}</h1>
-    </div>
+    </>
   );
 }

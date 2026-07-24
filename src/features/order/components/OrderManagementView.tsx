@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { type DateRange } from "react-day-picker";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
@@ -10,6 +11,7 @@ import {
   DetailGrid,
   DetailItem,
   DetailModal,
+  DateField,
   FilterActions,
   FilterPanel,
   PaginationFooter,
@@ -19,25 +21,82 @@ import {
   SimpleTable,
   StatusBadge,
   TableActions,
-  TextField,
 } from "@/components/common/AdminKit";
 import { useOrders, useCancelOrder } from "@/hooks/useAdmin";
 import { Order } from "@/features/dashboard/api/dashboardApi";
 
+const ORDER_TABLE_HEADERS = [
+  "No",
+  "Image",
+  "Order ID",
+  "Type",
+  "Items",
+  "Total Price",
+  "Orders Date",
+  "Status",
+  "Action",
+] as const;
+
+/** Static preview rows for UI matching design mockup when API has no orders */
+const STATIC_ORDER_ROWS = [
+  {
+    id: "static-1",
+    orderId: "#2f494o45",
+    type: "Takeaway",
+    items: "x1 Coca",
+    totalPrice: "$1.00 USD",
+    orderDate: "10 Feb,2025 10:00 AM",
+    status: "Served",
+  },
+  {
+    id: "static-2",
+    orderId: "#2f494o45",
+    type: "Delivery - Toul Kork",
+    items: "x1 Hot-White-Russian-R...",
+    totalPrice: "$1.00 USD",
+    orderDate: "10 Feb,2025 10:00 AM",
+    status: "Served",
+  },
+  {
+    id: "static-3",
+    orderId: "#2f494o45",
+    type: "Takeaway",
+    items: "x1 Hanuman 1 Yur",
+    totalPrice: "$1.00 USD",
+    orderDate: "10 Feb,2025 10:00 AM",
+    status: "Served",
+  },
+  {
+    id: "static-4",
+    orderId: "#2f494o45",
+    type: "Takeaway",
+    items: "x1 Gangzberg 1 Yur",
+    totalPrice: "$1.00 USD",
+    orderDate: "10 Feb,2025 10:00 AM",
+    status: "Served",
+  },
+  {
+    id: "static-5",
+    orderId: "#2f494o45",
+    type: "Takeaway",
+    items: "x1 Cambodia 1 Kes",
+    totalPrice: "$1.00 USD",
+    orderDate: "10 Feb,2025 10:00 AM",
+    status: "Served",
+  },
+] as const;
+
 export default function Orders() {
-  const { orders, isLoading, refetch } = useOrders();
+  const { orders = [], isLoading, refetch } = useOrders();
   const { cancel: cancelOrder, isLoading: isCanceling } = useCancelOrder();
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch = order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = !filterStatus || order.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  const hasApiData = orders && orders.length > 0;
+  const displayCount = hasApiData ? orders.length : STATIC_ORDER_ROWS.length;
 
   const handleViewDetail = (order: Order) => {
     setSelectedOrder(order);
@@ -55,12 +114,10 @@ export default function Orders() {
     }
   };
 
-  const getTotalValue = filteredOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-
   return (
     <PageShell>
       <PageHeader
-        title="Orders Management"
+        title="Orders List"
         breadcrumbs={[
           { label: "Home", href: "/" },
           { label: "Orders" },
@@ -70,52 +127,55 @@ export default function Orders() {
       />
 
       <FilterPanel>
-        <TextField label="Order Number" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
-        <SelectField label="Status" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-          <option value="">All Status</option>
+        <SelectField
+          label="Status"
+          placeholder="Select Method"
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+        >
           <option value="PENDING">Pending</option>
           <option value="CONFIRMED">Confirmed</option>
           <option value="PREPARING">Preparing</option>
           <option value="READY">Ready</option>
+          <option value="SERVED">Served</option>
           <option value="COMPLETED">Completed</option>
           <option value="CANCELLED">Cancelled</option>
         </SelectField>
+
+        <DateField
+          label="Orders Date Range"
+          value={dateRange}
+          onChange={setDateRange}
+        />
+
         <FilterActions />
       </FilterPanel>
 
       <DataCard
         title="Orders History"
-        meta={`Total Orders: ${filteredOrders.length} | Total Value: ${getTotalValue.toLocaleString()} KHR`}
-        actions={<TableActions primaryLabel="New Order" />}
+        meta={`Recent Transactions: ${displayCount}`}
+        actions={<TableActions showRegister={false} />}
       >
-        {isLoading ? (
-          <div className="py-8 text-center text-gray-500">Loading orders...</div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="py-8 text-center text-gray-500">No orders found</div>
-        ) : (
-          <>
-            <SimpleTable
-              headers={[
-                "No",
-                "Order #",
-                "Amount",
-                "Type",
-                "Status",
-                "Date",
-                "Action",
-              ]}
-            >
-              {filteredOrders.map((order, index) => (
+        <SimpleTable headers={[...ORDER_TABLE_HEADERS]}>
+          {hasApiData
+            ? orders.map((order, index) => (
                 <Row key={order.id} striped={index % 2 === 1}>
                   <Cell>{index + 1}</Cell>
-                  <Cell className="font-semibold">{order.orderNumber}</Cell>
-                  <Cell>{order.totalAmount.toLocaleString()} KHR</Cell>
+                  <Cell>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-900 text-white shadow-xs">
+                      <span className="text-xs font-semibold text-[#befe35]">🥤</span>
+                    </div>
+                  </Cell>
+                  <Cell className="font-medium">{order.orderNumber}</Cell>
                   <Cell>{order.type}</Cell>
+                  <Cell>{order.items?.length ? `${order.items.length} items` : "-"}</Cell>
+                  <Cell className="font-semibold">{order.totalAmount.toLocaleString()} KHR</Cell>
+                  <Cell>{new Date(order.createdAt).toLocaleDateString()}</Cell>
                   <Cell>
                     <StatusBadge
                       label={order.status}
                       variant={
-                        order.status === "COMPLETED"
+                        order.status === "COMPLETED" || order.status === "SERVED"
                           ? "success"
                           : order.status === "CANCELLED"
                           ? "destructive"
@@ -123,20 +183,43 @@ export default function Orders() {
                       }
                     />
                   </Cell>
-                  <Cell>{new Date(order.createdAt).toLocaleDateString()}</Cell>
                   <Cell>
                     <RowActions
                       onView={() => handleViewDetail(order)}
+                      onEdit={() => undefined}
                       onDelete={() => handleCancelOrder(order.id)}
                       isLoading={isCanceling}
                     />
                   </Cell>
                 </Row>
+              ))
+            : STATIC_ORDER_ROWS.map((order, index) => (
+                <Row key={order.id} striped={index % 2 === 1}>
+                  <Cell>{index + 1}</Cell>
+                  <Cell>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-900 text-white shadow-xs">
+                      <span className="text-xs font-semibold text-[#befe35]">🥤</span>
+                    </div>
+                  </Cell>
+                  <Cell className="font-medium">{order.orderId}</Cell>
+                  <Cell>{order.type}</Cell>
+                  <Cell>{order.items}</Cell>
+                  <Cell className="font-semibold">{order.totalPrice}</Cell>
+                  <Cell>{order.orderDate}</Cell>
+                  <Cell>
+                    <StatusBadge label={order.status} tone="success" />
+                  </Cell>
+                  <Cell>
+                    <RowActions
+                      onView={() => undefined}
+                      onEdit={() => undefined}
+                      onDelete={() => undefined}
+                    />
+                  </Cell>
+                </Row>
               ))}
-            </SimpleTable>
-            <PaginationFooter />
-          </>
-        )}
+        </SimpleTable>
+        <PaginationFooter />
       </DataCard>
 
       <DetailModal
@@ -145,8 +228,8 @@ export default function Orders() {
         title="Order Details"
       >
         {selectedOrder && (
-          <div className="rounded-lg bg-white p-4">
-            <h3 className="mb-6 text-lg font-semibold">Order Information</h3>
+          <div className="admin_modal_form_wrap">
+            <h3 className="mb-6 text-lg font-semibold text-[#1E1E1E]">Order Information</h3>
             <DetailGrid>
               <DetailItem label="Order Number">{selectedOrder.orderNumber}</DetailItem>
               <DetailItem label="Status">
@@ -166,7 +249,7 @@ export default function Orders() {
 
             {selectedOrder.items && selectedOrder.items.length > 0 && (
               <div className="mt-6">
-                <h4 className="mb-3 font-semibold">Order Items</h4>
+                <h4 className="mb-3 font-semibold text-[#1E1E1E]">Order Items</h4>
                 <SimpleTable headers={["Product", "Qty", "Price", "Total"]}>
                   {selectedOrder.items.map((item) => (
                     <Row key={item.id}>
