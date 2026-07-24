@@ -14,6 +14,7 @@ export const config = {
     "/categories",
     "/inventory",
     "/customers",
+    "/promotions",
     "/ratings",
     "/report",
     "/staff",

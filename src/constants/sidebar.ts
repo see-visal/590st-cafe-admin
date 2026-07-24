@@ -1,5 +1,6 @@
 import {
   Archive,
+  BadgePercent,
   BarChart3,
   Coffee,
   Home,
@@ -64,6 +65,12 @@ const navigationSections = [
         href: "/customers",
         icon: UsersRound,
         label: "nav_customers",
+      },
+      {
+        name: "Promotions",
+        href: "/promotions",
+        icon: BadgePercent,
+        label: "nav_promotions",
       },
       // { name: "Ratings", href: "/ratings", icon: Star, label: "nav_ratings" },
     ],

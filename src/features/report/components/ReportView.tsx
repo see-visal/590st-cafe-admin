@@ -1,43 +1,73 @@
 "use client";
 
-import { useMemo } from "react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
   AdminTopActions,
+  Cell,
   DataCard,
+  PaginationFooter,
+  Row,
+  SimpleTable,
   StatTile,
   TableActions,
 } from "@/components/common/AdminKit";
-import { useSalesReport } from "@/hooks/useAdmin";
+import {
+  formatUsd,
+  SETTLEMENT_HISTORY,
+  SETTLEMENT_SUMMARY,
+  type SettlementRow,
+  type SettlementStatus,
+} from "@/features/report/constants/report.mock";
+import { cn } from "@/lib/utils";
 
-function formatKhr(amount: number) {
-  return `${amount.toLocaleString()} KHR`;
+function SettlementStatusBadge({ status }: { status: SettlementStatus }) {
+  const toneClass = {
+    Pending: "is_pending",
+    Settled: "is_settled",
+    Discrepancy: "is_discrepancy",
+  }[status];
+
+  return (
+    <span className={cn("settlement_status_badge", toneClass)}>{status}</span>
+  );
 }
 
+function MoneyCell({
+  amount,
+  tone = "default",
+  signed = false,
+}: {
+  amount: number;
+  tone?: "default" | "discount" | "refund" | "net";
+  signed?: boolean;
+}) {
+  const prefix = signed && amount > 0 ? "-" : "";
+  return (
+    <span className={cn("settlement_amount", tone !== "default" && `is_${tone}`)}>
+      {prefix}
+      {formatUsd(amount)}
+    </span>
+  );
+}
+
+const SETTLEMENT_TABLE_HEADERS = [
+  "Date",
+  "Gross Revenue",
+  "Discounts",
+  "Refunds",
+  "Net Revenue",
+  "Cash",
+  "Digital",
+  "Orders",
+  "Avg Order",
+  "Settled By",
+  "Status",
+] as const;
+
 export default function Report() {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(end.getDate() - 30);
-
-  const startDate = start.toISOString().slice(0, 10);
-  const endDate = end.toISOString().slice(0, 10);
-
-  const { report, isLoading } = useSalesReport(startDate, endDate);
-
-  const cashTotal = useMemo(() => {
-    if (!report) return 0;
-    return report.paymentMethods
-      .filter((p) => p.method === "CASH")
-      .reduce((sum, p) => sum + p.amount, 0);
-  }, [report]);
-
-  const digitalTotal = useMemo(() => {
-    if (!report) return 0;
-    return report.paymentMethods
-      .filter((p) => p.method !== "CASH")
-      .reduce((sum, p) => sum + p.amount, 0);
-  }, [report]);
+  const summary = SETTLEMENT_SUMMARY;
+  const rows = SETTLEMENT_HISTORY;
 
   return (
     <PageShell>
@@ -51,60 +81,65 @@ export default function Report() {
         rightSlot={<AdminTopActions />}
       />
 
-      {isLoading ? (
-        <p className="text-sm text-gray-500">Loading report...</p>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatTile
-              title="Gross Revenue"
-              value={formatKhr(report?.totalSales ?? 0)}
-            />
-            <StatTile title="Cash Revenue" value={formatKhr(cashTotal)} />
-            <StatTile title="Digital Revenue" value={formatKhr(digitalTotal)} />
-            <StatTile
-              title="Total Orders"
-              value={String(report?.totalOrders ?? 0)}
-            />
-          </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile
+          title="Gross Revenue"
+          value={`${formatUsd(summary.grossRevenue)} USD`}
+          tone="gray"
+        />
+        <StatTile
+          title="Cash Revenue"
+          value={`${formatUsd(summary.cashRevenue)} USD`}
+          tone="gray"
+        />
+        <StatTile
+          title="Digital Revenue"
+          value={`${formatUsd(summary.digitalRevenue)} USD`}
+          tone="gray"
+        />
+        <StatTile
+          title="Net Revenue"
+          value={`${formatUsd(summary.netRevenue)} USD`}
+          tone="gray"
+        />
+      </div>
 
-          <DataCard
-            title="Top Products"
-            meta={report?.period ?? `${startDate} to ${endDate}`}
-            actions={<TableActions />}
-          >
-            <div className="space-y-3 p-4">
-              {(report?.topProducts ?? []).length === 0 ? (
-                <p className="text-sm text-gray-400">No product sales in this period.</p>
-              ) : (
-                report?.topProducts.map((product) => (
-                  <div
-                    key={product.name}
-                    className="flex items-center justify-between border-b border-gray-100 pb-2"
-                  >
-                    <span>{product.name}</span>
-                    <span className="font-semibold">{product.count} sold</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </DataCard>
+      <DataCard
+        title="Method Orders"
+        meta={`Settle Orders: ${summary.settleOrders}`}
+        actions={<TableActions showRegister={false} />}
+      >
+        <SimpleTable headers={[...SETTLEMENT_TABLE_HEADERS]}>
+          {rows.map((row: SettlementRow, index) => (
+            <Row key={row.id} striped={index % 2 === 1}>
+              <Cell>{row.date}</Cell>
+              <Cell>{formatUsd(row.grossRevenue)}</Cell>
+              <Cell>
+                <MoneyCell amount={row.discounts} tone="discount" signed />
+              </Cell>
+              <Cell>
+                <MoneyCell amount={row.refunds} tone="refund" signed />
+              </Cell>
+              <Cell>
+                <MoneyCell amount={row.netRevenue} tone="net" />
+              </Cell>
+              <Cell>{formatUsd(row.cash)}</Cell>
+              <Cell>{formatUsd(row.digital)}</Cell>
+              <Cell>{row.orders}</Cell>
+              <Cell>{formatUsd(row.avgOrder)}</Cell>
+              <Cell>{row.settledBy}</Cell>
+              <Cell>
+                <SettlementStatusBadge status={row.status} />
+              </Cell>
+            </Row>
+          ))}
+        </SimpleTable>
 
-          <DataCard title="Payment Methods" meta="Breakdown by method">
-            <div className="space-y-3 p-4">
-              {(report?.paymentMethods ?? []).map((method) => (
-                <div
-                  key={method.method}
-                  className="flex items-center justify-between border-b border-gray-100 pb-2"
-                >
-                  <span>{method.method}</span>
-                  <span className="font-semibold">{formatKhr(method.amount)}</span>
-                </div>
-              ))}
-            </div>
-          </DataCard>
-        </>
-      )}
+        <div className="settlement_table_footer">
+          <span className="settlement_table_count">Showing {rows.length} items</span>
+          <PaginationFooter />
+        </div>
+      </DataCard>
     </PageShell>
   );
 }

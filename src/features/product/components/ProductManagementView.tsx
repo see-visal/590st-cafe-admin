@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { type DateRange } from "react-day-picker";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -13,12 +12,14 @@ import {
   DateField,
   DetailGrid,
   DetailItem,
+  DetailImage,
   DetailModal,
   FilterActions,
   FilterPanel,
   FormInput,
   FormModal,
   FormSelect,
+  FormImageUpload,
   ModalGrid,
   PaginationFooter,
   Row,
@@ -106,16 +107,32 @@ const STATIC_PRODUCT_ROWS = [
   },
 ] as const;
 
+type StaticProductRow = (typeof STATIC_PRODUCT_ROWS)[number];
+
+type ProductDetailView = {
+  name: string;
+  amount: string;
+  category: string;
+  paymentStartDate: string;
+  paymentEndDate: string;
+  status: string;
+  imageUrl?: string;
+  editProduct?: ProductResponse;
+};
+
 export default function Products() {
   // State for UI
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductResponse | null>(null);
+  const [detailView, setDetailView] = useState<ProductDetailView | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [amountSearch, setAmountSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [formDateRange, setFormDateRange] = useState<DateRange | undefined>();
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   // API hooks
   const { products = [], isLoading: productsLoading, refetch: refetchProducts } = useProducts();
@@ -146,16 +163,20 @@ export default function Products() {
         status: product.status,
         imageUrl: product.imageUrl || "",
       });
+      setFormDateRange(undefined);
+      setImageFile(null);
     } else {
       setIsEditing(false);
       setSelectedProduct(null);
       setFormData({
         name: "",
         price: 0,
-        categoryId: categories[0]?.id || 0,
-        status: "ACTIVE",
+        categoryId: 0,
+        status: undefined,
         imageUrl: "",
       });
+      setFormDateRange(undefined);
+      setImageFile(null);
     }
     setFormOpen(true);
   };
@@ -164,6 +185,16 @@ export default function Products() {
     setFormOpen(false);
     setIsEditing(false);
     setSelectedProduct(null);
+    setFormDateRange(undefined);
+    setImageFile(null);
+  };
+
+  const handleImageChange = (file: File | null) => {
+    setImageFile(file);
+    setFormData((prev) => ({
+      ...prev,
+      imageUrl: file ? URL.createObjectURL(file) : prev.imageUrl || "",
+    }));
   };
 
   const handleSubmitForm = async () => {
@@ -198,7 +229,37 @@ export default function Products() {
 
   const handleViewDetail = (product: ProductResponse) => {
     setSelectedProduct(product);
+    setDetailView({
+      name: product.name,
+      amount: `$${product.price.toFixed(2)}`,
+      category: getCategoryName(product.categoryId),
+      paymentStartDate: "10-Jan-2025",
+      paymentEndDate: "10-Feb-2025",
+      status: "Paid",
+      imageUrl: product.imageUrl,
+      editProduct: product,
+    });
     setDetailOpen(true);
+  };
+
+  const handleViewMockDetail = (row: StaticProductRow) => {
+    setSelectedProduct(null);
+    setDetailView({
+      name: row.name,
+      amount: row.amount,
+      category: row.category,
+      paymentStartDate: row.startDate,
+      paymentEndDate: row.endDate,
+      status: row.status,
+    });
+    setDetailOpen(true);
+  };
+
+  const handleDetailOpenChange = (open: boolean) => {
+    setDetailOpen(open);
+    if (!open) {
+      setDetailView(null);
+    }
   };
 
   const getCategoryName = (categoryId: number): string => {
@@ -302,7 +363,7 @@ export default function Products() {
                   </Cell>
                   <Cell>
                     <RowActions
-                      onView={() => undefined}
+                      onView={() => handleViewMockDetail(product)}
                       onEdit={() => handleOpenForm()}
                       onDelete={() => undefined}
                     />
@@ -317,54 +378,70 @@ export default function Products() {
       <FormModal
         open={formOpen}
         onOpenChange={handleCloseForm}
-        title={isEditing ? "Edit Product" : "Create New Product"}
-        submitLabel={isEditing ? "Update Product" : "Create Product"}
+        title="Product Register/Modify"
+        submitLabel="Submit"
         onSubmit={handleSubmitForm}
         isLoading={isCreating || isUpdating}
       >
         <ModalGrid>
           <FormInput
-            label="Product Name *"
-            placeholder="e.g., Coffee, Tea"
+            label="Name"
+            placeholder="Placeholder"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             required
           />
           <FormInput
-            label="Price (USD) *"
+            label="Amount"
             type="number"
-            placeholder="0"
-            value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+            placeholder="Placeholder"
+            value={formData.price || ""}
+            onChange={(e) =>
+              setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })
+            }
             required
           />
           <FormSelect
-            label="Category *"
-            value={formData.categoryId}
-            onChange={(e) => setFormData({ ...formData, categoryId: parseInt(e.target.value) })}
+            label="Status"
+            placeholder="Select Method"
+            value={formData.status ?? ""}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                status: (e.target.value || undefined) as ProductStatus | undefined,
+              })
+            }
+          >
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
+          </FormSelect>
+          <FormSelect
+            label="Category"
+            placeholder="Select Method"
+            value={formData.categoryId || ""}
+            onChange={(e) =>
+              setFormData({ ...formData, categoryId: parseInt(e.target.value, 10) })
+            }
             required
           >
-            <option value="">Select Category</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.name}
               </option>
             ))}
           </FormSelect>
-          <FormSelect
-            label="Status"
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value as ProductStatus })}
-          >
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
-          </FormSelect>
           <div className="md:col-span-2">
-            <FormInput
-              label="Image URL"
-              placeholder="https://example.com/image.jpg"
-              value={formData.imageUrl}
-              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+            <DateField
+              label="Payment Date Range"
+              value={formDateRange}
+              onChange={setFormDateRange}
+            />
+          </div>
+          <div className="md:col-span-3">
+            <FormImageUpload
+              label="Upload Product Image"
+              file={imageFile}
+              onChange={handleImageChange}
             />
           </div>
         </ModalGrid>
@@ -373,35 +450,38 @@ export default function Products() {
       {/* Detail Modal */}
       <DetailModal
         open={detailOpen}
-        onOpenChange={setDetailOpen}
-        title="Product Details"
+        onOpenChange={handleDetailOpenChange}
+        title="Product Detail"
         onEdit={() => {
+          const productToEdit = detailView?.editProduct;
           setDetailOpen(false);
-          if (selectedProduct) {
-            handleOpenForm(selectedProduct);
+          setDetailView(null);
+          if (productToEdit) {
+            handleOpenForm(productToEdit);
+          } else {
+            handleOpenForm();
           }
         }}
       >
-        {selectedProduct && (
+        {detailView && (
           <div className="admin_modal_form_wrap">
-            <h3 className="mb-6 text-lg font-semibold text-[#1E1E1E]">Product Information</h3>
             <DetailGrid>
-              <DetailItem label="Name">{selectedProduct.name}</DetailItem>
-              <DetailItem label="Price">
-                ${selectedProduct.price.toFixed(2)}
+              <DetailItem label="Name">{detailView.name}</DetailItem>
+              <DetailItem label="Amount">{detailView.amount}</DetailItem>
+              <DetailItem label="Category">{detailView.category}</DetailItem>
+              <DetailItem label="Payment Start Date">
+                {detailView.paymentStartDate}
               </DetailItem>
-              <DetailItem label="Category">
-                {getCategoryName(selectedProduct.categoryId)}
+              <DetailItem label="Payment End Date">
+                {detailView.paymentEndDate}
               </DetailItem>
               <DetailItem label="Status">
-                <StatusBadge
-                  label={selectedProduct.status}
-                  variant={selectedProduct.status === "ACTIVE" ? "success" : "secondary"}
-                />
+                <StatusBadge label={detailView.status} tone="success" />
               </DetailItem>
-              <DetailItem label="Created">
-                {new Date(selectedProduct.createdAt).toLocaleString()}
-              </DetailItem>
+              <div className="detail_item md:col-span-1">
+                <p className="detail_item_label">Image :</p>
+                <DetailImage src={detailView.imageUrl} alt={detailView.name} />
+              </div>
             </DetailGrid>
           </div>
         )}
