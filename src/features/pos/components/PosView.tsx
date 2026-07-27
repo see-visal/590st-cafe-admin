@@ -8,12 +8,12 @@ import {
   Plus,
   Search,
   ShoppingBag,
-  Trash2,
   X,
 } from "lucide-react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
-import { AdminTopActions } from "@/components/common/AdminKit";
+import { AdminTopActions, FormSelect } from "@/components/common/AdminKit";
+import { PosPaymentModal } from "@/features/pos/components/PosPaymentModal";
 import { cn } from "@/lib/utils";
 
 type PosProduct = {
@@ -43,9 +43,32 @@ const PRODUCTS: PosProduct[] = [
 ];
 
 const CART_ITEMS = [
-  { id: "c1", name: "Caffe Latte", note: "Less sugar · Oat milk", price: 5, quantity: 2, accent: "#7c4a2d" },
-  { id: "c2", name: "Butter Croissant", note: "Warm before serving", price: 3.2, quantity: 1, accent: "#d89b43" },
-  { id: "c3", name: "Matcha Green Tea", note: "Regular ice", price: 5.5, quantity: 1, accent: "#789b3d" },
+  {
+    id: "c1",
+    name: "Coca",
+    note: "This coca is nearly out of stock plz add",
+    originalPrice: 1,
+    price: 0.5,
+    quantity: 1,
+    accent: "#c41e3a",
+  },
+  {
+    id: "c2",
+    name: "Coca",
+    note: "This coca is nearly out of stock plz add",
+    originalPrice: 1,
+    price: 0.5,
+    quantity: 1,
+    accent: "#c41e3a",
+  },
+  {
+    id: "c3",
+    name: "Coca",
+    originalPrice: 1,
+    price: 0.5,
+    quantity: 1,
+    accent: "#c41e3a",
+  },
 ] as const;
 
 function ProductArtwork({ accent, compact = false }: { accent: string; compact?: boolean }) {
@@ -68,7 +91,13 @@ function QuantityControl({
   variant?: "product" | "cart";
 }) {
   return (
-    <div className={cn("pos_quantity_control", variant === "product" && "is_product")}>
+    <div
+      className={cn(
+        "pos_quantity_control",
+        variant === "product" && "is_product",
+        variant === "cart" && "is_cart",
+      )}
+    >
       <button type="button" aria-label="Decrease quantity"><Minus /></button>
       <span>{quantity}</span>
       <button type="button" aria-label="Increase quantity"><Plus /></button>
@@ -78,17 +107,21 @@ function QuantityControl({
 
 export default function PosView() {
   const [activeCategory, setActiveCategory] = useState("All");
+  const [diningOption, setDiningOption] = useState("");
+  const [tableOption, setTableOption] = useState("");
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const categories = ["All", "Food", "Drinks", "Beer"];
   const visibleProducts =
     activeCategory === "All"
       ? PRODUCTS
       : PRODUCTS.filter((product) => product.category === activeCategory);
 
+  const itemCount = CART_ITEMS.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = CART_ITEMS.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const discount = 2.5;
+  const discount = 0;
   const total = subtotal - discount;
 
   return (
@@ -166,7 +199,6 @@ export default function PosView() {
         <aside className="pos_order_panel" aria-label="Order summary">
           <div className="pos_order_header">
             <div>
-              <p>Current Order</p>
               <h2>Order Summary</h2>
             </div>
             <div className="pos_order_header_actions">
@@ -177,23 +209,25 @@ export default function PosView() {
           </div>
 
           <div className="pos_order_selects">
-            <label>
-              <span>Dining option</span>
-              <select defaultValue="">
-                <option value="" disabled>Select dining</option>
-                <option>Dine in</option>
-                <option>Takeaway</option>
-                <option>Delivery</option>
-              </select>
-            </label>
-            <label>
-              <span>Table</span>
-              <select defaultValue="">
-                <option value="" disabled>Select table</option>
-                <option>Table 01</option>
-                <option>Table 02</option>
-              </select>
-            </label>
+            <FormSelect
+              label="Dining option"
+              value={diningOption}
+              onChange={(event) => setDiningOption(event.target.value)}
+              placeholder="Select dining"
+            >
+              <option value="dine-in">Dine in</option>
+              <option value="takeaway">Takeaway</option>
+              <option value="delivery">Delivery</option>
+            </FormSelect>
+            <FormSelect
+              label="Table"
+              value={tableOption}
+              onChange={(event) => setTableOption(event.target.value)}
+              placeholder="Select table"
+            >
+              <option value="table-01">Table 01</option>
+              <option value="table-02">Table 02</option>
+            </FormSelect>
           </div>
 
           <div className="pos_cart_list">
@@ -201,42 +235,68 @@ export default function PosView() {
               <article key={item.id} className="pos_cart_item">
                 <ProductArtwork accent={item.accent} compact />
                 <div className="pos_cart_item_content">
-                  <div className="pos_cart_item_top">
-                    <div>
-                      <h3>{item.name}</h3>
-                      <p>{item.note}</p>
-                    </div>
-                    <button type="button" className="pos_cart_remove" aria-label={`Remove ${item.name}`}>
-                      <Trash2 />
-                    </button>
-                  </div>
+                  <h3>{item.name}</h3>
+                  {"note" in item && item.note ? <p>{item.note}</p> : null}
                   <div className="pos_cart_item_bottom">
-                    <strong>${item.price.toFixed(2)}</strong>
+                    <div className="pos_cart_price">
+                      {"originalPrice" in item && item.originalPrice ? (
+                        <span className="is_struck">${item.originalPrice.toFixed(2)}</span>
+                      ) : null}
+                      <strong>${item.price.toFixed(2)}</strong>
+                    </div>
                     <QuantityControl quantity={item.quantity} variant="cart" />
                   </div>
+                </div>
+                <div className="pos_cart_item_actions">
+                  <button
+                    type="button"
+                    className="pos_cart_action is_remove"
+                    aria-label={`Remove ${item.name}`}
+                  >
+                    <X />
+                  </button>
+                  <button type="button" className="pos_cart_action is_edit" aria-label={`Edit ${item.name}`}>
+                    <Pencil />
+                  </button>
                 </div>
               </article>
             ))}
           </div>
 
-          <div className="pos_order_totals">
-            <div><span>Subtotal · {CART_ITEMS.length} items</span><strong>${subtotal.toFixed(2)}</strong></div>
-            <div className="is_discount"><span>Total Discount</span><strong>-${discount.toFixed(2)}</strong></div>
-            <div className="is_total"><span>Grand Total</span><strong>${total.toFixed(2)}</strong></div>
-          </div>
+          <dl className="pos_order_totals">
+            <dt>Subtotal:</dt>
+            <dd>
+              ${subtotal.toFixed(2)} - {itemCount} {itemCount === 1 ? "Item" : "Items"}
+            </dd>
+            <dt>
+              <button type="button" className="pos_order_discount_link">
+                Total Discount:
+              </button>
+            </dt>
+            <dd>${discount.toFixed(2)}</dd>
+            <dt className="is_grand_total">Grand Total:</dt>
+            <dd className="is_grand_total">${total.toFixed(2)}</dd>
+          </dl>
 
           <div className="pos_order_ctas">
             <button type="button" className="btn_outline_black">
               <ShoppingBag />
               Save Draft
             </button>
-            <button type="button" className="btn_primary_yellow">
+            <button type="button" className="btn_primary_yellow" onClick={() => setPaymentOpen(true)}>
               Make a Payment
               <ArrowIcon />
             </button>
           </div>
         </aside>
       </div>
+
+      <PosPaymentModal
+        open={paymentOpen}
+        onOpenChange={setPaymentOpen}
+        items={CART_ITEMS}
+        total={total}
+      />
     </PageShell>
   );
 }

@@ -8,8 +8,10 @@
   "nav_inventory": "ស្តុក",
   "nav_customers": "អតិថិជន",
   "nav_promotion": "Promotion",
+  "nav_points": "Points",
   "nav_ratings": "ការវាយតម្លៃ",
   "nav_report": "របាយការណ៍",
   "nav_staff": "បុគ្គលិក",
+  "nav_audit": "Audit Trail",
   "nav_settings": "ការកំណត់"
 }
