@@ -1,11 +1,15 @@
 import {
   Archive,
+  BadgePercent,
   BarChart3,
+  CircleDollarSign,
   Coffee,
   Home,
   Package,
   ClipboardList,
+  ScrollText,
   Settings,
+  Stamp,
   Star,
   Tags,
   UserCog,
@@ -22,6 +26,12 @@ const navigationSections = [
     title: "Operations",
     dividerBefore: true,
     items: [
+      {
+        name: "POS",
+        href: "/pos",
+        icon: CircleDollarSign,
+        label: "nav_pos",
+      },
       {
         name: "Orders",
         href: "/orders",
@@ -65,6 +75,18 @@ const navigationSections = [
         icon: UsersRound,
         label: "nav_customers",
       },
+      {
+        name: "Promotion",
+        href: "/promotions",
+        icon: BadgePercent,
+        label: "nav_promotion",
+      },
+      {
+        name: "Points",
+        href: "/points",
+        icon: Stamp,
+        label: "nav_points",
+      },
       // { name: "Ratings", href: "/ratings", icon: Star, label: "nav_ratings" },
     ],
   },
@@ -78,6 +100,12 @@ const navigationSections = [
         href: "/staff",
         icon: UserCog,
         label: "nav_staff",
+      },
+      {
+        name: "Audit Trail",
+        href: "/audit-logs",
+        icon: ScrollText,
+        label: "nav_audit",
       },
       {
         name: "Settings",

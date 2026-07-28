@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ReactNode, useState } from "react";
+import { ReactNode, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { type DateRange } from "react-day-picker";
 import {
@@ -9,6 +9,7 @@ import {
   CalendarDays,
   Check,
   CheckCheck,
+  Clock,
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
@@ -20,6 +21,7 @@ import {
   Search,
   SlidersHorizontal,
   Trash2,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import {
@@ -43,6 +45,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
@@ -410,6 +413,71 @@ export function DateField({
   );
 }
 
+export function FormDateField({
+  label,
+  placeholder = "Select date",
+  value,
+  onChange,
+  required = false,
+}: {
+  label: string;
+  placeholder?: string;
+  value?: Date;
+  onChange?: (date: Date | undefined) => void;
+  required?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [internalDate, setInternalDate] = useState<Date | undefined>();
+  const date = value ?? internalDate;
+
+  const handleSelect = (next: Date | undefined) => {
+    if (onChange) {
+      onChange(next);
+    } else {
+      setInternalDate(next);
+    }
+    if (next) {
+      setOpen(false);
+    }
+  };
+
+  const displayValue = date
+    ? format(date, "dd MMM yyyy")
+    : placeholder;
+
+  return (
+    <div className="form_field">
+      <span className="form_field_label">
+        {label}
+        {required && <span className="form_field_required"> *</span>}
+      </span>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "form_field_control form_field_date text-left",
+              !date && "is_placeholder"
+            )}
+            aria-label={label}
+          >
+            <span className="truncate">{displayValue}</span>
+            <CalendarDays className="form_field_icon" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={handleSelect}
+            defaultMonth={date}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 export function FilterActions() {
   return (
     <div className="flex items-end justify-end gap-3 xl:col-span-4">
@@ -619,17 +687,19 @@ export function RowActions({
   onView,
   onEdit,
   onDelete,
+  onHistory,
   isLoading = false,
 }: {
   onView?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onHistory?: () => void;
   isLoading?: boolean;
 }) {
   const actions = [
     [Eye, onView, "View"],
     [Pencil, onEdit, "Edit"],
-    [Trash2, onDelete, "Delete"],
+    [onHistory ? Clock : Trash2, onHistory ?? onDelete, onHistory ? "Disable" : "Delete"],
   ] as const;
 
   return (
@@ -713,6 +783,101 @@ export function StatTile({
         {hint && <p className="metric_hint">{hint}</p>}
       </div>
     </div>
+  );
+}
+
+export function AdminStatusAlert({
+  open,
+  onOpenChange,
+  variant = "success",
+  title,
+  headline,
+  description,
+  confirmLabel = "Okay",
+  cancelLabel = "Cancel",
+  onConfirm,
+  isLoading = false,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  variant?: "success" | "confirm";
+  title: string;
+  headline?: string;
+  description?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm?: () => Promise<void> | void;
+  isLoading?: boolean;
+}) {
+  const handleConfirm = async () => {
+    if (onConfirm) {
+      await onConfirm();
+    } else {
+      onOpenChange(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="admin_status_alert sm:max-w-[440px]">
+        <div className="admin_status_alert_body">
+          <div
+            className={cn(
+              "admin_status_alert_icon",
+              variant === "success" ? "is_success" : "is_confirm"
+            )}
+          >
+            {variant === "success" ? (
+              <Check className="admin_status_alert_icon_glyph" />
+            ) : (
+              <TriangleAlert className="admin_status_alert_icon_glyph" />
+            )}
+          </div>
+          <p
+            className={cn(
+              "admin_status_alert_title",
+              variant === "success" && "is_success"
+            )}
+          >
+            {title}
+          </p>
+          {headline && <p className="admin_status_alert_headline">{headline}</p>}
+          {description && (
+            <p className="admin_status_alert_desc">{description}</p>
+          )}
+        </div>
+        <DialogFooter className="admin_status_alert_footer">
+          {variant === "confirm" ? (
+            <>
+              <button
+                type="button"
+                className="btn_outline_black"
+                onClick={() => onOpenChange(false)}
+                disabled={isLoading}
+              >
+                {cancelLabel}
+              </button>
+              <button
+                type="button"
+                className="btn_primary_black admin_status_alert_confirm_btn"
+                onClick={handleConfirm}
+                disabled={isLoading}
+              >
+                {isLoading ? "Processing..." : confirmLabel}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn_primary_yellow_lg admin_status_alert_okay_btn"
+              onClick={() => onOpenChange(false)}
+            >
+              {confirmLabel}
+            </button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -817,9 +982,25 @@ export function DetailItem({
   children: ReactNode;
 }) {
   return (
-    <div>
-      <p className="text-xs text-gray-500">{label} :</p>
-      <div className="mt-2 text-sm font-medium text-gray-950">{children}</div>
+    <div className="detail_item">
+      <p className="detail_item_label">{label} :</p>
+      <div className="detail_item_value">{children}</div>
+    </div>
+  );
+}
+
+export function DetailImage({
+  src,
+  alt = "",
+}: {
+  src?: string;
+  alt?: string;
+}) {
+  return (
+    <div className={cn("detail_image", !src && "is_empty")}>
+      {src ? (
+        <Image src={src} alt={alt} fill sizes="220px" className="object-cover" />
+      ) : null}
     </div>
   );
 }
@@ -832,6 +1013,7 @@ export function FormInput({
   placeholder,
   required = false,
   active = false,
+  readOnly = false,
 }: {
   label: string;
   value?: string | number;
@@ -840,6 +1022,7 @@ export function FormInput({
   placeholder?: string;
   required?: boolean;
   active?: boolean;
+  readOnly?: boolean;
 }) {
   return (
     <label className="form_field">
@@ -849,11 +1032,16 @@ export function FormInput({
       </span>
       <input
         type={type}
-        value={value || ""}
+        value={value ?? ""}
         onChange={onChange}
         placeholder={placeholder}
         required={required}
-        className={cn("form_field_control", active && "is_active")}
+        readOnly={readOnly}
+        className={cn(
+          "form_field_control",
+          active && "is_active",
+          readOnly && "is_readonly"
+        )}
       />
     </label>
   );
@@ -865,12 +1053,14 @@ export function FormSelect({
   onChange,
   children,
   required = false,
+  placeholder = "Select Method",
 }: {
   label: string;
   value?: string | number;
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   children?: React.ReactNode;
   required?: boolean;
+  placeholder?: string;
 }) {
   return (
     <label className="form_field">
@@ -880,16 +1070,297 @@ export function FormSelect({
       </span>
       <span className="form_field_control_wrap">
         <select
-          value={value || ""}
+          value={value ?? ""}
           onChange={onChange}
           required={required}
           className="form_field_control form_field_select"
         >
+          <option value="">{placeholder}</option>
           {children}
         </select>
         <ChevronDown className="form_field_icon" />
       </span>
     </label>
+  );
+}
+
+export type ProductSelectOption = {
+  id: string;
+  name: string;
+  sku: string;
+  currentStock: number;
+  unit: string;
+};
+
+export function FormProductSelect({
+  label,
+  required = false,
+  options,
+  value,
+  onChange,
+  searchPlaceholder = "Search by product name or SKU...",
+}: {
+  label: string;
+  required?: boolean;
+  options: ProductSelectOption[];
+  value?: ProductSelectOption | null;
+  onChange?: (product: ProductSelectOption | null) => void;
+  searchPlaceholder?: string;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return options;
+    return options.filter(
+      (product) =>
+        product.name.toLowerCase().includes(query) ||
+        product.sku.toLowerCase().includes(query)
+    );
+  }, [options, search]);
+
+  const handleSelect = (product: ProductSelectOption) => {
+    onChange?.(product);
+    setSearch("");
+    setOpen(false);
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setSearch("");
+    }
+  };
+
+  const inputValue = open ? search : value?.name ?? "";
+
+  return (
+    <div className="form_field form_field_product_select">
+      <span className="form_field_label">
+        {label}
+        {required && <span className="form_field_required"> *</span>}
+      </span>
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverAnchor asChild>
+          <div className="form_field_control_wrap">
+            <Search className="form_field_search_icon" />
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                if (!open) setOpen(true);
+              }}
+              onFocus={() => setOpen(true)}
+              placeholder={searchPlaceholder}
+              className={cn(
+                "form_field_control form_field_search_input",
+                !open && !value && "is_placeholder"
+              )}
+            />
+          </div>
+        </PopoverAnchor>
+        <PopoverContent
+          align="start"
+          sideOffset={6}
+          className="form_product_select_popover w-[var(--radix-popover-trigger-width)] p-0"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          {filtered.length > 0 ? (
+            <ul className="form_product_select_list" role="listbox">
+              {filtered.map((product) => {
+                const isSelected = value?.id === product.id;
+                return (
+                  <li key={product.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      className={cn(
+                        "form_product_select_item",
+                        isSelected && "is_selected"
+                      )}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleSelect(product)}
+                    >
+                      <div className="form_product_select_item_main">
+                        <span className="form_product_select_name">{product.name}</span>
+                        <span className="form_product_select_meta">
+                          SKU: {product.sku} · {product.currentStock} {product.unit}
+                        </span>
+                      </div>
+                      {isSelected && (
+                        <span className="form_product_select_badge">Selected</span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="form_product_select_empty">No products found</div>
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+export function FormCategoryMultiSelect({
+  label,
+  options,
+  value,
+  onChange,
+  placeholder = "Select categories",
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  value: string[];
+  onChange?: (values: string[]) => void;
+  placeholder?: string;
+}) {
+  const available = options.filter((option) => !value.includes(option.value));
+
+  const addCategory = (nextValue: string) => {
+    if (!nextValue || value.includes(nextValue)) return;
+    onChange?.([...value, nextValue]);
+  };
+
+  const removeCategory = (nextValue: string) => {
+    onChange?.(value.filter((item) => item !== nextValue));
+  };
+
+  return (
+    <div className="form_field">
+      <span className="form_field_label">{label}</span>
+      <div className="form_field_control form_field_multi_select">
+        <div className="form_multi_select_inner">
+          <div className="form_multi_select_tags">
+            {value.length === 0 ? (
+              <span className="form_multi_select_placeholder">{placeholder}</span>
+            ) : (
+              value.map((item) => {
+                const option = options.find((entry) => entry.value === item);
+                return (
+                  <span key={item} className="form_multi_select_tag">
+                    {option?.label ?? item}
+                    <button
+                      type="button"
+                      className="form_multi_select_tag_remove"
+                      onClick={() => removeCategory(item)}
+                      aria-label={`Remove ${option?.label ?? item}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                );
+              })
+            )}
+          </div>
+          {available.length > 0 && (
+            <select
+              className="form_multi_select_add"
+              value=""
+              onChange={(e) => addCategory(e.target.value)}
+              aria-label={`Add ${label}`}
+            >
+              <option value="">
+                {value.length === 0 ? placeholder : "Add category"}
+              </option>
+              {available.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        <ChevronDown className="form_field_icon" />
+      </div>
+    </div>
+  );
+}
+
+export function FormTextarea({
+  label,
+  value,
+  onChange,
+  placeholder,
+  required = false,
+  rows = 4,
+}: {
+  label: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  required?: boolean;
+  rows?: number;
+}) {
+  return (
+    <label className="form_field">
+      <span className="form_field_label">
+        {label}
+        {required && <span className="form_field_required"> *</span>}
+      </span>
+      <textarea
+        value={value ?? ""}
+        onChange={onChange}
+        placeholder={placeholder}
+        required={required}
+        rows={rows}
+        className="form_field_control form_field_textarea"
+      />
+    </label>
+  );
+}
+
+export function FormImageUpload({
+  label,
+  file,
+  onChange,
+  accept = "image/*",
+  emptyLabel = "No File Chosen",
+}: {
+  label: string;
+  file?: File | null;
+  onChange?: (file: File | null) => void;
+  accept?: string;
+  emptyLabel?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const displayName = file?.name || emptyLabel;
+
+  return (
+    <div className="form_field form_field_image_upload">
+      <span className="form_field_label">{label}</span>
+      <div className="form_field_upload_row">
+        <input
+          type="text"
+          readOnly
+          value={displayName}
+          tabIndex={-1}
+          className={cn(
+            "form_field_control form_field_upload_display",
+            !file && "is_placeholder"
+          )}
+        />
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          className="sr-only"
+          onChange={(e) => onChange?.(e.target.files?.[0] ?? null)}
+        />
+        <button
+          type="button"
+          className="btn_outline_black form_field_upload_btn"
+          onClick={() => inputRef.current?.click()}
+        >
+          Upload Image
+        </button>
+      </div>
+    </div>
   );
 }
 
