@@ -1,4 +1,4 @@
-import InventoryDetailView from "@/features/inventory/components/InventoryDetailView";
+import { InventoryDetailView } from "@/features/inventory";
 
 export default async function Page({
   params,

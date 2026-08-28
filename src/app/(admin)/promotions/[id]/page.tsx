@@ -1,4 +1,4 @@
-import PromotionDetailView from "@/features/promotion/components/PromotionDetailView";
+import { PromotionDetailView } from "@/features/promotions";
 
 export default async function Page({
   params,

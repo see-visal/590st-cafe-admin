@@ -1,2 +1,2 @@
-import SettingView from "@/features/setting/components/SettingView";
+import { SettingView } from "@/features/settings";
 export default function Page() { return <SettingView />; }

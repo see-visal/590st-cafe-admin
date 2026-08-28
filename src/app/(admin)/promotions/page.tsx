@@ -1,4 +1,4 @@
-import PromotionManagementView from "@/features/promotion/components/PromotionManagementView";
+import { PromotionManagementView } from "@/features/promotions";
 
 export default function Page() {
   return <PromotionManagementView />;

@@ -1,2 +1,2 @@
-import InventoryManagementView from "@/features/inventory/components/InventoryManagementView";
+import { InventoryManagementView } from "@/features/inventory";
 export default function Page() { return <InventoryManagementView />; }

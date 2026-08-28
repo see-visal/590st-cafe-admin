@@ -1,2 +1,2 @@
-import OrderManagementView from "@/features/order/components/OrderManagementView";
+import { OrderManagementView } from "@/features/orders";
 export default function Page() { return <OrderManagementView />; }

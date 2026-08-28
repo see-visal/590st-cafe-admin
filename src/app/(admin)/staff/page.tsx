@@ -1,2 +1,2 @@
-import StaffManagementView from "@/features/staff/components/StaffManagementView";
+import { StaffManagementView } from "@/features/staff";
 export default function Page() { return <StaffManagementView />; }

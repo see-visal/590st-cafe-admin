@@ -1,4 +1,4 @@
-import { ProductSelectOption } from "@/components/common/AdminKit";
+import { ProductSelectOption } from "@/components/shared/admin-kit";
 
 export type InventoryListRow = {
   id: string;

@@ -1,2 +1,2 @@
-import CategoryManagementView from "@/features/category/components/CategoryManagementView";
+import { CategoryManagementView } from "@/features/categories";
 export default function Page() { return <CategoryManagementView />; }

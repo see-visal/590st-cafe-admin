@@ -1,2 +1,2 @@
-import CustomerManagementView from "@/features/customer/components/CustomerManagementView";
+import { CustomerManagementView } from "@/features/customers";
 export default function Page() { return <CustomerManagementView />; }

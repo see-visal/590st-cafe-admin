@@ -1,4 +1,4 @@
-import PointManagementView from "@/features/point/components/PointManagementView";
+import { PointManagementView } from "@/features/points";
 
 export default function Page() {
   return <PointManagementView />;

@@ -1,4 +1,4 @@
-import PosView from "@/features/pos/components/PosView";
+import { PosView } from "@/features/pos";
 
 export default function Page() {
   return <PosView />;
