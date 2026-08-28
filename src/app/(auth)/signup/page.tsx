@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Phone, UserRound } from "lucide-react";
+import { Eye, EyeOff, Mail, Phone, User, UserPlus } from "lucide-react";
 import {
   AuthShell,
   GENDERS,
@@ -12,11 +12,10 @@ import {
   useRegister,
   useVerifyRegistration,
 } from "@/features/auth";
-import { AuthField } from "@/features/auth/components/auth-field";
-import { AuthLogo } from "@/features/auth/components/auth-shell";
 import type { Gender, RegisterFormValues } from "@/features/auth";
+import { TooltipAlert } from "@/features/auth/components/tooltip-alert";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -27,19 +26,15 @@ import {
 import { ApiError } from "@/lib/api/axios";
 
 type FieldKey = keyof RegisterFormValues | "otp";
-type FieldErrors = Partial<Record<FieldKey, string>>;
+type FormErrors = Partial<Record<FieldKey, string>>;
 
 const EMPTY_FORM = {
   fullName: "",
   email: "",
+  phoneNumber: "",
   password: "",
   confirmPassword: "",
-  phoneNumber: "",
 };
-
-function messageFor(err: unknown, fallback: string) {
-  return err instanceof ApiError ? err.message : fallback;
-}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -50,30 +45,56 @@ export default function SignupPage() {
   const [gender, setGender] = useState<Gender | undefined>();
   const [otp, setOtp] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [formError, setFormError] = useState("");
-  /** Flips to true once the API has emailed the verification code. */
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [activeInput, setActiveInput] = useState<FieldKey | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  /** Flips once the API has emailed the verification code. */
   const [awaitingCode, setAwaitingCode] = useState(false);
 
   const isBusy = register.isPending || verifyRegistration.isPending;
-  const set = (key: keyof typeof EMPTY_FORM, value: string) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
 
-  const handleRegister = async (event: React.FormEvent<HTMLFormElement>) => {
+  const set = (key: keyof typeof EMPTY_FORM, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (value.trim().length > 0) {
+      setErrors((prev) => ({ ...prev, [key]: undefined }));
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setFormError("");
+    setToastMessage(null);
+
+    if (awaitingCode) {
+      const parsed = otpSchema.safeParse({ otp });
+      if (!parsed.success) {
+        setActiveInput("otp");
+        setErrors({ otp: parsed.error.issues[0]?.message });
+        return;
+      }
+      setErrors({});
+      try {
+        await verifyRegistration.mutateAsync({ email: form.email.trim(), otp });
+        router.push("/login");
+      } catch (err) {
+        setToastMessage(
+          err instanceof ApiError ? err.message : "That code did not work."
+        );
+      }
+      return;
+    }
 
     const parsed = registerSchema.safeParse({ ...form, gender });
     if (!parsed.success) {
-      const next: FieldErrors = {};
+      const next: FormErrors = {};
       for (const issue of parsed.error.issues) {
         const key = issue.path[0] as FieldKey;
         next[key] ??= issue.message;
       }
-      setFieldErrors(next);
+      setErrors(next);
+      setActiveInput(Object.keys(next)[0] as FieldKey);
       return;
     }
-    setFieldErrors({});
+    setErrors({});
 
     try {
       await register.mutateAsync({
@@ -85,102 +106,131 @@ export default function SignupPage() {
       });
       setAwaitingCode(true);
     } catch (err) {
-      setFormError(messageFor(err, "Could not create your account. Try again."));
-    }
-  };
-
-  const handleVerify = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setFormError("");
-
-    const parsed = otpSchema.safeParse({ otp });
-    if (!parsed.success) {
-      setFieldErrors({ otp: parsed.error.issues[0]?.message });
-      return;
-    }
-    setFieldErrors({});
-
-    try {
-      await verifyRegistration.mutateAsync({ email: form.email.trim(), otp });
-      router.push("/login");
-    } catch (err) {
-      setFormError(messageFor(err, "That code did not work. Try again."));
+      setToastMessage(
+        err instanceof ApiError
+          ? err.message
+          : "Could not create your account. Try again."
+      );
     }
   };
 
   return (
-    <AuthShell wide>
-      <form onSubmit={awaitingCode ? handleVerify : handleRegister}>
-        <AuthLogo />
+    <AuthShell>
+      {toastMessage && (
+        <div className="mb-4 w-full rounded-md bg-red-50 px-3 py-2 text-center text-xs text-red-600">
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
-        <h1 className="mt-8 text-center text-lg font-bold text-black">
-          {awaitingCode ? "Verify your email" : "Create your account"}
-        </h1>
-        <p className="mt-1 text-center text-xs text-gray-500">
-          {awaitingCode
-            ? `We sent a 6-digit code to ${form.email}`
-            : "Enter your details to get started"}
-        </p>
+      <div className="login_avatar_circle">
+        <UserPlus className="h-10 w-10 stroke-[1.5]" />
+      </div>
 
+      <h1 className="login_title">
+        {awaitingCode ? "Verify your email" : "Create your account"}
+      </h1>
+      <p className="login_subtitle">
+        {awaitingCode
+          ? `We sent a 6-digit code to ${form.email}`
+          : "Enter your details to get started"}
+      </p>
+
+      <form onSubmit={handleSubmit} className="w-full space-y-3" noValidate>
         {awaitingCode ? (
-          <div className="mt-7">
-            <AuthField
-              label="Verification code"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
-              autoComplete="one-time-code"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              error={fieldErrors.otp}
-            />
+          <div>
+            <label className="login_input_label">Verification code</label>
+            <div className="relative flex items-center">
+              <Input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otp}
+                autoFocus
+                onFocus={() => setActiveInput("otp")}
+                onChange={(e) => setOtp(e.target.value)}
+                placeholder="enter the 6-digit code"
+                className="login_input_field_pass"
+              />
+            </div>
+            {activeInput === "otp" && errors.otp && (
+              <TooltipAlert message={errors.otp} />
+            )}
           </div>
         ) : (
-          <div className="mt-7 space-y-3.5">
-            <AuthField
-              label="Full name"
-              autoComplete="name"
-              placeholder="Customer Vip"
-              leadingIcon={<UserRound className="size-4" />}
-              value={form.fullName}
-              onChange={(e) => set("fullName", e.target.value)}
-              error={fieldErrors.fullName}
-            />
-            <AuthField
-              label="Email"
-              type="email"
-              autoComplete="email"
-              placeholder="user@gmail.com"
-              leadingIcon={<Mail className="size-4" />}
-              value={form.email}
-              onChange={(e) => set("email", e.target.value)}
-              error={fieldErrors.email}
-            />
-            <AuthField
-              label="Phone number (optional)"
-              autoComplete="tel"
-              placeholder="072 345 5674"
-              leadingIcon={<Phone className="size-4" />}
-              value={form.phoneNumber}
-              onChange={(e) => set("phoneNumber", e.target.value)}
-              error={fieldErrors.phoneNumber}
-            />
+          <>
+            <div>
+              <label className="login_input_label">Full name</label>
+              <div className="relative flex items-center">
+                <span className="pointer-events-none absolute left-3 text-gray-400">
+                  <User className="h-4 w-4" />
+                </span>
+                <Input
+                  type="text"
+                  autoComplete="name"
+                  value={form.fullName}
+                  onFocus={() => setActiveInput("fullName")}
+                  onChange={(e) => set("fullName", e.target.value)}
+                  placeholder="enter your full name"
+                  className="login_input_field"
+                />
+              </div>
+              {activeInput === "fullName" && errors.fullName && (
+                <TooltipAlert message={errors.fullName} />
+              )}
+            </div>
 
             <div>
-              <Label htmlFor="signup-gender" className="text-xs font-medium text-gray-700">
-                Gender (optional)
-              </Label>
+              <label className="login_input_label">Email</label>
+              <div className="relative flex items-center">
+                <span className="pointer-events-none absolute left-3 text-gray-400">
+                  <Mail className="h-4 w-4" />
+                </span>
+                <Input
+                  type="email"
+                  autoComplete="email"
+                  value={form.email}
+                  onFocus={() => setActiveInput("email")}
+                  onChange={(e) => set("email", e.target.value)}
+                  placeholder="enter your email address"
+                  className="login_input_field"
+                />
+              </div>
+              {activeInput === "email" && errors.email && (
+                <TooltipAlert message={errors.email} />
+              )}
+            </div>
+
+            <div>
+              <label className="login_input_label">Phone number</label>
+              <div className="relative flex items-center">
+                <span className="pointer-events-none absolute left-3 text-gray-400">
+                  <Phone className="h-4 w-4" />
+                </span>
+                <Input
+                  type="tel"
+                  autoComplete="tel"
+                  value={form.phoneNumber}
+                  onFocus={() => setActiveInput("phoneNumber")}
+                  onChange={(e) => set("phoneNumber", e.target.value)}
+                  placeholder="072 345 5674"
+                  className="login_input_field"
+                />
+              </div>
+              {activeInput === "phoneNumber" && errors.phoneNumber && (
+                <TooltipAlert message={errors.phoneNumber} />
+              )}
+            </div>
+
+            <div>
+              <label className="login_input_label">Gender</label>
               <Select
                 value={gender}
                 onValueChange={(next) => setGender(next as Gender)}
               >
-                <SelectTrigger
-                  id="signup-gender"
-                  className="mt-1.5 h-9 w-full rounded-md border-gray-300 text-xs"
-                >
-                  <SelectValue placeholder="Select gender" />
+                <SelectTrigger className="login_input_field h-auto">
+                  <SelectValue placeholder="select your gender" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="border-gray-200 bg-white text-gray-900">
                   {GENDERS.map((option) => (
                     <SelectItem key={option} value={option}>
                       {option.charAt(0) + option.slice(1).toLowerCase()}
@@ -190,66 +240,70 @@ export default function SignupPage() {
               </Select>
             </div>
 
-            <AuthField
-              label="Password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="new-password"
-              placeholder="At least 8 characters"
-              value={form.password}
-              onChange={(e) => set("password", e.target.value)}
-              error={fieldErrors.password}
-              trailing={
+            <div>
+              <label className="login_input_label">Password</label>
+              <div className="relative flex items-center">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={form.password}
+                  onFocus={() => setActiveInput("password")}
+                  onChange={(e) => set("password", e.target.value)}
+                  placeholder="create a strong password"
+                  className="login_input_field_pass"
+                />
                 <button
                   type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
+                  onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="cursor-pointer"
+                  className="absolute right-3 cursor-pointer text-gray-400 transition-colors hover:text-gray-600"
                 >
                   {showPassword ? (
-                    <EyeOff className="size-4" />
+                    <EyeOff className="h-4 w-4" />
                   ) : (
-                    <Eye className="size-4" />
+                    <Eye className="h-4 w-4" />
                   )}
                 </button>
-              }
-            />
-            <AuthField
-              label="Confirm password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="new-password"
-              placeholder="Re-enter your password"
-              value={form.confirmPassword}
-              onChange={(e) => set("confirmPassword", e.target.value)}
-              error={fieldErrors.confirmPassword}
-            />
-          </div>
+              </div>
+              {activeInput === "password" && errors.password && (
+                <TooltipAlert message={errors.password} />
+              )}
+            </div>
+
+            <div>
+              <label className="login_input_label">Confirm password</label>
+              <div className="relative flex items-center">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={form.confirmPassword}
+                  onFocus={() => setActiveInput("confirmPassword")}
+                  onChange={(e) => set("confirmPassword", e.target.value)}
+                  placeholder="re-enter your password"
+                  className="login_input_field_pass"
+                />
+              </div>
+              {activeInput === "confirmPassword" && errors.confirmPassword && (
+                <TooltipAlert message={errors.confirmPassword} />
+              )}
+            </div>
+          </>
         )}
 
-        {formError && (
-          <p role="alert"
-            className="mt-3.5 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">
-            {formError}
-          </p>
-        )}
-
-        <Button
-          type="submit"
-          disabled={isBusy}
-          className="mt-6 h-10 w-full rounded-lg bg-black text-sm font-medium text-white transition-colors hover:bg-gray-900"
-        >
+        <Button type="submit" disabled={isBusy} className="login_submit_button">
           {isBusy ? "Please wait..." : awaitingCode ? "Verify" : "Create account"}
         </Button>
 
         {!awaitingCode && (
-          <p className="mt-5 text-center text-xs text-gray-500">
-            Already have an account?{" "}
-            <Link
-              href="/login"
-              className="font-semibold text-black underline-offset-4 hover:underline"
-            >
+          <div className="text-center">
+            <span className="text-sm text-gray-600">
+              Already have an account?
+            </span>
+            &nbsp;
+            <Link href="/login" className="login_forgot_link">
               Login
             </Link>
-          </p>
+          </div>
         )}
       </form>
     </AuthShell>

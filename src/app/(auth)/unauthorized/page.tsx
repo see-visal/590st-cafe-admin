@@ -2,7 +2,6 @@
 
 import { ShieldAlert } from "lucide-react";
 import { AuthShell, useLogout } from "@/features/auth";
-import { AuthLogo } from "@/features/auth/components/auth-shell";
 import { Button } from "@/components/ui/button";
 
 export default function UnauthorizedPage() {
@@ -11,7 +10,6 @@ export default function UnauthorizedPage() {
   return (
     <AuthShell>
       <div>
-        <AuthLogo />
 
         <div className="mt-8 grid size-11 place-items-center rounded-full bg-red-50 text-red-600">
           <ShieldAlert className="size-5" />

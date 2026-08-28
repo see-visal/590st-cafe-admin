@@ -5,7 +5,6 @@ import { useState } from "react";
 import { Mail } from "lucide-react";
 import { AuthShell, authService } from "@/features/auth";
 import { AuthField } from "@/features/auth/components/auth-field";
-import { AuthLogo } from "@/features/auth/components/auth-shell";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api/axios";
 import { z } from "zod";
@@ -52,7 +51,6 @@ export default function ForgotPasswordPage() {
   return (
     <AuthShell>
       <form onSubmit={handleSubmit}>
-        <AuthLogo />
 
         <h1 className="mt-8 text-center text-lg font-bold text-black">
           {sent ? "Check your email" : "Forgot your password?"}

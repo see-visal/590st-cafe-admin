@@ -796,3 +796,53 @@ body {
     overscroll-behavior-x: contain;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Auth screens — ported verbatim from Coffee-Shop-UI so the admin sign-in
+   matches the storefront. The form logic underneath stays the admin's
+   (email + OTP against /api/auth).
+--------------------------------------------------------------------------- */
+.login_page_wrapper {position: relative;min-height: 100vh;width: 100%;font-family: inherit;overflow: hidden;display: flex;flex-direction: column;background-color: #ffffff;
+  @media (min-width: 1024px) {  flex-direction: row;}
+}
+.login_form_side {width: 100%;min-height: 100vh;padding: 2rem;display: flex;flex-direction: column;justify-content: space-between;position: relative;background-color: #ffffff;
+  @media (min-width: 640px) {  padding: 3rem;}
+  @media (min-width: 1024px) {  width: 50%;  padding: 3rem 4rem;}
+}
+.login_back_home_btn {background-color: transparent;display: flex;align-items: center;justify-content: center;color: #111827;border: none;cursor: pointer;padding: 0.25rem;transition: opacity 0.2s ease-in-out;
+  &:hover {  opacity: 0.7;}
+  &:active {  transform: scale(0.95);}
+}
+.login_form_area {max-width: 24rem;margin-left: auto;margin-right: auto;width: 100%;margin-top: 1.5rem;margin-bottom: 1.5rem;display: flex;flex-direction: column;align-items: center;}
+.login_avatar_circle {width: 5rem;height: 5rem;border-radius: 9999px;background-color: #f0f0f0;border: 1px solid rgba(229, 231, 235, 0.8);display: flex;align-items: center;justify-content: center;margin-bottom: 1.25rem;color: #9ca3af;}
+.login_title {font-size: 1.5rem;font-weight: 700;color: #111827;letter-spacing: -0.025em;text-align: center;}
+.login_subtitle {font-size: 0.75rem;color: #9ca3af;margin-top: 0.25rem;margin-bottom: 2rem;text-align: center;}
+.login_input_label {display: block;font-size: 0.75rem;font-weight: 600;color: #374151; margin-bottom: 0.375rem;
+}
+.login_input_field {width: 100%;padding: 0.625rem 0.75rem 0.625rem 2.25rem;font-size: 0.75rem;color: #111827;border: 1px solid #e5e7eb;border-radius: 0.5rem;transition: all 0.2s ease-in-out;outline: none;
+  &:focus { border-color: #9ca3af; box-shadow: 0 0 0 1px #9ca3af; }
+  &::placeholder {  color: #d1d5db;}
+}
+.login_input_field_pass {width: 100%;padding: 0.625rem 2.25rem 0.625rem 0.75rem;font-size: 0.75rem;color: #111827;border: 1px solid #e5e7eb;border-radius: 0.5rem;transition: all 0.2s ease-in-out;outline: none;
+  &:focus {  border-color: #9ca3af;  box-shadow: 0 0 0 1px #9ca3af;}
+  &::placeholder {  color: #d1d5db; }
+}
+.login_input_helper {color: #2563eb;font-size: 11px;font-weight: 500;margin-top: 0.375rem;}
+.login_controls_row {display: flex;align-items: center;justify-content: space-between;padding-top: 0.25rem;padding-bottom: 0.5rem;}
+.login_logo-container {position: relative;margin-bottom: 1.25rem;display: flex;flex-direction: column;align-items: center;}
+.login_brand_title {text-align: center;position: relative;z-index: 10;user-select: none;font-size: 2.25rem;font-weight: 800;letter-spacing: -0.025em;color: #000000;display: flex;align-items: baseline;justify-content: center;
+  span {  font-size: 1.25rem;  font-weight: 700;  margin-left: 0.125rem;}
+}
+.login_brand_subtitle { font-size: 0.75rem; font-weight: 900; letter-spacing: 0.25em; color: #000000; text-transform: uppercase;margin-top: -0.25rem;}
+.login_checkbox_box {width: 1rem;height: 1rem;border-radius: 0.25rem;border: 1px solid #d1d5db;display: flex;align-items: center;justify-content: center;transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+  &.checked { background-color: #000000; border-color: #000000; color: #ffffff;}
+}
+.login_forgot_link {font-size: 0.75rem;color: #03ab97;font-weight: 500;text-decoration: none;text-underline-offset: 2px;transition: color 0.15s ease-in-out;
+  &:hover {color: #000000;}
+}
+.login_submit_button {width: 100%;background-color: #000000;color: #ffffff;border-radius: 0.5rem;padding-top: 0.75rem;padding-bottom: 0.75rem;font-size: 0.75rem;font-weight: 600;border: none;cursor: pointer;transition: background-color 0.2s ease-in-out;
+  &:hover {  background-color: #1f2937;}
+}
+.login_slideshow_side {width: 100%;background-color: #f7f7f6;position: relative;overflow: hidden;display: flex;align-items: center;justify-content: center;min-height: 500px;
+  @media (min-width: 1024px) {  width: 50%;  min-height: 100vh;}
+}
