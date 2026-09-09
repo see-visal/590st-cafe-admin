@@ -1,13 +1,17 @@
 {
   "nav_home": "Home",
+  "nav_pos": "POS",
   "nav_orders": "Orders",
   "nav_barista": "Barista",
   "nav_products": "Products",
   "nav_categories": "Categories",
   "nav_inventory": "Inventory",
   "nav_customers": "Customers",
+  "nav_promotion": "Promotion",
+  "nav_points": "Points",
   "nav_ratings": "Ratings",
   "nav_report": "Report",
   "nav_staff": "Staff",
+  "nav_audit": "Audit Trail",
   "nav_settings": "Settings"
 }

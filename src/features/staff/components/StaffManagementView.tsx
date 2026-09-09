@@ -12,12 +12,14 @@ import {
   FormInput,
   FormModal,
   FormSelect,
+  LockedYnCell,
   ModalGrid,
   PaginationFooter,
   Row,
   RowActions,
   SelectField,
   SimpleTable,
+  StaffIdentityCell,
   StatusBadge,
   TableActions,
   TextField,
@@ -26,6 +28,50 @@ import { useStaff, useCreateStaff } from "@/hooks/useAdmin";
 import { Staff as StaffMember } from "@/features/dashboard/api/dashboardApi";
 
 const ROLES = ["ADMIN", "MANAGER", "BARISTA", "CASHIER", "DELIVERY_RIDER"] as const;
+
+const STAFF_TABLE_HEADERS = [
+  "No",
+  "Customer",
+  "Role",
+  "Created",
+  "Status",
+  "Locked YN",
+  "Action",
+] as const;
+
+/** Static preview rows for UI when API has no staff yet */
+const STATIC_STAFF_ROWS = [
+  {
+    id: "static-1",
+    name: "Barista",
+    email: "barista@gmail.com",
+    role: "Barista",
+    created: "10-Feb-2025",
+    status: "Enabled",
+    locked: false,
+  },
+  {
+    id: "static-2",
+    name: "Admin Shop",
+    email: "admin@gmail.com",
+    role: "Admin",
+    created: "10-Feb-2025",
+    status: "Enabled",
+    locked: false,
+  },
+] as const;
+
+function formatCreatedDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date
+    .toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
+    .replace(/ /g, "-");
+}
 
 export default function Staff() {
   const { staff, isLoading, refetch } = useStaff();
@@ -39,6 +85,9 @@ export default function Staff() {
     password: "",
     role: "BARISTA" as StaffMember["role"],
   });
+
+  const hasApiData = staff.length > 0;
+  const displayCount = hasApiData ? staff.length : STATIC_STAFF_ROWS.length;
 
   const handleSubmit = async () => {
     await create({
@@ -66,47 +115,95 @@ export default function Staff() {
       />
 
       <FilterPanel>
-        <TextField label="Search" placeholder="Name or email..." />
-        <SelectField label="Role" />
-        <SelectField label="Status" />
+        <TextField label="Customer" placeholder="Placeholder" />
+        <SelectField label="Role" placeholder="Select Method">
+          <option value="ADMIN">Admin</option>
+          <option value="MANAGER">Manager</option>
+          <option value="BARISTA">Barista</option>
+          <option value="CASHIER">Cashier</option>
+          <option value="DELIVERY_RIDER">Delivery Rider</option>
+        </SelectField>
+        <SelectField label="Locked YN" placeholder="Select Method">
+          <option value="enabled">Enabled</option>
+          <option value="disabled">Disabled</option>
+        </SelectField>
+        <SelectField label="Status" placeholder="Select Method">
+          <option value="Enabled">Enabled</option>
+          <option value="Disabled">Disabled</option>
+        </SelectField>
         <FilterActions />
       </FilterPanel>
 
       <DataCard
-        title="Staff Directory"
-        meta={`Staff found: ${staff.length}`}
-        actions={<TableActions onRegister={() => setFormOpen(true)} primaryLabel="Add Staff" />}
+        title="Customer Directory"
+        meta={`Customer found: ${displayCount}`}
+        actions={
+          <TableActions
+            onRegister={() => setFormOpen(true)}
+            primaryLabel="Register"
+          />
+        }
       >
         {isLoading ? (
           <p className="p-4 text-sm text-gray-500">Loading staff...</p>
         ) : (
-          <SimpleTable
-            headers={["No", "Staff", "Role", "Joined", "Status", "Action"]}
-          >
-            {staff.map((member, index) => (
-              <Row key={member.id} striped={index % 2 === 1}>
-                <Cell>{index + 1}</Cell>
-                <Cell>
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-8 w-8 place-items-center rounded-md bg-black font-semibold text-[#befe35]">
-                      {member.name.charAt(0).toUpperCase()}
-                    </span>
-                    <div>
-                      <p>{member.name}</p>
-                      <p className="text-xs text-gray-400">{member.email}</p>
-                    </div>
-                  </div>
-                </Cell>
-                <Cell>{member.role}</Cell>
-                <Cell>{new Date(member.joinDate).toLocaleDateString()}</Cell>
-                <Cell>
-                  <StatusBadge label={member.status} />
-                </Cell>
-                <Cell>
-                  <RowActions onEdit={() => setFormOpen(true)} />
-                </Cell>
-              </Row>
-            ))}
+          <SimpleTable headers={[...STAFF_TABLE_HEADERS]}>
+            {hasApiData
+              ? staff.map((member, index) => (
+                  <Row key={member.id} striped={index % 2 === 1}>
+                    <Cell>{index + 1}</Cell>
+                    <Cell>
+                      <StaffIdentityCell
+                        name={member.name}
+                        email={member.email}
+                      />
+                    </Cell>
+                    <Cell>{member.role}</Cell>
+                    <Cell>{formatCreatedDate(member.joinDate)}</Cell>
+                    <Cell>
+                      <StatusBadge
+                        label={member.status === "ACTIVE" ? "Enabled" : member.status}
+                        tone={member.status === "ACTIVE" ? "success" : "neutral"}
+                      />
+                    </Cell>
+                    <Cell>
+                      <LockedYnCell locked={member.status !== "ACTIVE"} />
+                    </Cell>
+                    <Cell>
+                      <RowActions
+                        onView={() => undefined}
+                        onEdit={() => setFormOpen(true)}
+                        onDelete={() => undefined}
+                      />
+                    </Cell>
+                  </Row>
+                ))
+              : STATIC_STAFF_ROWS.map((member, index) => (
+                  <Row key={member.id} striped={index % 2 === 1}>
+                    <Cell>{index + 1}</Cell>
+                    <Cell>
+                      <StaffIdentityCell
+                        name={member.name}
+                        email={member.email}
+                      />
+                    </Cell>
+                    <Cell>{member.role}</Cell>
+                    <Cell>{member.created}</Cell>
+                    <Cell>
+                      <StatusBadge label={member.status} tone="success" />
+                    </Cell>
+                    <Cell>
+                      <LockedYnCell locked={member.locked} />
+                    </Cell>
+                    <Cell>
+                      <RowActions
+                        onView={() => undefined}
+                        onEdit={() => setFormOpen(true)}
+                        onDelete={() => undefined}
+                      />
+                    </Cell>
+                  </Row>
+                ))}
           </SimpleTable>
         )}
         <PaginationFooter />

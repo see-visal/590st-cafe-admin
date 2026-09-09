@@ -8,12 +8,14 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     "/",
+    "/pos",
     "/orders",
     "/barista",
     "/products",
     "/categories",
     "/inventory",
     "/customers",
+    "/promotions",
     "/ratings",
     "/report",
     "/staff",

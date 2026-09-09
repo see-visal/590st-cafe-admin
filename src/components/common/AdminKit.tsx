@@ -1,11 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { ReactNode, useState } from "react";
+import { ReactNode, useMemo, useRef, useState } from "react";
+import { format } from "date-fns";
+import { type DateRange } from "react-day-picker";
 import {
   Bell,
   CalendarDays,
+  Check,
   CheckCheck,
+  Clock,
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
@@ -17,6 +21,7 @@ import {
   Search,
   SlidersHorizontal,
   Trash2,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import {
@@ -26,6 +31,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useI18n } from "@/contexts/I18nContext";
 import { cn } from "@/lib/utils";
 
 export type FieldOption = {
@@ -33,187 +57,234 @@ export type FieldOption = {
   value: string;
 };
 
+const LANGUAGES = [
+  {
+    code: "kh",
+    shortLabel: "KH",
+    label: "ខ្មែរ",
+    flag: "/images/cambodia.svg",
+    flagAlt: "Cambodia",
+  },
+  {
+    code: "en",
+    shortLabel: "ENG",
+    label: "English",
+    flag: "/images/english.svg",
+    flagAlt: "English",
+  },
+] as const;
+
+function LanguageFlag({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "relative inline-block h-5 w-5 overflow-hidden rounded-full border border-black/10",
+        className
+      )}
+    >
+      <Image src={src} alt={alt} fill sizes="20px" className="object-cover" />
+    </span>
+  );
+}
+
 export function AdminTopActions() {
   const [open, setOpen] = useState(false);
+  const { locale, setLocale } = useI18n();
+  const currentLang =
+    LANGUAGES.find((lang) => lang.code === locale) ?? LANGUAGES[0];
 
   return (
     <>
-      <div className="flex items-center gap-3">
+      <div className="header_top_actions">
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="relative flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-900 shadow-sm transition hover:bg-gray-50"
+          className="header_action_btn header_notify_btn"
           aria-label="Notifications"
         >
           <Bell className="h-5 w-5" />
-          <span className="absolute -right-2 -top-2 rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-semibold text-white">
-            10
-          </span>
+          <span className="header_notify_badge">10</span>
         </button>
-        <button
-          type="button"
-          className="flex h-10 items-center gap-2 rounded-md border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-900 shadow-sm"
-          aria-label="Language"
-        >
-          <span className="grid h-5 w-5 place-items-center rounded-full bg-[#1f4fbf] text-[10px] text-white">
-            KH
-          </span>
-          <span>Kh</span>
-          <ChevronDown className="h-4 w-4" />
-        </button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="header_action_btn header_lang_btn"
+              aria-label="Language"
+            >
+              <LanguageFlag src={currentLang.flag} alt={currentLang.flagAlt} />
+              <span>{currentLang.label}</span>
+              <ChevronDown className="h-4 w-4 shrink-0" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="header_lang_menu min-w-[10rem] rounded-lg border border-black bg-white p-1 shadow-md"
+          >
+            {LANGUAGES.map((lang) => {
+              const isActive = locale === lang.code;
+              return (
+                <DropdownMenuItem
+                  key={lang.code}
+                  onClick={() => setLocale(lang.code)}
+                  className={cn(
+                    "header_lang_option flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-gray-900 focus:bg-gray-100",
+                    isActive && "bg-gray-50"
+                  )}
+                >
+                  <LanguageFlag src={lang.flag} alt={lang.flagAlt} />
+                  <span className="flex-1">{lang.shortLabel}</span>
+                  {isActive && <Check className="h-4 w-4 text-black" />}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[88vh] max-w-2xl gap-0 overflow-hidden rounded-lg p-0">
-          <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="right" className="notify_slider_popup" showCloseButton={false}>
+          <div className="notify_header">
             <div>
-              <DialogTitle className="text-2xl font-semibold">
-                Notifications
-              </DialogTitle>
-              <p className="mt-2 text-sm text-gray-500">
-                10 unread notifications
-              </p>
+              <SheetTitle className="notify_header_title">Notifications</SheetTitle>
+              <p className="notify_header_sub">10 unread notifications</p>
             </div>
-            <div className="flex items-center gap-4 text-sm">
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 font-medium text-indigo-600"
-              >
-                Make all read
-                <CheckCheck className="h-4 w-4" />
+            <div className="notify_header_actions">
+              <button type="button" className="notify_action_btn">
+                Make all read <CheckCheck className="h-4 w-4" />
+              </button>
+              <button type="button" className="notify_icon_btn" aria-label="Delete notifications">
+                <Trash2 className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-md p-1 text-gray-600 hover:bg-gray-100"
+                className="notify_icon_btn"
                 aria-label="Close notifications"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-4 border-b border-gray-200 px-6 text-sm">
+
+          <div className="notify_segments">
             {[
-              ["View all", "12"],
-              ["Unread", "10"],
-              ["Orders", "10"],
-              ["Payments", "2"],
-            ].map(([label, count], index) => (
+              ["View all", "12", true],
+              ["Unread", "10", false],
+              ["Orders", "10", false],
+              ["Payments", "2", false],
+            ].map(([label, count, isHighlight], index) => (
               <button
-                key={label}
+                key={label as string}
                 type="button"
-                className={cn(
-                  "flex items-center justify-center gap-2 py-4 text-gray-600",
-                  index === 0 && "border-b-2 border-black text-black"
-                )}
+                className={cn("notify_segment_btn", index === 0 && "is_active")}
               >
-                {label}
-                <span
-                  className={cn(
-                    "rounded px-1.5 py-0.5 text-xs font-semibold",
-                    index === 0 ? "bg-lime-300 text-black" : "bg-gray-200"
-                  )}
-                >
+                <span>{label}</span>
+                <span className={cn("notify_count_badge", isHighlight && "is_highlight")}>
                   {count}
                 </span>
               </button>
             ))}
           </div>
-          <div className="max-h-[60vh] overflow-y-auto px-6 py-4">
-            <p className="mb-3 text-sm font-semibold text-gray-500">Today</p>
+
+          <div className="notify_body">
+            <p className="notify_group_label">Today</p>
             {[
-              ["Preparing", "Unpaid", "text-yellow-600", "bg-red-100 text-red-600"],
-              ["Preparing", "Unpaid", "text-yellow-600", "bg-red-100 text-red-600"],
-              ["Ready", "Paid", "text-blue-600", "bg-green-100 text-green-700"],
-              ["Served", "Paid", "text-green-600", "bg-green-100 text-green-700"],
-            ].map(([status, paid, statusClass, paidClass], index) => (
-              <div
-                key={`${status}-${index}`}
-                className={cn(
-                  "flex items-start gap-4 border-b border-gray-100 px-2 py-4",
-                  index === 1 && "bg-gray-100"
-                )}
-              >
-                <span className="grid h-11 w-11 place-items-center rounded-full bg-black text-white">
+              { status: "Preparing", statusColor: "#eab308", paid: "Unpaid", paidType: "unpaid", read: false },
+              { status: "Preparing", statusColor: "#eab308", paid: "Unpaid", paidType: "unpaid", read: false },
+              { status: "Ready", statusColor: "#2563eb", paid: "Paid", paidType: "paid", read: false },
+              { status: "Served", statusColor: "#16a34a", paid: "Paid", paidType: "paid", read: true },
+            ].map((item, index) => (
+              <div key={index} className={cn("notify_item", !item.read && "is_unread")}>
+                <span className="notify_item_avatar">
                   <Download className="h-5 w-5" />
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-gray-950">
-                    Order #2F494A4S -{" "}
-                    <span className={statusClass}>{status}</span>
+                <div className="notify_item_wrap">
+                  <p className="notify_item_title">
+                    Order #2F494A4S - <span style={{ color: item.statusColor }}>{item.status}</span>
                   </p>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Order has been served to the customer
-                  </p>
-                  <p className="mt-1 text-xs text-gray-600">13d ago</p>
+                  <p className="notify_item_desc">Order has been served to the customer</p>
+                  <p className="notify_item_time">13d ago</p>
                 </div>
-                <div className="flex flex-col items-end gap-4">
-                  <span className={cn("rounded px-2 py-1 text-xs", paidClass)}>
-                    {paid}
+                <div className="notify_item_side">
+                  <span className={cn("notify_badge_status", item.paidType === "paid" ? "notify_badge_paid" : "notify_badge_unpaid")}>
+                    {item.paid}
                   </span>
-                  {index > 0 && (
-                    <button type="button" className="text-xs font-medium text-indigo-600">
+                  {!item.read && (
+                    <button type="button" className="notify_read_btn">
                       Make as read
                     </button>
                   )}
                 </div>
               </div>
             ))}
-            <p className="mb-3 mt-4 text-sm font-semibold text-gray-500">
-              Yesterday
-            </p>
-            {[1, 2].map((item) => (
-              <div
-                key={item}
-                className="flex items-start gap-4 border-b border-gray-100 px-2 py-4"
-              >
-                <span className="grid h-11 w-11 place-items-center rounded-full bg-black text-white">
+
+            <p className="notify_group_label">Yesterday</p>
+            {[
+              { status: "Served", statusColor: "#16a34a", paid: "Paid", paidType: "paid", read: true },
+            ].map((item, index) => (
+              <div key={index} className="notify_item">
+                <span className="notify_item_avatar">
                   <Download className="h-5 w-5" />
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-gray-950">
-                    Order #2F494A4S -{" "}
-                    <span className="text-green-600">Served</span>
+                <div className="notify_item_wrap">
+                  <p className="notify_item_title">
+                    Order #2F494A4S - <span style={{ color: item.statusColor }}>{item.status}</span>
                   </p>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Order has been served to the customer
-                  </p>
-                  <p className="mt-1 text-xs text-gray-600">13d ago</p>
+                  <p className="notify_item_desc">Order has been served to the customer</p>
+                  <p className="notify_item_time">13d ago</p>
                 </div>
-                <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-700">
-                  Paid
-                </span>
+                <div className="notify_item_side">
+                  <span className="notify_badge_status notify_badge_paid">
+                    {item.paid}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
 
 export function FilterPanel({
   children,
-  collapsible = false,
+  collapsible = true,
+  defaultCollapsed = false,
+  title = "Filters",
 }: {
   children?: ReactNode;
   collapsible?: boolean;
+  defaultCollapsed?: boolean;
+  title?: string;
 }) {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+
   return (
-    <section className="overflow-hidden rounded-lg bg-white shadow-sm">
-      <div className="flex items-center gap-4 border-b border-gray-100 px-5 py-4">
-        <span className="grid h-10 w-10 place-items-center rounded-md bg-[#befe35] text-black">
-          <SlidersHorizontal className="h-5 w-5" />
-        </span>
-        <h2 className="text-xl font-semibold text-gray-800">Filters</h2>
-      </div>
-      {children && (
-        <div
-          className={cn(
-            "grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-2 xl:grid-cols-4",
-            collapsible && "border-t border-gray-100"
-          )}
+    <section className={cn("box_collapse", isCollapsed && "is_collapsed")}>
+      <div className="filter_header">
+        <button
+          type="button"
+          className="filter_icon_wrapper"
+          onClick={() => collapsible && setIsCollapsed(!isCollapsed)}
+          aria-label="Toggle filter panel"
         >
+          <SlidersHorizontal className="filter_icon" />
+        </button>
+        <h2 className="filter_title">{title}</h2>
+      </div>
+      {!isCollapsed && children && (
+        <div className={cn("grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-2 xl:grid-cols-4 filter_content_wrapper", collapsible && "has_top_border")}>
           {children}
         </div>
       )}
@@ -233,12 +304,12 @@ export function TextField({
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
-    <label className="block text-sm font-medium text-gray-700">
-      {label}
+    <label className="form_field">
+      <span className="form_field_label">{label}</span>
       <input
         value={value || ""}
         onChange={onChange}
-        className="mt-2 h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#7ec900] focus:ring-2 focus:ring-lime-100"
+        className="form_field_control"
         placeholder={placeholder}
       />
     </label>
@@ -259,13 +330,13 @@ export function SelectField({
   children?: React.ReactNode;
 }) {
   return (
-    <label className="block text-sm font-medium text-gray-700">
-      {label}
-      <span className="relative mt-2 block">
+    <label className="form_field">
+      <span className="form_field_label">{label}</span>
+      <span className="form_field_control_wrap">
         <select
           value={value || ""}
           onChange={onChange}
-          className="h-10 w-full appearance-none rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-500 outline-none transition focus:border-[#7ec900] focus:ring-2 focus:ring-lime-100"
+          className="form_field_control form_field_select"
         >
           <option value="">{placeholder}</option>
           {children || (
@@ -276,40 +347,146 @@ export function SelectField({
             </>
           )}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black" />
+        <ChevronDown className="form_field_icon" />
       </span>
     </label>
   );
 }
 
-export function DateField({ label, value = "Start Date - End Date" }: {
+export function DateField({
+  label,
+  placeholder = "Start Date - End Date",
+  value,
+  onChange,
+}: {
   label: string;
-  value?: string;
+  placeholder?: string;
+  value?: DateRange;
+  onChange?: (range: DateRange | undefined) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [internalRange, setInternalRange] = useState<DateRange | undefined>();
+  const range = value ?? internalRange;
+
+  const handleSelect = (next: DateRange | undefined) => {
+    if (onChange) {
+      onChange(next);
+    } else {
+      setInternalRange(next);
+    }
+  };
+
+  const displayValue = range?.from
+    ? range.to
+      ? `${format(range.from, "dd MMM yyyy")} - ${format(range.to, "dd MMM yyyy")}`
+      : format(range.from, "dd MMM yyyy")
+    : placeholder;
+
   return (
-    <label className="block text-sm font-medium text-gray-700">
-      {label}
-      <span className="relative mt-2 block">
-        <input
-          readOnly
-          value={value}
-          className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-900 outline-none"
-        />
-        <CalendarDays className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black" />
+    <div className="form_field">
+      <span className="form_field_label">{label}</span>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "form_field_control form_field_date text-left",
+              !range?.from && "is_placeholder"
+            )}
+            aria-label={label}
+          >
+            <span className="truncate">{displayValue}</span>
+            <CalendarDays className="form_field_icon" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="range"
+            numberOfMonths={2}
+            selected={range}
+            onSelect={handleSelect}
+            defaultMonth={range?.from}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+export function FormDateField({
+  label,
+  placeholder = "Select date",
+  value,
+  onChange,
+  required = false,
+}: {
+  label: string;
+  placeholder?: string;
+  value?: Date;
+  onChange?: (date: Date | undefined) => void;
+  required?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [internalDate, setInternalDate] = useState<Date | undefined>();
+  const date = value ?? internalDate;
+
+  const handleSelect = (next: Date | undefined) => {
+    if (onChange) {
+      onChange(next);
+    } else {
+      setInternalDate(next);
+    }
+    if (next) {
+      setOpen(false);
+    }
+  };
+
+  const displayValue = date
+    ? format(date, "dd MMM yyyy")
+    : placeholder;
+
+  return (
+    <div className="form_field">
+      <span className="form_field_label">
+        {label}
+        {required && <span className="form_field_required"> *</span>}
       </span>
-    </label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "form_field_control form_field_date text-left",
+              !date && "is_placeholder"
+            )}
+            aria-label={label}
+          >
+            <span className="truncate">{displayValue}</span>
+            <CalendarDays className="form_field_icon" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={handleSelect}
+            defaultMonth={date}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }
 
 export function FilterActions() {
   return (
     <div className="flex items-end justify-end gap-3 xl:col-span-4">
-      <button className="h-10 rounded-md border border-black bg-white px-5 text-sm font-semibold">
+      <button type="button" className="btn_outline_black">
         Clear
       </button>
-      <button className="inline-flex h-10 items-center gap-2 rounded-md bg-black px-5 text-sm font-semibold text-white">
+      <button type="button" className="btn_primary_black">
         Search
-        <Search className="h-4 w-4 text-[#befe35]" />
+        <Search />
       </button>
     </div>
   );
@@ -318,23 +495,24 @@ export function FilterActions() {
 export function TableActions({
   onRegister,
   primaryLabel = "Register",
+  showRegister = true,
 }: {
   onRegister?: () => void;
   primaryLabel?: string;
+  showRegister?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button className="inline-flex h-10 items-center gap-2 rounded-md border border-black bg-white px-4 text-sm font-semibold">
+      <button type="button" className="btn_outline_black">
         Download Excel
-        <Download className="h-4 w-4" />
+        <Download />
       </button>
-      <button
-        onClick={onRegister}
-        className="inline-flex h-10 items-center gap-2 rounded-md bg-black px-4 text-sm font-semibold text-white"
-      >
-        {primaryLabel}
-        <Plus className="h-5 w-5 text-[#befe35]" />
-      </button>
+      {showRegister && (
+        <button type="button" onClick={onRegister} className="btn_primary_black">
+          {primaryLabel}
+          <Plus />
+        </button>
+      )}
     </div>
   );
 }
@@ -351,11 +529,11 @@ export function DataCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-lg bg-white p-5 shadow-sm">
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
-          {meta && <p className="mt-4 text-xs text-gray-700">{meta}</p>}
+    <section className="chart_card_wrapper">
+      <div className="section_subheader_group">
+        <div className="subheader_text">
+          <h2 className="subheader_title">{title}</h2>
+          {meta && <p className="subheader_meta">{meta}</p>}
         </div>
         {actions}
       </div>
@@ -372,14 +550,12 @@ export function SimpleTable({
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[900px] border-collapse text-sm">
+    <div className="data_table_wrap">
+      <table className="data_table">
         <thead>
-          <tr className="border border-gray-200 bg-[#f5f4f1] text-left text-gray-700">
+          <tr>
             {headers.map((header) => (
-              <th key={header} className="px-4 py-3 font-semibold">
-                {header}
-              </th>
+              <th key={header}>{header}</th>
             ))}
           </tr>
         </thead>
@@ -391,26 +567,37 @@ export function SimpleTable({
 
 export function Row({ children, striped = false }: { children: ReactNode; striped?: boolean }) {
   return (
-    <tr className={cn("border-b border-gray-100", striped && "bg-gray-100")}>
-      {children}
-    </tr>
+    <tr className={cn(striped && "is_striped")}>{children}</tr>
   );
 }
 
 export function Cell({ children, className }: { children: ReactNode; className?: string }) {
-  return <td className={cn("px-4 py-3 align-middle text-gray-800", className)}>{children}</td>;
+  return <td className={className}>{children}</td>;
 }
 
-export function CheckBox({ checked = false }: { checked?: boolean }) {
+export function CheckBox({
+  checked = false,
+  onChange,
+}: {
+  checked?: boolean;
+  onChange?: (checked: boolean) => void;
+}) {
+  const [isChecked, setIsChecked] = useState(checked);
+
   return (
-    <span
-      className={cn(
-        "grid h-4 w-4 place-items-center rounded border border-gray-700",
-        checked && "bg-black text-[#befe35]"
-      )}
+    <button
+      type="button"
+      onClick={() => {
+        const next = !isChecked;
+        setIsChecked(next);
+        onChange?.(next);
+      }}
+      className={cn("custom_checkbox", (checked || isChecked) && "is_checked")}
+      role="checkbox"
+      aria-checked={checked || isChecked}
     >
-      {checked && <CheckCheck className="h-3 w-3" />}
-    </span>
+      {(checked || isChecked) && <CheckCheck className="checkbox_icon" />}
+    </button>
   );
 }
 
@@ -463,21 +650,56 @@ export function StatusBadge({
   );
 }
 
+export function LockedYnCell({
+  locked = false,
+}: {
+  locked?: boolean;
+}) {
+  return (
+    <div className="locked_yn" role="group" aria-label="Locked YN">
+      <span className={cn("locked_yn_opt", !locked && "is_on")}>Enabled</span>
+      <span className={cn("locked_yn_opt", locked && "is_off")}>Disabled</span>
+    </div>
+  );
+}
+
+export function StaffIdentityCell({
+  name,
+  email,
+}: {
+  name: string;
+  email: string;
+}) {
+  return (
+    <div className="staff_identity">
+      <span className="staff_identity_avatar" aria-hidden>
+        {name.charAt(0).toUpperCase()}
+      </span>
+      <div className="staff_identity_text">
+        <p className="staff_identity_name">{name}</p>
+        <p className="staff_identity_email">{email}</p>
+      </div>
+    </div>
+  );
+}
+
 export function RowActions({
   onView,
   onEdit,
   onDelete,
+  onHistory,
   isLoading = false,
 }: {
   onView?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onHistory?: () => void;
   isLoading?: boolean;
 }) {
   const actions = [
     [Eye, onView, "View"],
     [Pencil, onEdit, "Edit"],
-    [Trash2, onDelete, "Delete"],
+    [onHistory ? Clock : Trash2, onHistory ?? onDelete, onHistory ? "Disable" : "Delete"],
   ] as const;
 
   return (
@@ -502,28 +724,32 @@ export function RowActions({
 
 export function PaginationFooter() {
   return (
-    <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-2 text-xs text-gray-800">
+    <div className="table_pagination">
+      <div className="pagination_per_page">
         Show Per Page:
-        <button className="inline-flex h-8 items-center gap-2 rounded-md border border-gray-200 px-3">
+        <button type="button" className="pagination_btn">
           5
-          <ChevronDown className="h-3 w-3" />
+          <ChevronDown />
         </button>
       </div>
-      <div className="flex items-center gap-2 text-xs">
-        <button className="grid h-8 w-8 place-items-center rounded-md bg-black text-white">
-          <ChevronsLeft className="h-4 w-4" />
+      <div className="pagination_controls">
+        <button type="button" className="pagination_btn is_icon" aria-label="First page">
+          <ChevronsLeft />
         </button>
-        <button className="h-8 rounded-md border border-gray-200 px-3">Prev</button>
+        <button type="button" className="pagination_btn">Prev</button>
         {[1, 2, 3].map((page) => (
-          <button key={page} className="h-8 w-8 rounded-md border border-gray-200">
+          <button
+            key={page}
+            type="button"
+            className={cn("pagination_btn", page === 1 && "is_active")}
+          >
             {page}
           </button>
         ))}
-        <span className="px-2 text-gray-400">...</span>
-        <button className="h-8 rounded-md border border-gray-200 px-3">Next</button>
-        <button className="grid h-8 w-8 place-items-center rounded-md bg-black text-white">
-          <ChevronsRight className="h-4 w-4" />
+        <span className="pagination_ellipsis">...</span>
+        <button type="button" className="pagination_btn">Next</button>
+        <button type="button" className="pagination_btn is_icon" aria-label="Last page">
+          <ChevronsRight />
         </button>
       </div>
     </div>
@@ -550,11 +776,108 @@ export function StatTile({
   }[tone];
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-semibold text-gray-900">{title}</p>
-      <p className={cn("mt-2 text-3xl font-bold", color)}>{value}</p>
-      {hint && <p className="mt-2 text-sm text-gray-400">{hint}</p>}
+    <div className="metric_card">
+      <div className="metric_card_content">
+        <p className="metric_title">{title}</p>
+        <p className={cn("metric_value", color)}>{value}</p>
+        {hint && <p className="metric_hint">{hint}</p>}
+      </div>
     </div>
+  );
+}
+
+export function AdminStatusAlert({
+  open,
+  onOpenChange,
+  variant = "success",
+  title,
+  headline,
+  description,
+  confirmLabel = "Okay",
+  cancelLabel = "Cancel",
+  onConfirm,
+  isLoading = false,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  variant?: "success" | "confirm";
+  title: string;
+  headline?: string;
+  description?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm?: () => Promise<void> | void;
+  isLoading?: boolean;
+}) {
+  const handleConfirm = async () => {
+    if (onConfirm) {
+      await onConfirm();
+    } else {
+      onOpenChange(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="admin_status_alert sm:max-w-[440px]">
+        <div className="admin_status_alert_body">
+          <div
+            className={cn(
+              "admin_status_alert_icon",
+              variant === "success" ? "is_success" : "is_confirm"
+            )}
+          >
+            {variant === "success" ? (
+              <Check className="admin_status_alert_icon_glyph" />
+            ) : (
+              <TriangleAlert className="admin_status_alert_icon_glyph" />
+            )}
+          </div>
+          <p
+            className={cn(
+              "admin_status_alert_title",
+              variant === "success" && "is_success"
+            )}
+          >
+            {title}
+          </p>
+          {headline && <p className="admin_status_alert_headline">{headline}</p>}
+          {description && (
+            <p className="admin_status_alert_desc">{description}</p>
+          )}
+        </div>
+        <DialogFooter className="admin_status_alert_footer">
+          {variant === "confirm" ? (
+            <>
+              <button
+                type="button"
+                className="btn_outline_black"
+                onClick={() => onOpenChange(false)}
+                disabled={isLoading}
+              >
+                {cancelLabel}
+              </button>
+              <button
+                type="button"
+                className="btn_primary_black admin_status_alert_confirm_btn"
+                onClick={handleConfirm}
+                disabled={isLoading}
+              >
+                {isLoading ? "Processing..." : confirmLabel}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn_primary_yellow_lg admin_status_alert_okay_btn"
+              onClick={() => onOpenChange(false)}
+            >
+              {confirmLabel}
+            </button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -583,17 +906,17 @@ export function FormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl gap-0 rounded-lg p-0">
-        <DialogHeader className="border-b border-gray-200 px-6 py-5">
-          <DialogTitle className="text-lg">{title}</DialogTitle>
+      <DialogContent className="admin_modal sm:max-w-[900px]">
+        <DialogHeader className="admin_modal_header">
+          <DialogTitle className="admin_modal_title">{title}</DialogTitle>
         </DialogHeader>
-        <div className="bg-gray-50 p-5">{children}</div>
-        <DialogFooter className="border-t border-gray-200 px-6 py-4">
+        <div className="admin_modal_body">{children}</div>
+        <DialogFooter className="admin_modal_footer">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
-            className="h-10 rounded-md border border-black bg-white px-5 text-sm font-semibold disabled:opacity-50"
+            className="btn_outline_black"
           >
             Cancel
           </button>
@@ -601,7 +924,7 @@ export function FormModal({
             type="button"
             onClick={handleSubmit}
             disabled={isLoading}
-            className="h-10 rounded-md bg-[#befe35] px-5 text-sm font-semibold text-black disabled:opacity-50"
+            className="btn_primary_yellow"
           >
             {isLoading ? "Processing..." : submitLabel}
           </button>
@@ -626,31 +949,29 @@ export function DetailModal({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl gap-0 rounded-lg p-0">
-        <DialogHeader className="border-b border-gray-200 px-6 py-5">
-          <DialogTitle className="text-lg">{title}</DialogTitle>
+      <DialogContent className="admin_modal sm:max-w-[900px]">
+        <DialogHeader className="admin_modal_header">
+          <DialogTitle className="admin_modal_title">{title}</DialogTitle>
         </DialogHeader>
-        <div className="bg-gray-50 p-5">{children}</div>
-        <DialogFooter className="border-t border-gray-200 px-6 py-4">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="h-10 rounded-md bg-[#befe35] px-5 text-sm font-semibold text-black"
-          >
-            Edit
-          </button>
-        </DialogFooter>
+        <div className="admin_modal_body">{children}</div>
+        {onEdit && (
+          <DialogFooter className="admin_modal_footer">
+            <button type="button" onClick={onEdit} className="btn_primary_yellow">
+              Edit
+            </button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
 export function ModalGrid({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-1 gap-4 rounded-lg bg-white p-4 md:grid-cols-3">{children}</div>;
+  return <div className="admin_modal_form_wrap is_form_grid">{children}</div>;
 }
 
 export function DetailGrid({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-1 gap-8 rounded-lg bg-white p-4 md:grid-cols-3">{children}</div>;
+  return <div className="admin_modal_detail_wrap">{children}</div>;
 }
 
 export function DetailItem({
@@ -661,9 +982,25 @@ export function DetailItem({
   children: ReactNode;
 }) {
   return (
-    <div>
-      <p className="text-xs text-gray-500">{label} :</p>
-      <div className="mt-2 text-sm font-medium text-gray-950">{children}</div>
+    <div className="detail_item">
+      <p className="detail_item_label">{label} :</p>
+      <div className="detail_item_value">{children}</div>
+    </div>
+  );
+}
+
+export function DetailImage({
+  src,
+  alt = "",
+}: {
+  src?: string;
+  alt?: string;
+}) {
+  return (
+    <div className={cn("detail_image", !src && "is_empty")}>
+      {src ? (
+        <Image src={src} alt={alt} fill sizes="220px" className="object-cover" />
+      ) : null}
     </div>
   );
 }
@@ -676,6 +1013,7 @@ export function FormInput({
   placeholder,
   required = false,
   active = false,
+  readOnly = false,
 }: {
   label: string;
   value?: string | number;
@@ -684,20 +1022,25 @@ export function FormInput({
   placeholder?: string;
   required?: boolean;
   active?: boolean;
+  readOnly?: boolean;
 }) {
   return (
-    <label className={cn("block text-sm font-medium", active ? "text-green-600" : "text-gray-700")}>
-      {label}
-      {required && <span className="text-red-500"> *</span>}
+    <label className="form_field">
+      <span className={cn("form_field_label", active && "text-green-600")}>
+        {label}
+        {required && <span className="form_field_required"> *</span>}
+      </span>
       <input
         type={type}
-        value={value || ""}
+        value={value ?? ""}
         onChange={onChange}
         placeholder={placeholder}
         required={required}
+        readOnly={readOnly}
         className={cn(
-          "mt-2 h-10 w-full rounded-md border bg-white px-3 text-sm outline-none",
-          active ? "border-green-500" : "border-gray-300"
+          "form_field_control",
+          active && "is_active",
+          readOnly && "is_readonly"
         )}
       />
     </label>
@@ -710,29 +1053,314 @@ export function FormSelect({
   onChange,
   children,
   required = false,
+  placeholder = "Select Method",
 }: {
   label: string;
   value?: string | number;
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   children?: React.ReactNode;
   required?: boolean;
+  placeholder?: string;
 }) {
   return (
-    <label className="block text-sm font-medium text-gray-700">
-      {label}
-      {required && <span className="text-red-500"> *</span>}
-      <span className="relative mt-2 block">
+    <label className="form_field">
+      <span className="form_field_label">
+        {label}
+        {required && <span className="form_field_required"> *</span>}
+      </span>
+      <span className="form_field_control_wrap">
         <select
-          value={value || ""}
+          value={value ?? ""}
           onChange={onChange}
           required={required}
-          className="h-10 w-full appearance-none rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-900 outline-none"
+          className="form_field_control form_field_select"
         >
+          <option value="">{placeholder}</option>
           {children}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+        <ChevronDown className="form_field_icon" />
       </span>
     </label>
+  );
+}
+
+export type ProductSelectOption = {
+  id: string;
+  name: string;
+  sku: string;
+  currentStock: number;
+  unit: string;
+};
+
+export function FormProductSelect({
+  label,
+  required = false,
+  options,
+  value,
+  onChange,
+  searchPlaceholder = "Search by product name or SKU...",
+}: {
+  label: string;
+  required?: boolean;
+  options: ProductSelectOption[];
+  value?: ProductSelectOption | null;
+  onChange?: (product: ProductSelectOption | null) => void;
+  searchPlaceholder?: string;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return options;
+    return options.filter(
+      (product) =>
+        product.name.toLowerCase().includes(query) ||
+        product.sku.toLowerCase().includes(query)
+    );
+  }, [options, search]);
+
+  const handleSelect = (product: ProductSelectOption) => {
+    onChange?.(product);
+    setSearch("");
+    setOpen(false);
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setSearch("");
+    }
+  };
+
+  const inputValue = open ? search : value?.name ?? "";
+
+  return (
+    <div className="form_field form_field_product_select">
+      <span className="form_field_label">
+        {label}
+        {required && <span className="form_field_required"> *</span>}
+      </span>
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverAnchor asChild>
+          <div className="form_field_control_wrap">
+            <Search className="form_field_search_icon" />
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                if (!open) setOpen(true);
+              }}
+              onFocus={() => setOpen(true)}
+              placeholder={searchPlaceholder}
+              className={cn(
+                "form_field_control form_field_search_input",
+                !open && !value && "is_placeholder"
+              )}
+            />
+          </div>
+        </PopoverAnchor>
+        <PopoverContent
+          align="start"
+          sideOffset={6}
+          className="form_product_select_popover w-[var(--radix-popover-trigger-width)] p-0"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          {filtered.length > 0 ? (
+            <ul className="form_product_select_list" role="listbox">
+              {filtered.map((product) => {
+                const isSelected = value?.id === product.id;
+                return (
+                  <li key={product.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      className={cn(
+                        "form_product_select_item",
+                        isSelected && "is_selected"
+                      )}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleSelect(product)}
+                    >
+                      <div className="form_product_select_item_main">
+                        <span className="form_product_select_name">{product.name}</span>
+                        <span className="form_product_select_meta">
+                          SKU: {product.sku} · {product.currentStock} {product.unit}
+                        </span>
+                      </div>
+                      {isSelected && (
+                        <span className="form_product_select_badge">Selected</span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="form_product_select_empty">No products found</div>
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+export function FormCategoryMultiSelect({
+  label,
+  options,
+  value,
+  onChange,
+  placeholder = "Select categories",
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  value: string[];
+  onChange?: (values: string[]) => void;
+  placeholder?: string;
+}) {
+  const available = options.filter((option) => !value.includes(option.value));
+
+  const addCategory = (nextValue: string) => {
+    if (!nextValue || value.includes(nextValue)) return;
+    onChange?.([...value, nextValue]);
+  };
+
+  const removeCategory = (nextValue: string) => {
+    onChange?.(value.filter((item) => item !== nextValue));
+  };
+
+  return (
+    <div className="form_field">
+      <span className="form_field_label">{label}</span>
+      <div className="form_field_control form_field_multi_select">
+        <div className="form_multi_select_inner">
+          <div className="form_multi_select_tags">
+            {value.length === 0 ? (
+              <span className="form_multi_select_placeholder">{placeholder}</span>
+            ) : (
+              value.map((item) => {
+                const option = options.find((entry) => entry.value === item);
+                return (
+                  <span key={item} className="form_multi_select_tag">
+                    {option?.label ?? item}
+                    <button
+                      type="button"
+                      className="form_multi_select_tag_remove"
+                      onClick={() => removeCategory(item)}
+                      aria-label={`Remove ${option?.label ?? item}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                );
+              })
+            )}
+          </div>
+          {available.length > 0 && (
+            <select
+              className="form_multi_select_add"
+              value=""
+              onChange={(e) => addCategory(e.target.value)}
+              aria-label={`Add ${label}`}
+            >
+              <option value="">
+                {value.length === 0 ? placeholder : "Add category"}
+              </option>
+              {available.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        <ChevronDown className="form_field_icon" />
+      </div>
+    </div>
+  );
+}
+
+export function FormTextarea({
+  label,
+  value,
+  onChange,
+  placeholder,
+  required = false,
+  rows = 4,
+}: {
+  label: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  required?: boolean;
+  rows?: number;
+}) {
+  return (
+    <label className="form_field">
+      <span className="form_field_label">
+        {label}
+        {required && <span className="form_field_required"> *</span>}
+      </span>
+      <textarea
+        value={value ?? ""}
+        onChange={onChange}
+        placeholder={placeholder}
+        required={required}
+        rows={rows}
+        className="form_field_control form_field_textarea"
+      />
+    </label>
+  );
+}
+
+export function FormImageUpload({
+  label,
+  file,
+  onChange,
+  accept = "image/*",
+  emptyLabel = "No File Chosen",
+}: {
+  label: string;
+  file?: File | null;
+  onChange?: (file: File | null) => void;
+  accept?: string;
+  emptyLabel?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const displayName = file?.name || emptyLabel;
+
+  return (
+    <div className="form_field form_field_image_upload">
+      <span className="form_field_label">{label}</span>
+      <div className="form_field_upload_row">
+        <input
+          type="text"
+          readOnly
+          value={displayName}
+          tabIndex={-1}
+          className={cn(
+            "form_field_control form_field_upload_display",
+            !file && "is_placeholder"
+          )}
+        />
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          className="sr-only"
+          onChange={(e) => onChange?.(e.target.files?.[0] ?? null)}
+        />
+        <button
+          type="button"
+          className="btn_outline_black form_field_upload_btn"
+          onClick={() => inputRef.current?.click()}
+        >
+          Upload Image
+        </button>
+      </div>
+    </div>
   );
 }
 

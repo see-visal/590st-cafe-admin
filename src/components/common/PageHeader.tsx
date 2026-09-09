@@ -2,21 +2,32 @@
 
 import { ReactNode } from "react";
 import { BreadcrumbItem, Breadcrumbs } from "@/components/common/Breadcrumbs";
+import { SidebarCollapseTrigger } from "@/components/layout/SidebarCollapseTrigger";
+import { cn } from "@/lib/utils";
 
 interface PageHeaderProps {
   title: string;
   breadcrumbs: BreadcrumbItem[];
   rightSlot?: ReactNode;
+  titleAction?: ReactNode;
 }
 
-export function PageHeader({ title, breadcrumbs, rightSlot }: PageHeaderProps) {
+export function PageHeader({ title, breadcrumbs, rightSlot, titleAction }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-3 border-b border-gray-200 pb-4">
-      <div className="flex items-center justify-between">
-        <Breadcrumbs items={breadcrumbs} />
-        {rightSlot}
+    <>
+      <div className="page_header">
+        <div className="header_top_row">
+          <div className="header_breadcrumb_row">
+            <SidebarCollapseTrigger />
+            <Breadcrumbs items={breadcrumbs} />
+          </div>
+          {rightSlot}
+        </div>
       </div>
-      <h1 className="text-3xl font-semibold text-gray-950">{title}</h1>
-    </div>
+      <div className={cn("page_title_row", titleAction && "has_action")}>
+        <h1 className="page_title">{title}</h1>
+        {titleAction}
+      </div>
+    </>
   );
 }
