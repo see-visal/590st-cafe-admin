@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { type DateRange } from "react-day-picker";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -47,8 +47,7 @@ const PRODUCT_TABLE_HEADERS = [
   "Name",
   "Amount",
   "Category",
-  "Payment Start Date",
-  "Payment End Date",
+  "Payment Date",
   "Status",
   "Action",
 ] as const;
@@ -61,8 +60,7 @@ const STATIC_PRODUCT_ROWS = [
     name: "John Doe",
     amount: "$850.00",
     category: "1",
-    startDate: "10-Jan-2025",
-    endDate: "10-Feb-2025",
+    paymentDate: "10-Jan-2025",
     status: "Paid",
   },
   {
@@ -71,8 +69,7 @@ const STATIC_PRODUCT_ROWS = [
     name: "John Doe",
     amount: "$850.00",
     category: "1",
-    startDate: "10-Jan-2025",
-    endDate: "10-Feb-2025",
+    paymentDate: "10-Jan-2025",
     status: "Paid",
   },
   {
@@ -81,8 +78,7 @@ const STATIC_PRODUCT_ROWS = [
     name: "John Doe",
     amount: "$850.00",
     category: "1",
-    startDate: "10-Jan-2025",
-    endDate: "10-Feb-2025",
+    paymentDate: "10-Jan-2025",
     status: "Paid",
   },
   {
@@ -91,8 +87,7 @@ const STATIC_PRODUCT_ROWS = [
     name: "John Doe",
     amount: "$850.00",
     category: "1",
-    startDate: "10-Jan-2025",
-    endDate: "10-Feb-2025",
+    paymentDate: "10-Jan-2025",
     status: "Paid",
   },
   {
@@ -101,8 +96,7 @@ const STATIC_PRODUCT_ROWS = [
     name: "John Doe",
     amount: "$850.00",
     category: "1",
-    startDate: "10-Jan-2025",
-    endDate: "10-Feb-2025",
+    paymentDate: "10-Jan-2025",
     status: "Paid",
   },
 ] as const;
@@ -113,8 +107,7 @@ type ProductDetailView = {
   name: string;
   amount: string;
   category: string;
-  paymentStartDate: string;
-  paymentEndDate: string;
+  paymentDate: string;
   status: string;
   imageUrl?: string;
   editProduct?: ProductResponse;
@@ -133,6 +126,11 @@ export default function Products() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [formDateRange, setFormDateRange] = useState<DateRange | undefined>();
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [checkedRows, setCheckedRows] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      STATIC_PRODUCT_ROWS.map((row) => [row.id, row.checked])
+    )
+  );
 
   // API hooks
   const { products = [], isLoading: productsLoading, refetch: refetchProducts } = useProducts();
@@ -151,6 +149,30 @@ export default function Products() {
   });
 
   const hasApiData = products && products.length > 0;
+
+  const visibleRowIds = useMemo(
+    () =>
+      hasApiData
+        ? products.map((product) => `api-${product.id}`)
+        : STATIC_PRODUCT_ROWS.map((product) => product.id),
+    [hasApiData, products]
+  );
+
+  const allRowsChecked =
+    visibleRowIds.length > 0 &&
+    visibleRowIds.every((id) => checkedRows[id] === true);
+  const someRowsChecked = visibleRowIds.some((id) => checkedRows[id] === true);
+  const isSelectAllIndeterminate = someRowsChecked && !allRowsChecked;
+
+  const handleSelectAll = (checked: boolean) => {
+    setCheckedRows((prev) => {
+      const next = { ...prev };
+      visibleRowIds.forEach((id) => {
+        next[id] = checked;
+      });
+      return next;
+    });
+  };
 
   const handleOpenForm = (product?: ProductResponse) => {
     if (product) {
@@ -233,8 +255,7 @@ export default function Products() {
       name: product.name,
       amount: `$${product.price.toFixed(2)}`,
       category: getCategoryName(product.categoryId),
-      paymentStartDate: "10-Jan-2025",
-      paymentEndDate: "10-Feb-2025",
+      paymentDate: "10-Jan-2025",
       status: "Paid",
       imageUrl: product.imageUrl,
       editProduct: product,
@@ -248,8 +269,7 @@ export default function Products() {
       name: row.name,
       amount: row.amount,
       category: row.category,
-      paymentStartDate: row.startDate,
-      paymentEndDate: row.endDate,
+      paymentDate: row.paymentDate,
       status: row.status,
     });
     setDetailOpen(true);
@@ -296,7 +316,7 @@ export default function Products() {
           placeholder="Select Method"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-        >
+        >x
           <option value="Paid">Paid</option>
           <option value="Unpaid">Unpaid</option>
           <option value="ACTIVE">Active</option>
@@ -315,13 +335,28 @@ export default function Products() {
         meta="Total Products Amount: 1500 USD"
         actions={<TableActions onRegister={() => handleOpenForm()} primaryLabel="Register" />}
       >
-        <SimpleTable headers={[...PRODUCT_TABLE_HEADERS]}>
+        <SimpleTable
+          headers={[...PRODUCT_TABLE_HEADERS]}
+          selectAll={{
+            checked: allRowsChecked,
+            indeterminate: isSelectAllIndeterminate,
+            onChange: handleSelectAll,
+          }}
+        >
           {hasApiData
             ? products.map((product, index) => (
                 <Row key={product.id} striped={index % 2 === 1}>
                   <Cell>{index + 1}</Cell>
                   <Cell>
-                    <CheckBox checked={false} />
+                    <CheckBox
+                      checked={checkedRows[`api-${product.id}`] ?? false}
+                      onChange={(next) =>
+                        setCheckedRows((prev) => ({
+                          ...prev,
+                          [`api-${product.id}`]: next,
+                        }))
+                      }
+                    />
                   </Cell>
                   <Cell>
                     <Thumbnail src={product.imageUrl} />
@@ -330,7 +365,6 @@ export default function Products() {
                   <Cell>${product.price.toFixed(2)}</Cell>
                   <Cell>{getCategoryName(product.categoryId)}</Cell>
                   <Cell>10-Jan-2025</Cell>
-                  <Cell>10-Feb-2025</Cell>
                   <Cell>
                     <StatusBadge label="Paid" tone="success" />
                   </Cell>
@@ -348,7 +382,15 @@ export default function Products() {
                 <Row key={product.id} striped={index % 2 === 1}>
                   <Cell>{index + 1}</Cell>
                   <Cell>
-                    <CheckBox checked={product.checked} />
+                    <CheckBox
+                      checked={checkedRows[product.id] ?? product.checked}
+                      onChange={(next) =>
+                        setCheckedRows((prev) => ({
+                          ...prev,
+                          [product.id]: next,
+                        }))
+                      }
+                    />
                   </Cell>
                   <Cell>
                     <Thumbnail />
@@ -356,8 +398,7 @@ export default function Products() {
                   <Cell>{product.name}</Cell>
                   <Cell>{product.amount}</Cell>
                   <Cell>{product.category}</Cell>
-                  <Cell>{product.startDate}</Cell>
-                  <Cell>{product.endDate}</Cell>
+                  <Cell>{product.paymentDate}</Cell>
                   <Cell>
                     <StatusBadge label={product.status} tone="success" />
                   </Cell>
@@ -469,11 +510,8 @@ export default function Products() {
               <DetailItem label="Name">{detailView.name}</DetailItem>
               <DetailItem label="Amount">{detailView.amount}</DetailItem>
               <DetailItem label="Category">{detailView.category}</DetailItem>
-              <DetailItem label="Payment Start Date">
-                {detailView.paymentStartDate}
-              </DetailItem>
-              <DetailItem label="Payment End Date">
-                {detailView.paymentEndDate}
+              <DetailItem label="Payment Date">
+                {detailView.paymentDate}
               </DetailItem>
               <DetailItem label="Status">
                 <StatusBadge label={detailView.status} tone="success" />

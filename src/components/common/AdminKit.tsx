@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ReactNode, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { type DateRange } from "react-day-picker";
 import {
@@ -545,17 +545,34 @@ export function DataCard({
 export function SimpleTable({
   headers,
   children,
+  selectAll,
 }: {
   headers: string[];
   children: ReactNode;
+  selectAll?: {
+    checked: boolean;
+    indeterminate?: boolean;
+    onChange: (checked: boolean) => void;
+  };
 }) {
   return (
     <div className="data_table_wrap">
       <table className="data_table">
         <thead>
           <tr>
-            {headers.map((header) => (
-              <th key={header}>{header}</th>
+            {headers.map((header, index) => (
+              <th key={`${header}-${index}`}>
+                {header === "" && selectAll ? (
+                  <CheckBox
+                    checked={selectAll.checked}
+                    indeterminate={selectAll.indeterminate}
+                    onChange={selectAll.onChange}
+                    aria-label="Select all rows"
+                  />
+                ) : (
+                  header
+                )}
+              </th>
             ))}
           </tr>
         </thead>
@@ -577,26 +594,52 @@ export function Cell({ children, className }: { children: ReactNode; className?:
 
 export function CheckBox({
   checked = false,
+  indeterminate = false,
   onChange,
+  "aria-label": ariaLabel,
 }: {
   checked?: boolean;
+  indeterminate?: boolean;
   onChange?: (checked: boolean) => void;
+  "aria-label"?: string;
 }) {
-  const [isChecked, setIsChecked] = useState(checked);
+  const isControlled = onChange !== undefined;
+  const [internalChecked, setInternalChecked] = useState(checked);
+  const isChecked = isControlled ? checked : internalChecked;
+  const showCheck = isChecked && !indeterminate;
+
+  useEffect(() => {
+    if (!isControlled) {
+      setInternalChecked(checked);
+    }
+  }, [checked, isControlled]);
+
+  const handleToggle = () => {
+    const next = indeterminate ? true : !isChecked;
+    if (!isControlled) {
+      setInternalChecked(next);
+    }
+    onChange?.(next);
+  };
 
   return (
     <button
       type="button"
-      onClick={() => {
-        const next = !isChecked;
-        setIsChecked(next);
-        onChange?.(next);
-      }}
-      className={cn("custom_checkbox", (checked || isChecked) && "is_checked")}
+      onClick={handleToggle}
+      className={cn(
+        "custom_checkbox",
+        (isChecked || indeterminate) && "is_checked",
+        indeterminate && "is_indeterminate"
+      )}
       role="checkbox"
-      aria-checked={checked || isChecked}
+      aria-checked={indeterminate ? "mixed" : isChecked}
+      aria-label={ariaLabel}
     >
-      {(checked || isChecked) && <CheckCheck className="checkbox_icon" />}
+      {indeterminate ? (
+        <span className="checkbox_indeterminate_mark" aria-hidden />
+      ) : (
+        showCheck && <Check className="checkbox_icon" />
+      )}
     </button>
   );
 }

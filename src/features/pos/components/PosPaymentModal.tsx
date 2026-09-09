@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 
 export type PosCartItem = {
   id: string;
@@ -61,7 +60,8 @@ export function PosPaymentModal({
     return Number.isFinite(parsed) ? parsed : 0;
   }, [cashInput]);
 
-  const balance = credit - total;
+  const balance = Math.max(0, total - credit);
+  const change = Math.max(0, credit - total);
 
   const appendValue = (value: string) => {
     setCashInput((current) => {
@@ -190,11 +190,10 @@ export function PosPaymentModal({
               <dl className="pos_payment_totals">
                 <dt>Credit:</dt>
                 <dd>{formatMoney(credit)}</dd>
+                <dt className="is_change">Change:</dt>
+                <dd className="is_change">{formatMoney(change)}</dd>
                 <dt className="is_balance">Balance:</dt>
-                <dd className={cn("is_balance", balance < 0 && "is_negative")}>
-                  {balance < 0 ? "-" : ""}
-                  {formatMoney(Math.abs(balance))}
-                </dd>
+                <dd className="is_balance">{formatMoney(balance)}</dd>
               </dl>
 
               <button type="button" className="btn_primary_yellow pos_payment_confirm">
