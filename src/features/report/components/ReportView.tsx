@@ -1,144 +1,232 @@
 "use client";
 
+import { useState } from "react";
+import { shopDate } from "@/lib/shopDate";
+import { useCurrentRole } from "@/store/api/useCurrentRole";
+import BaristaReportView from "./BaristaReportView";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
   AdminTopActions,
   Cell,
   DataCard,
-  PaginationFooter,
+  FilterActions,
+  FilterPanel,
   Row,
+  SelectField,
   SimpleTable,
   StatTile,
-  TableActions,
+  TableState,
+  TextField,
 } from "@/components/common/AdminKit";
 import {
-  formatUsd,
-  SETTLEMENT_HISTORY,
-  SETTLEMENT_SUMMARY,
-  type SettlementRow,
-  type SettlementStatus,
-} from "@/features/report/constants/report.mock";
-import { cn } from "@/lib/utils";
+  useGetDailyFinanceQuery,
+  useGetDailyReportQuery,
+  useGetMonthlyFinanceQuery,
+  useGetYearlyFinanceQuery,
+} from "@/store/api/reportApi";
 
-function SettlementStatusBadge({ status }: { status: SettlementStatus }) {
-  const toneClass = {
-    Pending: "is_pending",
-    Settled: "is_settled",
-    Discrepancy: "is_discrepancy",
-  }[status];
-
-  return (
-    <span className={cn("settlement_status_badge", toneClass)}>{status}</span>
-  );
-}
-
-function MoneyCell({
-  amount,
-  tone = "default",
-  signed = false,
-}: {
-  amount: number;
-  tone?: "default" | "discount" | "refund" | "net";
-  signed?: boolean;
-}) {
-  const prefix = signed && amount > 0 ? "-" : "";
-  return (
-    <span className={cn("settlement_amount", tone !== "default" && `is_${tone}`)}>
-      {prefix}
-      {formatUsd(amount)}
-    </span>
-  );
-}
-
-const SETTLEMENT_TABLE_HEADERS = [
-  "Date",
-  "Gross Revenue",
-  "Discounts",
-  "Refunds",
-  "Net Revenue",
-  "Cash",
-  "Digital",
+const BARISTA_HEADERS = [
+  "Barista",
   "Orders",
-  "Avg Order",
-  "Settled By",
-  "Status",
+  "Cash",
+  "Bakong",
+  "Total",
 ] as const;
 
-export default function Report() {
-  const summary = SETTLEMENT_SUMMARY;
-  const rows = SETTLEMENT_HISTORY;
+type Period = "DAILY" | "MONTHLY" | "YEARLY";
+
+function formatUsd(value: number) {
+  return `$${Number(value).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+const todayIso = shopDate;
+
+/**
+ * Two API surfaces feed this screen: /api/admin/reports/daily gives the per-barista takings
+ * breakdown for one day, and /api/admin/finance/{daily,monthly,yearly} gives money in/out and
+ * profit for the chosen period. Both accept a date (or year/month) and default to now.
+ */
+export default function ReportView() {
+  const { isAdmin, isBarista } = useCurrentRole();
+  if (isBarista) return <BaristaReportView />;
+  if (isAdmin) return <AdminReportView />;
+  return null;
+}
+
+function AdminReportView() {
+  const [date, setDate] = useState(todayIso());
+  const [period, setPeriod] = useState<Period>("DAILY");
+  const [year, setYear] = useState(Number(todayIso().slice(0, 4)));
+  const [month, setMonth] = useState(Number(todayIso().slice(5, 7)));
+
+  const {
+    currentData: report,
+    isFetching: isLoadingReport,
+    error: reportError,
+    refetch: refetchReport,
+  } = useGetDailyReportQuery({ date });
+
+  const dailyFinance = useGetDailyFinanceQuery({ date }, { skip: period !== "DAILY" });
+  const monthlyFinance = useGetMonthlyFinanceQuery(
+    { year, month },
+    { skip: period !== "MONTHLY" }
+  );
+  const yearlyFinance = useGetYearlyFinanceQuery({ year }, { skip: period !== "YEARLY" });
+
+  const activeFinance =
+    period === "DAILY"
+      ? dailyFinance
+      : period === "MONTHLY"
+      ? monthlyFinance
+      : yearlyFinance;
+  const finance = activeFinance.currentData;
+  const isLoadingFinance = activeFinance.isFetching;
+  const financeValue = (value: number | undefined) => activeFinance.error ? "Unavailable" : isLoadingFinance || !finance ? "..." : formatUsd(Number(value ?? 0));
+
+  const baristas = report?.baristas ?? [];
 
   return (
     <PageShell>
       <PageHeader
-        title="Daily Settlement"
-        breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "Report" },
-          { label: "Daily Settlement" },
-        ]}
+        title="Reports"
+        breadcrumbs={[{ label: "Home", href: "/" }, { label: "Reports" }]}
         rightSlot={<AdminTopActions />}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <FilterPanel>
+        <SelectField
+          label="Finance Period"
+          value={period}
+          onChange={(e) => { if (e.target.value) setPeriod(e.target.value as Period); }}
+        >
+          <option value="DAILY">Daily</option>
+          <option value="MONTHLY">Monthly</option>
+          <option value="YEARLY">Yearly</option>
+        </SelectField>
+
+        {period === "DAILY" ? (
+          <TextField
+            label="Date"
+            type="date"
+            value={date}
+            onChange={(e) => { if (e.target.value) setDate(e.target.value); }}
+          />
+        ) : null}
+
+        {period !== "DAILY" ? (
+          <TextField
+            label="Year"
+            type="number"
+            value={String(year)}
+            onChange={(e) => { if (Number(e.target.value) > 0) setYear(Number(e.target.value)); }}
+          />
+        ) : null}
+
+        {period === "MONTHLY" ? (
+          <SelectField
+            label="Month"
+            value={String(month)}
+            onChange={(e) => { if (e.target.value) setMonth(Number(e.target.value)); }}
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={String(m)}>
+                {new Date(2000, m - 1).toLocaleString("en-GB", { month: "long" })}
+              </option>
+            ))}
+          </SelectField>
+        ) : null}
+
+        <FilterActions onClear={() => {
+          const today = todayIso();
+          setPeriod("DAILY"); setDate(today); setYear(Number(today.slice(0, 4))); setMonth(Number(today.slice(5, 7)));
+        }} onSearch={() => { refetchReport(); activeFinance.refetch(); }} />
+      </FilterPanel>
+
+      {activeFinance.error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        Could not load the finance summary. <button type="button" className="underline" onClick={() => activeFinance.refetch()}>Retry</button>
+      </div>}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatTile
-          title="Gross Revenue"
-          value={`${formatUsd(summary.grossRevenue)} USD`}
-          tone="gray"
+          title="Money In"
+          value={financeValue(finance?.totalIn)}
+          hint={
+            finance && !activeFinance.error
+              ? `Cash ${formatUsd(Number(finance.cashIn))} · Bakong ${formatUsd(
+                  Number(finance.bakongIn)
+                )}`
+              : undefined
+          }
+          tone="green"
         />
         <StatTile
-          title="Cash Revenue"
-          value={`${formatUsd(summary.cashRevenue)} USD`}
-          tone="gray"
+          title="Money Out"
+          value={financeValue(finance?.totalOut)}
+          hint="Recorded expenses"
+          tone="orange"
         />
         <StatTile
-          title="Digital Revenue"
-          value={`${formatUsd(summary.digitalRevenue)} USD`}
-          tone="gray"
+          title="Profit"
+          value={financeValue(finance?.profit)}
+          hint={
+            finance ? `${finance.periodStart} → ${finance.periodEnd}` : undefined
+          }
+          tone={Number(finance?.profit ?? 0) >= 0 ? "green" : "red"}
         />
         <StatTile
-          title="Net Revenue"
-          value={`${formatUsd(summary.netRevenue)} USD`}
+          title="Orders on Selected Day"
+          value={reportError ? "Unavailable" : isLoadingReport ? "..." : String(report?.totalOrders ?? 0)}
+          hint={report && !reportError ? `${date}: ${formatUsd(Number(report.grandTotal))}` : date}
           tone="gray"
         />
       </div>
 
       <DataCard
-        title="Method Orders"
-        meta={`Settle Orders: ${summary.settleOrders}`}
-        actions={<TableActions showRegister={false} />}
+        title="Barista Takings"
+        meta={`Daily report for ${date}`}
       >
-        <SimpleTable headers={[...SETTLEMENT_TABLE_HEADERS]}>
-          {rows.map((row: SettlementRow, index) => (
-            <Row key={row.id} striped={index % 2 === 1}>
-              <Cell>{row.date}</Cell>
-              <Cell>{formatUsd(row.grossRevenue)}</Cell>
-              <Cell>
-                <MoneyCell amount={row.discounts} tone="discount" signed />
+        <SimpleTable headers={[...BARISTA_HEADERS]}>
+          <TableState
+            colSpan={BARISTA_HEADERS.length}
+            isLoading={isLoadingReport}
+            error={reportError}
+            isEmpty={baristas.length === 0}
+            emptyLabel="No barista took any orders on this date."
+            onRetry={refetchReport}
+          />
+          {!isLoadingReport &&
+            !reportError &&
+            baristas.map((barista, index) => (
+              <Row key={barista.baristaId} striped={index % 2 === 1}>
+                <Cell className="font-semibold">{barista.baristaName}</Cell>
+                <Cell>{barista.totalOrders}</Cell>
+                <Cell>{formatUsd(Number(barista.cashTotal))}</Cell>
+                <Cell>{formatUsd(Number(barista.bakongTotal))}</Cell>
+                <Cell className="font-semibold">
+                  {formatUsd(Number(barista.grandTotal))}
+                </Cell>
+              </Row>
+            ))}
+          {/* Shop-wide totals as a footer row, so the per-barista figures add up on screen. */}
+          {!isLoadingReport && !reportError && baristas.length > 0 ? (
+            <Row>
+              <Cell className="font-bold">All Baristas</Cell>
+              <Cell className="font-bold">{report?.totalOrders ?? 0}</Cell>
+              <Cell className="font-bold">
+                {formatUsd(Number(report?.cashTotal ?? 0))}
               </Cell>
-              <Cell>
-                <MoneyCell amount={row.refunds} tone="refund" signed />
+              <Cell className="font-bold">
+                {formatUsd(Number(report?.bakongTotal ?? 0))}
               </Cell>
-              <Cell>
-                <MoneyCell amount={row.netRevenue} tone="net" />
-              </Cell>
-              <Cell>{formatUsd(row.cash)}</Cell>
-              <Cell>{formatUsd(row.digital)}</Cell>
-              <Cell>{row.orders}</Cell>
-              <Cell>{formatUsd(row.avgOrder)}</Cell>
-              <Cell>{row.settledBy}</Cell>
-              <Cell>
-                <SettlementStatusBadge status={row.status} />
+              <Cell className="font-bold">
+                {formatUsd(Number(report?.grandTotal ?? 0))}
               </Cell>
             </Row>
-          ))}
+          ) : null}
         </SimpleTable>
-
-        <div className="settlement_table_footer">
-          <span className="settlement_table_count">Showing {rows.length} items</span>
-          <PaginationFooter />
-        </div>
       </DataCard>
     </PageShell>
   );

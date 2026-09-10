@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { Download } from "lucide-react";
+import { useState } from "react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
@@ -12,154 +11,201 @@ import {
   PaginationFooter,
   Row,
   SimpleTable,
+  StatTile,
   StatusBadge,
-  Thumbnail,
+  TableState,
 } from "@/components/common/AdminKit";
 import {
-  getInventoryByProductId,
-  STOCK_MOVEMENT_HISTORY,
-  type StockMovementRow,
-} from "@/features/inventory/constants/inventory.mock";
+  useGetInventoryByProductQuery,
+  useListStockMovementsQuery,
+} from "@/store/api/inventoryApi";
+import { useGetProductQuery } from "@/store/api/productApi";
+import { usePageSize } from "@/contexts/AdminPreferencesContext";
+import type { StockMovementType } from "@/store/api/types";
 import { cn } from "@/lib/utils";
 
-function getStatusTone(status: string): "success" | "danger" | "warning" {
-  const normalized = status.toLowerCase();
-  if (normalized.includes("low")) return "warning";
-  if (normalized.includes("out")) return "danger";
-  return "success";
-}
+const MOVEMENT_TABLE_HEADERS = [
+  "Date",
+  "Type",
+  "Strategy",
+  "Quantity",
+  "Performed By",
+  "Note",
+] as const;
 
-function MovementTypeBadge({ type }: { type: StockMovementRow["type"] }) {
-  const toneClass = {
-    Purchase: "is_purchase",
-    Sale: "is_sale",
-    Adjustment: "is_adjustment",
-  }[type];
-
-  return <span className={cn("movement_type_badge", toneClass)}>{type}</span>;
-}
-
-function QuantityChange({ value }: { value: number }) {
-  const prefix = value > 0 ? "+" : "";
+function MovementTypeBadge({ type }: { type: StockMovementType }) {
   return (
-    <span className={cn("qty_change", value >= 0 ? "is_positive" : "is_negative")}>
-      {prefix}
-      {value}
+    <span
+      className={cn(
+        "movement_type_badge",
+        type === "STOCK_IN" ? "is_purchase" : "is_sale"
+      )}
+    >
+      {type === "STOCK_IN" ? "Stock In" : "Stock Out"}
     </span>
   );
 }
 
-export default function InventoryDetailView({ productId }: { productId: string }) {
-  const item = useMemo(() => getInventoryByProductId(productId), [productId]);
+/** Stock-in adds, stock-out subtracts — the API sends both as a positive magnitude. */
+function QuantityChange({
+  value,
+  type,
+}: {
+  value: number;
+  type: StockMovementType;
+}) {
+  const signed = type === "STOCK_IN" ? value : -value;
+  return (
+    <span className={cn("qty_change", signed >= 0 ? "is_positive" : "is_negative")}>
+      {signed > 0 ? "+" : ""}
+      {signed}
+    </span>
+  );
+}
 
-  if (!item) {
+function formatDateTime(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default function InventoryDetailView({ productId }: { productId: string }) {
+  const [page, setPage] = useState(1);
+  const [size, setSize] = usePageSize();
+
+  const {
+    data: item,
+    isFetching: isLoadingItem,
+    error: itemError,
+  } = useGetInventoryByProductQuery(productId);
+
+  const { data: product } = useGetProductQuery(productId);
+
+  const {
+    data: movementPage,
+    isFetching: isLoadingMovements,
+    error: movementError,
+    refetch,
+  } = useListStockMovementsQuery({ productId, page, size });
+
+  const breadcrumbs = [
+    { label: "Home", href: "/" },
+    { label: "Inventory", href: "/inventory" },
+    { label: item?.productName ?? "Detail" },
+  ];
+
+  if (itemError) {
     return (
       <PageShell>
         <PageHeader
           title="Inventory Detail"
-          breadcrumbs={[
-            { label: "Home", href: "/" },
-            { label: "Inventory", href: "/inventory" },
-            { label: "Inventory List", href: "/inventory" },
-          ]}
+          breadcrumbs={breadcrumbs}
           rightSlot={<AdminTopActions />}
-          titleAction={
-            <Link href="/inventory" className="btn_outline_black">
-              Back to List
-            </Link>
-          }
         />
-        <div className="py-12 text-center text-gray-500">Inventory item not found.</div>
+        <DataCard title="Not Found">
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            No inventory record for this product.{" "}
+            <Link href="/inventory" className="underline">
+              Back to inventory
+            </Link>
+          </p>
+        </DataCard>
       </PageShell>
     );
   }
 
+  const onHand = Number(item?.quantityOnHand ?? 0);
+  const reorder = Number(item?.reorderLevel ?? 0);
+  const level = onHand <= 0 ? "OUT" : onHand <= reorder ? "LOW" : "OK";
+
   return (
     <PageShell>
       <PageHeader
-        title="Inventory Detail"
-        breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "Inventory", href: "/inventory" },
-          { label: "Inventory List", href: "/inventory" },
-        ]}
+        title={item?.productName ?? "Inventory Detail"}
+        breadcrumbs={breadcrumbs}
         rightSlot={<AdminTopActions />}
-        titleAction={
-          <Link href="/inventory" className="btn_outline_black">
-            Back to List
-          </Link>
-        }
       />
 
-      <section className="inventory_detail_summary">
-        <div className="inventory_detail_identity">
-          <div className="inventory_detail_thumb">
-            <Thumbnail />
-          </div>
-          <div className="inventory_detail_meta">
-            <p className="inventory_detail_name">{item.name}</p>
-            <p className="inventory_detail_sub">SKU: {item.sku}</p>
-            <p className="inventory_detail_sub">Category: {item.category}</p>
-          </div>
-        </div>
-
-        <div className="inventory_detail_metrics">
-          <div className="inventory_detail_metric">
-            <p className="inventory_detail_metric_label">Current Stock ({item.unit})</p>
-            <p className="inventory_detail_metric_value">{item.stock}</p>
-          </div>
-          <div className="inventory_detail_metric">
-            <p className="inventory_detail_metric_label">Reorder Level</p>
-            <p className="inventory_detail_metric_value">{item.reorderLevel}</p>
-          </div>
-          <div className="inventory_detail_metric">
-            <p className="inventory_detail_metric_label">Unit</p>
-            <p className="inventory_detail_metric_value capitalize">{item.unit}</p>
-          </div>
-        </div>
-
-        <div className="inventory_detail_status">
-          <StatusBadge label={item.status} tone={getStatusTone(item.status)} />
-        </div>
-      </section>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <StatTile
+          title="On Hand"
+          value={isLoadingItem ? "..." : `${onHand} ${item?.unit ?? ""}`}
+          tone={level === "OK" ? "green" : level === "LOW" ? "orange" : "red"}
+        />
+        <StatTile
+          title="Reorder Level"
+          value={isLoadingItem ? "..." : `${reorder} ${item?.unit ?? ""}`}
+          tone="gray"
+        />
+        <StatTile
+          title="Unit Price"
+          value={product ? `$${Number(product.price).toFixed(2)}` : "-"}
+          tone="gray"
+        />
+        <StatTile title="SKU" value={product?.sku ?? "-"} tone="gray" />
+      </div>
 
       <DataCard
-        title="Stock Movement History"
+        title="Stock Movements"
+        meta={`Total Movements: ${movementPage?.totalElements ?? 0}`}
         actions={
-          <button type="button" className="btn_outline_black">
-            Export History
-            <Download />
-          </button>
+          <StatusBadge
+            label={
+              level === "OK" ? "In Stock" : level === "LOW" ? "Low Stock" : "Out of Stock"
+            }
+            tone={level === "OK" ? "success" : level === "LOW" ? "warning" : "danger"}
+          />
         }
       >
-        <SimpleTable
-          headers={[
-            "Date",
-            "Type",
-            "Quantity Change",
-            "Previous Qty",
-            "New Qty",
-            "Adjusted By",
-            "Reason/Note",
-          ]}
-        >
-          {STOCK_MOVEMENT_HISTORY.map((movement, index) => (
-            <Row key={movement.id} striped={index % 2 === 1}>
-              <Cell>{movement.date}</Cell>
-              <Cell>
-                <MovementTypeBadge type={movement.type} />
-              </Cell>
-              <Cell>
-                <QuantityChange value={movement.change} />
-              </Cell>
-              <Cell>{movement.previousQty}</Cell>
-              <Cell>{movement.newQty}</Cell>
-              <Cell>{movement.adjustedBy}</Cell>
-              <Cell>{movement.reason}</Cell>
-            </Row>
-          ))}
+        <SimpleTable headers={[...MOVEMENT_TABLE_HEADERS]}>
+          <TableState
+            colSpan={MOVEMENT_TABLE_HEADERS.length}
+            isLoading={isLoadingMovements}
+            error={movementError}
+            isEmpty={(movementPage?.content.length ?? 0) === 0}
+            emptyLabel="No stock movements recorded for this product yet."
+            onRetry={refetch}
+          />
+          {!isLoadingMovements &&
+            !movementError &&
+            (movementPage?.content ?? []).map((movement, index) => (
+              <Row key={movement.id} striped={index % 2 === 1}>
+                <Cell>{formatDateTime(movement.createdAt)}</Cell>
+                <Cell>
+                  <MovementTypeBadge type={movement.type} />
+                </Cell>
+                <Cell>{movement.strategy ?? "-"}</Cell>
+                <Cell>
+                  <QuantityChange
+                    value={Number(movement.quantity)}
+                    type={movement.type}
+                  />
+                </Cell>
+                <Cell>
+                  {movement.performedByName ?? "-"}
+                  {movement.performedByRole ? ` (${movement.performedByRole})` : ""}
+                </Cell>
+                <Cell>{movement.note || "-"}</Cell>
+              </Row>
+            ))}
         </SimpleTable>
-        <PaginationFooter />
+        <PaginationFooter
+          page={movementPage?.page ?? page}
+          totalPages={movementPage?.totalPages ?? 1}
+          size={size}
+          totalElements={movementPage?.totalElements}
+          onPageChange={setPage}
+          onSizeChange={(next) => {
+            setSize(next);
+            setPage(1);
+          }}
+        />
       </DataCard>
     </PageShell>
   );

@@ -16,6 +16,7 @@ import {
   Download,
   Eye,
   Filter,
+  Loader2,
   Pencil,
   Plus,
   Search,
@@ -51,6 +52,9 @@ import {
 } from "@/components/ui/popover";
 import { useI18n } from "@/contexts/I18nContext";
 import { cn } from "@/lib/utils";
+import { apiErrorMessage } from "@/store/api/baseApi";
+
+import { OperationalAlertsContent, useOperationalAlerts } from "./OperationalAlerts";
 
 export type FieldOption = {
   label: string;
@@ -96,6 +100,7 @@ function LanguageFlag({
 }
 
 export function AdminTopActions() {
+  const alerts = useOperationalAlerts();
   const [open, setOpen] = useState(false);
   const { locale, setLocale } = useI18n();
   const currentLang =
@@ -106,12 +111,15 @@ export function AdminTopActions() {
       <div className="header_top_actions">
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            alerts.markSeen();
+            setOpen(true);
+          }}
           className="header_action_btn header_notify_btn"
           aria-label="Notifications"
         >
           <Bell className="h-5 w-5" />
-          <span className="header_notify_badge">10</span>
+          {alerts.unseen !== undefined && alerts.unseen > 0 && <span className="header_notify_badge">{alerts.unseen}</span>}
         </button>
 
         <DropdownMenu>
@@ -155,102 +163,14 @@ export function AdminTopActions() {
         <SheetContent side="right" className="notify_slider_popup" showCloseButton={false}>
           <div className="notify_header">
             <div>
-              <SheetTitle className="notify_header_title">Notifications</SheetTitle>
-              <p className="notify_header_sub">10 unread notifications</p>
+              <SheetTitle className="notify_header_title">Current alerts</SheetTitle>
+              <p className="notify_header_sub">{alerts.count === undefined ? "Checking current activity" : `${alerts.count} items need attention`}</p>
             </div>
-            <div className="notify_header_actions">
-              <button type="button" className="notify_action_btn">
-                Make all read <CheckCheck className="h-4 w-4" />
-              </button>
-              <button type="button" className="notify_icon_btn" aria-label="Delete notifications">
-                <Trash2 className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="notify_icon_btn"
-                aria-label="Close notifications"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+            <button type="button" onClick={() => setOpen(false)} className="notify_icon_btn" aria-label="Close notifications">
+              <X className="h-5 w-5" />
+            </button>
           </div>
-
-          <div className="notify_segments">
-            {[
-              ["View all", "12", true],
-              ["Unread", "10", false],
-              ["Orders", "10", false],
-              ["Payments", "2", false],
-            ].map(([label, count, isHighlight], index) => (
-              <button
-                key={label as string}
-                type="button"
-                className={cn("notify_segment_btn", index === 0 && "is_active")}
-              >
-                <span>{label}</span>
-                <span className={cn("notify_count_badge", isHighlight && "is_highlight")}>
-                  {count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="notify_body">
-            <p className="notify_group_label">Today</p>
-            {[
-              { status: "Preparing", statusColor: "#eab308", paid: "Unpaid", paidType: "unpaid", read: false },
-              { status: "Preparing", statusColor: "#eab308", paid: "Unpaid", paidType: "unpaid", read: false },
-              { status: "Ready", statusColor: "#2563eb", paid: "Paid", paidType: "paid", read: false },
-              { status: "Served", statusColor: "#16a34a", paid: "Paid", paidType: "paid", read: true },
-            ].map((item, index) => (
-              <div key={index} className={cn("notify_item", !item.read && "is_unread")}>
-                <span className="notify_item_avatar">
-                  <Download className="h-5 w-5" />
-                </span>
-                <div className="notify_item_wrap">
-                  <p className="notify_item_title">
-                    Order #2F494A4S - <span style={{ color: item.statusColor }}>{item.status}</span>
-                  </p>
-                  <p className="notify_item_desc">Order has been served to the customer</p>
-                  <p className="notify_item_time">13d ago</p>
-                </div>
-                <div className="notify_item_side">
-                  <span className={cn("notify_badge_status", item.paidType === "paid" ? "notify_badge_paid" : "notify_badge_unpaid")}>
-                    {item.paid}
-                  </span>
-                  {!item.read && (
-                    <button type="button" className="notify_read_btn">
-                      Make as read
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            <p className="notify_group_label">Yesterday</p>
-            {[
-              { status: "Served", statusColor: "#16a34a", paid: "Paid", paidType: "paid", read: true },
-            ].map((item, index) => (
-              <div key={index} className="notify_item">
-                <span className="notify_item_avatar">
-                  <Download className="h-5 w-5" />
-                </span>
-                <div className="notify_item_wrap">
-                  <p className="notify_item_title">
-                    Order #2F494A4S - <span style={{ color: item.statusColor }}>{item.status}</span>
-                  </p>
-                  <p className="notify_item_desc">Order has been served to the customer</p>
-                  <p className="notify_item_time">13d ago</p>
-                </div>
-                <div className="notify_item_side">
-                  <span className="notify_badge_status notify_badge_paid">
-                    {item.paid}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <div className="notify_body"><OperationalAlertsContent alerts={alerts} /></div>
         </SheetContent>
       </Sheet>
     </>
@@ -297,16 +217,20 @@ export function TextField({
   placeholder = "Placeholder",
   value,
   onChange,
+  type = "text",
 }: {
   label: string;
   placeholder?: string;
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** "date"/"number" for filters that select a period rather than free text. */
+  type?: string;
 }) {
   return (
     <label className="form_field">
       <span className="form_field_label">{label}</span>
       <input
+        type={type}
         value={value || ""}
         onChange={onChange}
         className="form_field_control"
@@ -478,13 +402,13 @@ export function FormDateField({
   );
 }
 
-export function FilterActions() {
+export function FilterActions({ onClear, onSearch }: { onClear: () => void; onSearch: () => void }) {
   return (
     <div className="flex items-end justify-end gap-3 xl:col-span-4">
-      <button type="button" className="btn_outline_black">
+      <button type="button" onClick={onClear} className="btn_outline_black">
         Clear
       </button>
-      <button type="button" className="btn_primary_black">
+      <button type="button" onClick={onSearch} className="btn_primary_black">
         Search
         <Search />
       </button>
@@ -494,20 +418,22 @@ export function FilterActions() {
 
 export function TableActions({
   onRegister,
+  onExport,
   primaryLabel = "Register",
   showRegister = true,
 }: {
   onRegister?: () => void;
+  onExport?: () => void;
   primaryLabel?: string;
   showRegister?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button type="button" className="btn_outline_black">
+      {onExport && <button type="button" onClick={onExport} className="btn_outline_black">
         Download Excel
         <Download />
-      </button>
-      {showRegister && (
+      </button>}
+      {showRegister && onRegister && (
         <button type="button" onClick={onRegister} className="btn_primary_black">
           {primaryLabel}
           <Plus />
@@ -601,7 +527,7 @@ export function CheckBox({
   );
 }
 
-export function Thumbnail({ src = "/profile/placeholder.jpg" }: { src?: string }) {
+export function Thumbnail({ src = "/profile/placeholder.svg" }: { src?: string }) {
   return (
     <span className="relative block h-6 w-8 overflow-hidden rounded bg-gray-200">
       <Image src={src} alt="" fill sizes="32px" className="object-cover" />
@@ -666,14 +592,16 @@ export function LockedYnCell({
 export function StaffIdentityCell({
   name,
   email,
+  avatarUrl,
 }: {
   name: string;
   email: string;
+  avatarUrl?: string | null;
 }) {
   return (
     <div className="staff_identity">
-      <span className="staff_identity_avatar" aria-hidden>
-        {name.charAt(0).toUpperCase()}
+      <span className="staff_identity_avatar relative overflow-hidden" aria-hidden>
+        {avatarUrl ? <Image src={avatarUrl} alt="" fill sizes="40px" className="object-cover" /> : name.charAt(0).toUpperCase()}
       </span>
       <div className="staff_identity_text">
         <p className="staff_identity_name">{name}</p>
@@ -722,37 +650,175 @@ export function RowActions({
   );
 }
 
-export function PaginationFooter() {
+const PAGE_SIZE_CHOICES = [5, 10, 20, 50];
+
+/** Windows the page buttons around the current page so long result sets stay one row. */
+function pageWindow(current: number, total: number, span = 3): number[] {
+  const start = Math.max(1, Math.min(current - Math.floor(span / 2), total - span + 1));
+  const count = Math.min(span, total);
+  return Array.from({ length: Math.max(count, 0) }, (_, i) => start + i);
+}
+
+/**
+ * Pagination bound to a `PageResponse`. Page numbers are 1-based to match the API.
+ * Called with no props it renders a disabled single-page bar, which is what the screens
+ * that have no server-side list yet still use.
+ */
+export function PaginationFooter({
+  page = 1,
+  totalPages = 1,
+  size = 10,
+  totalElements,
+  onPageChange,
+  onSizeChange,
+}: {
+  page?: number;
+  totalPages?: number;
+  size?: number;
+  totalElements?: number;
+  onPageChange?: (page: number) => void;
+  onSizeChange?: (size: number) => void;
+} = {}) {
+  const pages = pageWindow(page, Math.max(totalPages, 1));
+  const canPrev = page > 1;
+  const canNext = page < totalPages;
+  const [sizeOpen, setSizeOpen] = useState(false);
+
   return (
     <div className="table_pagination">
       <div className="pagination_per_page">
         Show Per Page:
-        <button type="button" className="pagination_btn">
-          5
-          <ChevronDown />
-        </button>
+        <span className="relative inline-block">
+          <button
+            type="button"
+            className="pagination_btn"
+            onClick={() => setSizeOpen((open) => !open)}
+            disabled={!onSizeChange}
+          >
+            {size}
+            <ChevronDown />
+          </button>
+          {sizeOpen && onSizeChange ? (
+            <span className="absolute bottom-full left-0 z-10 mb-1 flex flex-col rounded-md border border-border bg-background shadow-lg">
+              {PAGE_SIZE_CHOICES.map((choice) => (
+                <button
+                  key={choice}
+                  type="button"
+                  className={cn(
+                    "px-4 py-1.5 text-left text-sm hover:bg-muted",
+                    choice === size && "font-semibold"
+                  )}
+                  onClick={() => {
+                    onSizeChange(choice);
+                    setSizeOpen(false);
+                  }}
+                >
+                  {choice}
+                </button>
+              ))}
+            </span>
+          ) : null}
+        </span>
+        {typeof totalElements === "number" ? (
+          <span className="ml-3 text-muted-foreground">{totalElements} total</span>
+        ) : null}
       </div>
       <div className="pagination_controls">
-        <button type="button" className="pagination_btn is_icon" aria-label="First page">
+        <button
+          type="button"
+          className="pagination_btn is_icon"
+          aria-label="First page"
+          disabled={!canPrev}
+          onClick={() => onPageChange?.(1)}
+        >
           <ChevronsLeft />
         </button>
-        <button type="button" className="pagination_btn">Prev</button>
-        {[1, 2, 3].map((page) => (
+        <button
+          type="button"
+          className="pagination_btn"
+          disabled={!canPrev}
+          onClick={() => onPageChange?.(page - 1)}
+        >
+          Prev
+        </button>
+        {pages.map((pageNumber) => (
           <button
-            key={page}
+            key={pageNumber}
             type="button"
-            className={cn("pagination_btn", page === 1 && "is_active")}
+            className={cn("pagination_btn", pageNumber === page && "is_active")}
+            onClick={() => onPageChange?.(pageNumber)}
           >
-            {page}
+            {pageNumber}
           </button>
         ))}
-        <span className="pagination_ellipsis">...</span>
-        <button type="button" className="pagination_btn">Next</button>
-        <button type="button" className="pagination_btn is_icon" aria-label="Last page">
+        {pages[pages.length - 1] < totalPages ? (
+          <span className="pagination_ellipsis">...</span>
+        ) : null}
+        <button
+          type="button"
+          className="pagination_btn"
+          disabled={!canNext}
+          onClick={() => onPageChange?.(page + 1)}
+        >
+          Next
+        </button>
+        <button
+          type="button"
+          className="pagination_btn is_icon"
+          aria-label="Last page"
+          disabled={!canNext}
+          onClick={() => onPageChange?.(totalPages)}
+        >
           <ChevronsRight />
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * The single row a table shows instead of data while loading, after a failure, or when the
+ * server returned nothing. Keeps every screen's empty/error handling identical.
+ */
+export function TableState({
+  colSpan,
+  isLoading,
+  error,
+  isEmpty,
+  emptyLabel = "No records found.",
+  onRetry,
+}: {
+  colSpan: number;
+  isLoading?: boolean;
+  error?: unknown;
+  isEmpty?: boolean;
+  emptyLabel?: string;
+  onRetry?: () => void;
+}) {
+  if (!isLoading && !error && !isEmpty) return null;
+
+  return (
+    <tr>
+      <td colSpan={colSpan} className="py-10 text-center text-sm text-muted-foreground">
+        {isLoading ? (
+          <span className="inline-flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading...
+          </span>
+        ) : error ? (
+          <span className="inline-flex flex-col items-center gap-2">
+            <span className="text-destructive">{apiErrorMessage(error as never)}</span>
+            {onRetry ? (
+              <button type="button" className="pagination_btn" onClick={onRetry}>
+                Retry
+              </button>
+            ) : null}
+          </span>
+        ) : (
+          emptyLabel
+        )}
+      </td>
+    </tr>
   );
 }
 
@@ -1014,6 +1080,10 @@ export function FormInput({
   required = false,
   active = false,
   readOnly = false,
+  disabled = false,
+  maxLength,
+  min,
+  max,
 }: {
   label: string;
   value?: string | number;
@@ -1023,6 +1093,10 @@ export function FormInput({
   required?: boolean;
   active?: boolean;
   readOnly?: boolean;
+  disabled?: boolean;
+  maxLength?: number;
+  min?: string | number;
+  max?: string | number;
 }) {
   return (
     <label className="form_field">
@@ -1037,10 +1111,15 @@ export function FormInput({
         placeholder={placeholder}
         required={required}
         readOnly={readOnly}
+        disabled={disabled}
+        maxLength={maxLength}
+        min={min}
+        max={max}
         className={cn(
           "form_field_control",
           active && "is_active",
-          readOnly && "is_readonly"
+          readOnly && "is_readonly",
+          disabled && "is_disabled"
         )}
       />
     </label>
@@ -1054,6 +1133,7 @@ export function FormSelect({
   children,
   required = false,
   placeholder = "Select Method",
+  disabled = false,
 }: {
   label: string;
   value?: string | number;
@@ -1061,6 +1141,7 @@ export function FormSelect({
   children?: React.ReactNode;
   required?: boolean;
   placeholder?: string;
+  disabled?: boolean;
 }) {
   return (
     <label className="form_field">
@@ -1073,7 +1154,8 @@ export function FormSelect({
           value={value ?? ""}
           onChange={onChange}
           required={required}
-          className="form_field_control form_field_select"
+          disabled={disabled}
+          className={cn("form_field_control form_field_select", disabled && "is_disabled")}
         >
           <option value="">{placeholder}</option>
           {children}
@@ -1321,12 +1403,14 @@ export function FormImageUpload({
   onChange,
   accept = "image/*",
   emptyLabel = "No File Chosen",
+  disabled = false,
 }: {
   label: string;
   file?: File | null;
   onChange?: (file: File | null) => void;
   accept?: string;
   emptyLabel?: string;
+  disabled?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const displayName = file?.name || emptyLabel;
@@ -1349,11 +1433,17 @@ export function FormImageUpload({
           ref={inputRef}
           type="file"
           accept={accept}
+          disabled={disabled}
           className="sr-only"
-          onChange={(e) => onChange?.(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            const selectedFile = e.target.files?.[0] ?? null;
+            e.target.value = "";
+            onChange?.(selectedFile);
+          }}
         />
         <button
           type="button"
+          disabled={disabled}
           className="btn_outline_black form_field_upload_btn"
           onClick={() => inputRef.current?.click()}
         >
@@ -1367,7 +1457,7 @@ export function FormImageUpload({
 export function LogoMark() {
   return (
     <Image
-      src="/Logo/Logo.svg"
+      src="/logos/logo.svg"
       alt="590st CAFE"
       width={82}
       height={40}

@@ -1,52 +1,117 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import toast from "react-hot-toast";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Gauge,
+  Languages,
+  Loader2,
+  RotateCcw,
+  Rows3,
+  Server,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
-import { AdminTopActions, DataCard } from "@/components/common/AdminKit";
-import { Database, Server, HardDrive, CheckCircle2, AlertTriangle, ShieldCheck } from "lucide-react";
-import toast from "react-hot-toast";
+import { AdminTopActions, DataCard, StatusBadge } from "@/components/common/AdminKit";
+import { apiErrorMessage } from "@/store/api/baseApi";
+import { useGetCurrentUserQuery } from "@/store/api/authApi";
+import { useCurrentRole } from "@/store/api/useCurrentRole";
+import {
+  useGetExchangeRateQuery,
+  useUpdateExchangeRateMutation,
+} from "@/store/api/reportApi";
+import { useI18n } from "@/contexts/I18nContext";
+import {
+  DEFAULT_PREFERENCES,
+  PAGE_SIZE_OPTIONS,
+  REFRESH_SECONDS_OPTIONS,
+  useAdminPreferences,
+} from "@/contexts/AdminPreferencesContext";
+import { humanise, statusTone } from "@/features/user/components/UserManagementView";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "(not configured)";
+
+const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "kh", label: "ខ្មែរ" },
+] as const;
+
+function refreshLabel(seconds: number) {
+  if (seconds === 0) return "Off";
+  if (seconds < 60) return `${seconds}s`;
+  return `${seconds / 60} min`;
+}
+
+/**
+ * Two kinds of setting live here, and the page keeps them apart on purpose:
+ *
+ *  - Server settings (the Bakong rate) — shared by everyone, admin-only, stored in the API.
+ *  - Browser settings (language, page size, refresh) — per account, per device, held in
+ *    localStorage and read back by the screens they affect.
+ *
+ * Anything that cannot be honoured is not offered. The display-theme switch that used to sit
+ * here was one of those: the admin UI paints its own light palette, and the provider runs with
+ * `enableSystem={false}`, so none of its three buttons changed anything on screen.
+ */
 export default function Settings() {
-  const [theme, setTheme] = useState("light");
-  const [currency, setCurrency] = useState("KHR");
-  const [soundAlerts, setSoundAlerts] = useState(true);
-  const [autoRefreshInterval, setAutoRefreshInterval] = useState("10");
+  const { data: currentUser } = useGetCurrentUserQuery();
+  const { isAdmin } = useCurrentRole();
+  const { locale, setLocale } = useI18n();
+  const { preferences, setPreferences, resetPreferences } = useAdminPreferences();
 
-  const [systemStatus, setSystemStatus] = useState({
-    api: "checking",
-    database: "checking",
-    storage: "checking",
-  });
+  /**
+   * The connectivity probe has to be a call the signed-in role is actually allowed to make, or
+   * a barista would read a 403 as "the API is down". The exchange rate is ADMIN-only, so
+   * baristas probe with their own profile instead.
+   */
+  const rateQuery = useGetExchangeRateQuery(undefined, { skip: !isAdmin });
+  const profileQuery = useGetCurrentUserQuery();
+  const probe = isAdmin ? rateQuery : profileQuery;
 
-  // Verify connectivity status on mount
+  const [updateRate, { isLoading: isSavingRate }] = useUpdateExchangeRateMutation();
+
+  const rate = rateQuery.data;
+  const [khrPerUsd, setKhrPerUsd] = useState("");
+  const [marketRate, setMarketRate] = useState("");
+
   useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const response = await fetch("http://localhost:8080/api/public/categories");
-        if (response.ok) {
-          setSystemStatus({
-            api: "online",
-            database: "online",
-            storage: "online", // Seed checks successfully
-          });
-        } else {
-          throw new Error("API not ok");
-        }
-      } catch {
-        setSystemStatus({
-          api: "offline",
-          database: "offline",
-          storage: "offline",
-        });
-      }
-    };
-    checkStatus();
-  }, []);
+    if (rate) {
+      setKhrPerUsd(String(rate.khrPerUsdRate));
+      setMarketRate(rate.marketRate != null ? String(rate.marketRate) : "");
+    }
+  }, [rate]);
 
-  const handleSave = () => {
-    toast.success("Settings updated successfully");
+  const apiOnline = !probe.isLoading && !probe.error;
+
+  const handleSaveRate = async () => {
+    const value = Number(khrPerUsd);
+    if (!Number.isFinite(value) || value <= 0) {
+      toast.error("Enter a rate greater than zero");
+      return;
+    }
+    const market = marketRate.trim() ? Number(marketRate) : undefined;
+    if (market !== undefined && (!Number.isFinite(market) || market <= 0)) {
+      toast.error("Market rate must be greater than zero");
+      return;
+    }
+
+    try {
+      await updateRate({ khrPerUsdRate: value, marketRate: market }).unwrap();
+      toast.success("Exchange rate updated");
+    } catch (err) {
+      toast.error(apiErrorMessage(err as never, "Could not update the exchange rate."));
+    }
   };
+
+  const isDefaultPreferences =
+    preferences.pageSize === DEFAULT_PREFERENCES.pageSize &&
+    preferences.refreshSeconds === DEFAULT_PREFERENCES.refreshSeconds &&
+    preferences.pauseRefreshWhenHidden === DEFAULT_PREFERENCES.pauseRefreshWhenHidden;
 
   return (
     <PageShell>
@@ -57,182 +122,258 @@ export default function Settings() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Connection Status panel */}
         <section className="space-y-6 lg:col-span-1">
+          <DataCard title="Signed-in Account">
+            <div className="space-y-4 p-2 pb-4">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="h-10 w-10 shrink-0 text-lime-500" />
+                <div className="min-w-0">
+                  <h4 className="truncate text-sm font-semibold text-gray-900">
+                    {currentUser?.fullName ?? "Loading..."}
+                  </h4>
+                  <p className="mt-1 truncate text-xs text-gray-500">
+                    {currentUser?.email ?? "Loading your account"}
+                  </p>
+                  {currentUser ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <StatusBadge label={humanise(currentUser.role)} tone="neutral" />
+                      <StatusBadge
+                        label={humanise(currentUser.status)}
+                        tone={statusTone(currentUser.status)}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <Link href="/profile" className="btn_outline_black w-full">
+                <UserRound />
+                Edit my profile
+              </Link>
+            </div>
+          </DataCard>
+
           <DataCard title="System Connectivity">
-            <div className="space-y-5 p-2">
-              {/* API status */}
-              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-                <div className="flex items-center gap-3">
-                  <Server className="h-5 w-5 text-gray-500" />
-                  <div>
-                    <h4 className="font-semibold text-sm">Backend API</h4>
-                    <p className="text-xs text-gray-400">http://localhost:8080</p>
+            <div className="space-y-3 p-2 pb-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Server className="h-5 w-5 shrink-0 text-gray-500" />
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-semibold">Backend API</h4>
+                    <p className="truncate text-xs text-gray-400">{API_URL}</p>
                   </div>
                 </div>
-                {systemStatus.api === "online" ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
+                {probe.isLoading ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-50 px-2.5 py-1 text-xs font-semibold text-gray-500">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking
+                  </span>
+                ) : apiOnline ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-600">
                     <CheckCircle2 className="h-3.5 w-3.5" /> Online
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-500 bg-red-50 px-2.5 py-1 rounded-full">
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-500">
                     <AlertTriangle className="h-3.5 w-3.5" /> Offline
                   </span>
                 )}
               </div>
-
-              {/* Database status */}
-              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-                <div className="flex items-center gap-3">
-                  <Database className="h-5 w-5 text-gray-500" />
-                  <div>
-                    <h4 className="font-semibold text-sm">PostgreSQL DB</h4>
-                    <p className="text-xs text-gray-400">db_590st_cafe</p>
-                  </div>
-                </div>
-                {systemStatus.database === "online" ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Connected
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-500 bg-red-50 px-2.5 py-1 rounded-full">
-                    <AlertTriangle className="h-3.5 w-3.5" /> Disconnected
-                  </span>
-                )}
-              </div>
-
-              {/* MinIO Storage status */}
-              <div className="flex items-center justify-between pb-2">
-                <div className="flex items-center gap-3">
-                  <HardDrive className="h-5 w-5 text-gray-500" />
-                  <div>
-                    <h4 className="font-semibold text-sm">MinIO Object Store</h4>
-                    <p className="text-xs text-gray-400">590st-cafe-media</p>
-                  </div>
-                </div>
-                {systemStatus.storage === "online" ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Connected
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-500 bg-red-50 px-2.5 py-1 rounded-full">
-                    <AlertTriangle className="h-3.5 w-3.5" /> Disconnected
-                  </span>
-                )}
-              </div>
-            </div>
-          </DataCard>
-
-          <DataCard title="Security Profile">
-            <div className="flex items-start gap-3 p-2">
-              <ShieldCheck className="h-10 w-10 text-lime-500 shrink-0" />
-              <div>
-                <h4 className="font-semibold text-sm text-gray-900">Administrator Mode</h4>
-                <p className="text-xs text-gray-500 mt-1">
-                  You are logged in with Admin Role. You have full access to products, categories, logs, and billing reports.
-                </p>
-              </div>
+              {probe.error ? (
+                <p className="text-xs text-red-500">{apiErrorMessage(probe.error as never)}</p>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => probe.refetch()}
+                disabled={probe.isFetching}
+                className="btn_outline_black w-full"
+              >
+                {probe.isFetching ? <Loader2 className="animate-spin" /> : <RotateCcw />}
+                Check again
+              </button>
             </div>
           </DataCard>
         </section>
 
-        {/* Configuration settings panel */}
-        <section className="lg:col-span-2">
-          <DataCard title="Dashboard Configuration">
-            <div className="space-y-6 p-2">
-              {/* Theme Settings */}
+        <section className="space-y-6 lg:col-span-2">
+          <DataCard
+            title="Display Preferences"
+            meta="Saved for your account in this browser, and applied the next time a screen loads."
+          >
+            <div className="space-y-7 p-2 pb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Display Theme</label>
-                <div className="mt-3 flex items-center gap-4">
-                  {["light", "dark", "system"].map((t) => (
+                <div className="flex items-center gap-2">
+                  <Languages className="h-4 w-4 text-gray-500" />
+                  <label className="text-sm font-medium text-gray-700">Language</label>
+                </div>
+                <p className="mt-1 text-xs text-gray-400">
+                  Same setting as the flag in the header — changes the sidebar and page labels.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  {LANGUAGES.map((language) => (
                     <button
-                      key={t}
+                      key={language.code}
                       type="button"
-                      onClick={() => setTheme(t)}
-                      className={`h-10 rounded-md border px-5 text-sm font-semibold capitalize transition ${
-                        theme === t
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                      }`}
+                      onClick={() => setLocale(language.code)}
+                      aria-pressed={locale === language.code}
+                      className={
+                        locale === language.code ? "btn_primary_black" : "btn_outline_black"
+                      }
                     >
-                      {t}
+                      {language.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Currency Display */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Preferred Currency</label>
-                <div className="mt-3 flex items-center gap-4">
-                  {["KHR", "USD"].map((curr) => (
+                <div className="flex items-center gap-2">
+                  <Rows3 className="h-4 w-4 text-gray-500" />
+                  <label className="text-sm font-medium text-gray-700">Rows per page</label>
+                </div>
+                <p className="mt-1 text-xs text-gray-400">
+                  What the Products, Orders, Inventory, Staff and Users tables open with. Each
+                  screen&apos;s own footer still overrides it while you are on that screen.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  {PAGE_SIZE_OPTIONS.map((option) => (
                     <button
-                      key={curr}
+                      key={option}
                       type="button"
-                      onClick={() => setCurrency(curr)}
-                      className={`h-10 rounded-md border px-5 text-sm font-semibold transition ${
-                        currency === curr
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                      }`}
+                      onClick={() => setPreferences({ pageSize: option })}
+                      aria-pressed={preferences.pageSize === option}
+                      className={
+                        preferences.pageSize === option
+                          ? "btn_primary_black"
+                          : "btn_outline_black"
+                      }
                     >
-                      {curr}
+                      {option}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Sound Alerts toggle */}
-              <div className="flex items-center justify-between border-t border-gray-100 pt-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 font-semibold">Sound Notifications</h4>
-                  <p className="text-xs text-gray-400 mt-0.5">Play alert sound when a new order is received</p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Gauge className="h-4 w-4 text-gray-500" />
+                  <label className="text-sm font-medium text-gray-700">Live refresh</label>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSoundAlerts(!soundAlerts)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    soundAlerts ? "bg-lime-500" : "bg-gray-200"
-                  }`}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                      soundAlerts ? "translate-x-5" : "translate-x-0"
-                    }`}
+                <p className="mt-1 text-xs text-gray-400">
+                  How often the Dashboard, Orders, Payments, Users and Audit screens re-poll the
+                  API. The barista queue keeps its own faster cadence so orders are never missed.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  {REFRESH_SECONDS_OPTIONS.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setPreferences({ refreshSeconds: option })}
+                      aria-pressed={preferences.refreshSeconds === option}
+                      className={
+                        preferences.refreshSeconds === option
+                          ? "btn_primary_black"
+                          : "btn_outline_black"
+                      }
+                    >
+                      {refreshLabel(option)}
+                    </button>
+                  ))}
+                </div>
+
+                <label className="mt-4 flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={preferences.pauseRefreshWhenHidden}
+                    onChange={(e) =>
+                      setPreferences({ pauseRefreshWhenHidden: e.target.checked })
+                    }
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-black"
                   />
-                </button>
-              </div>
-
-              {/* Auto Refresh interval */}
-              <div className="border-t border-gray-100 pt-6">
-                <label className="block text-sm font-medium text-gray-700">
-                  Order Queue Auto-Refresh Rate
+                  <span className="text-sm text-gray-700">
+                    Pause refreshing while this tab is in the background
+                    <span className="mt-0.5 block text-xs text-gray-400">
+                      Saves API calls on a terminal left open all day.
+                    </span>
+                  </span>
                 </label>
-                <span className="relative mt-2 block max-w-xs">
-                  <select
-                    value={autoRefreshInterval}
-                    onChange={(e) => setAutoRefreshInterval(e.target.value)}
-                    className="h-10 w-full appearance-none rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-900 outline-none"
-                  >
-                    <option value="5">Every 5 Seconds</option>
-                    <option value="10">Every 10 Seconds</option>
-                    <option value="30">Every 30 Seconds</option>
-                    <option value="60">Every Minute</option>
-                  </select>
-                </span>
               </div>
 
-              <div className="border-t border-gray-100 pt-6 flex justify-end">
+              <div className="flex justify-end border-t border-gray-100 pt-6">
                 <button
                   type="button"
-                  onClick={handleSave}
-                  className="h-10 rounded-md bg-black px-6 text-sm font-semibold text-white transition hover:bg-gray-800"
+                  className="btn_outline_black"
+                  onClick={() => {
+                    resetPreferences();
+                    toast.success("Preferences reset to defaults");
+                  }}
+                  disabled={isDefaultPreferences}
                 >
-                  Save Changes
+                  <RotateCcw />
+                  Reset to defaults
                 </button>
               </div>
             </div>
           </DataCard>
+
+          {isAdmin ? (
+            <DataCard
+              title="Bakong Exchange Rate"
+              meta="Used to price KHR QR payments. Stored on the server and shared by all staff."
+            >
+              <div className="space-y-6 p-2 pb-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-medium text-gray-700">
+                      KHR per USD (applied)
+                    </span>
+                    <input
+                      type="number"
+                      value={khrPerUsd}
+                      onChange={(e) => setKhrPerUsd(e.target.value)}
+                      className="mt-2 h-10 w-full rounded-md border border-gray-300 px-3 text-sm outline-none"
+                      placeholder="4100"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-gray-700">
+                      Market rate (reference only)
+                    </span>
+                    <input
+                      type="number"
+                      value={marketRate}
+                      onChange={(e) => setMarketRate(e.target.value)}
+                      className="mt-2 h-10 w-full rounded-md border border-gray-300 px-3 text-sm outline-none"
+                      placeholder="4050"
+                    />
+                  </label>
+                </div>
+
+                {rate ? (
+                  <p className="text-xs text-gray-400">
+                    Last updated{" "}
+                    {new Date(rate.updatedAt).toLocaleString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    {rate.updatedByAdminName ? ` by ${rate.updatedByAdminName}` : ""}
+                  </p>
+                ) : null}
+
+                <div className="flex justify-end border-t border-gray-100 pt-6">
+                  <button
+                    type="button"
+                    onClick={handleSaveRate}
+                    disabled={isSavingRate || !apiOnline}
+                    className="btn_primary_black"
+                  >
+                    {isSavingRate ? <Loader2 className="animate-spin" /> : null}
+                    {isSavingRate ? "Saving..." : "Save Rate"}
+                  </button>
+                </div>
+              </div>
+            </DataCard>
+          ) : null}
         </section>
       </div>
     </PageShell>
