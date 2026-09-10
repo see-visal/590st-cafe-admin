@@ -10,13 +10,15 @@ import SidebarProfile from "./MobileSidebar";
 import { useI18n } from "@/contexts/I18nContext";
 import { useSidebarCollapse } from "@/contexts/SidebarCollapseContext";
 import { Menu, X } from "lucide-react";
+import { useCurrentRole } from "@/store/api/useCurrentRole";
+import { adminHome, canAccessAdminPage } from "@/lib/adminAccess";
 
 function isNavItemActive(pathname: string, href: string) {
   if (href === "/") {
     return pathname === "/" || pathname === "/dashboard";
   }
 
-  return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function Sidebar() {
@@ -24,20 +26,22 @@ export function Sidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isCollapsed } = useSidebarCollapse();
   const { t } = useI18n();
+  const { role } = useCurrentRole();
+  const sections = navigationSections.map((section) => ({ ...section, items: section.items.filter((item) => canAccessAdminPage(role, item.href)) })).filter((section) => section.items.length);
 
   const handleNavClick = () => {
     setIsMobileMenuOpen(false);
   };
 
   const logo = (
-    <Link href="/" onClick={handleNavClick} className="logo_link">
+    <Link href={adminHome(role)} onClick={handleNavClick} className="logo_link">
       <Image src="/logos/logo.svg" alt="590st CAFE Logo" width={72} height={34} priority/>
     </Link>
   );
 
   const navItems = (
     <nav className="sidebar scrollbar">
-      {navigationSections.map((section, sectionIndex) => (
+      {sections.map((section) => (
         <div key={section.title || "home"} className="sidebar_section" data-divider={section.dividerBefore}>
           {section.title && ( <p className="title"> {section.title} </p> )}
           <div className="sidebar_wrap">
@@ -46,7 +50,7 @@ export function Sidebar() {
               return (
                 <Link key={item.name} href={item.href} onClick={handleNavClick} className={cn("sidebar_item", isActive ? "active" : "")}>
                   <item.icon className="icons" strokeWidth={2.2} />
-                  <span className="sidebar_item_label">{t(item.label) || item.name}</span>
+                  <span className="sidebar_item_label">{t(item.label) === item.label ? item.name : t(item.label)}</span>
                 </Link>
               );
             })}

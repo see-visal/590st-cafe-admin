@@ -1,270 +1,304 @@
 "use client";
 
-import { useState } from "react";
-import { type DateRange } from "react-day-picker";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { TriangleAlert } from "lucide-react";
+import toast from "react-hot-toast";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
   AdminTopActions,
   Cell,
-  CheckBox,
   DataCard,
-  DateField,
   DetailGrid,
-  DetailItem,
   DetailImage,
+  DetailItem,
   DetailModal,
   FilterActions,
   FilterPanel,
+  FormImageUpload,
   FormInput,
   FormModal,
   FormSelect,
-  FormImageUpload,
   ModalGrid,
   PaginationFooter,
   Row,
   RowActions,
   SelectField,
   SimpleTable,
+  StatTile,
   StatusBadge,
   TableActions,
+  TableState,
   TextField,
   Thumbnail,
 } from "@/components/common/AdminKit";
+import { apiErrorMessage } from "@/store/api/baseApi";
+import { usePageSize } from "@/contexts/AdminPreferencesContext";
+import { useListCategoriesQuery } from "@/store/api/categoryApi";
+import { useCurrentRole } from "@/store/api/useCurrentRole";
 import {
-  useProducts,
-  useCategories,
-  useCreateProduct,
-  useUpdateProduct,
-  useDeleteProduct,
-} from "@/features/product/hooks/useProducts";
-import { ProductResponse, ProductRequest, ProductStatus } from "@/features/product/types/product.type";
+  useCreateProductMutation,
+  useDeleteProductMutation,
+  useListProductsQuery,
+  useUpdateProductMutation,
+  useUploadProductImageMutation,
+} from "@/store/api/productApi";
+import type { ProductResponse, Status } from "@/store/api/types";
 
 const PRODUCT_TABLE_HEADERS = [
   "No",
-  "",
   "Image",
   "Name",
-  "Amount",
+  "SKU",
   "Category",
-  "Payment Start Date",
-  "Payment End Date",
+  "Price",
+  "Stock",
   "Status",
   "Action",
 ] as const;
 
-/** Static preview rows matching design mockup when API has no products */
-const STATIC_PRODUCT_ROWS = [
-  {
-    id: "static-1",
-    checked: false,
-    name: "John Doe",
-    amount: "$850.00",
-    category: "1",
-    startDate: "10-Jan-2025",
-    endDate: "10-Feb-2025",
-    status: "Paid",
-  },
-  {
-    id: "static-2",
-    checked: true,
-    name: "John Doe",
-    amount: "$850.00",
-    category: "1",
-    startDate: "10-Jan-2025",
-    endDate: "10-Feb-2025",
-    status: "Paid",
-  },
-  {
-    id: "static-3",
-    checked: false,
-    name: "John Doe",
-    amount: "$850.00",
-    category: "1",
-    startDate: "10-Jan-2025",
-    endDate: "10-Feb-2025",
-    status: "Paid",
-  },
-  {
-    id: "static-4",
-    checked: false,
-    name: "John Doe",
-    amount: "$850.00",
-    category: "1",
-    startDate: "10-Jan-2025",
-    endDate: "10-Feb-2025",
-    status: "Paid",
-  },
-  {
-    id: "static-5",
-    checked: false,
-    name: "John Doe",
-    amount: "$850.00",
-    category: "1",
-    startDate: "10-Jan-2025",
-    endDate: "10-Feb-2025",
-    status: "Paid",
-  },
-] as const;
-
-type StaticProductRow = (typeof STATIC_PRODUCT_ROWS)[number];
-
-type ProductDetailView = {
+type ProductFormFields = {
   name: string;
-  amount: string;
-  category: string;
-  paymentStartDate: string;
-  paymentEndDate: string;
-  status: string;
-  imageUrl?: string;
-  editProduct?: ProductResponse;
+  description: string;
+  sku: string;
+  unit: string;
+  price: string;
+  categoryId: string;
+  reorderLevel: string;
+  discountPercent: string;
+  status: Status;
 };
 
+const EMPTY_FORM: ProductFormFields = {
+  name: "",
+  description: "",
+  sku: "",
+  unit: "",
+  price: "",
+  categoryId: "",
+  reorderLevel: "",
+  discountPercent: "",
+  status: "ACTIVE",
+};
+
+const money = (value: number | null | undefined) =>
+  value == null ? "-" : `$${Number(value).toFixed(2)}`;
+
 export default function Products() {
-  // State for UI
-  const [formOpen, setFormOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<ProductResponse | null>(null);
-  const [detailView, setDetailView] = useState<ProductDetailView | null>(null);
+  const { isAdmin } = useCurrentRole();
+  const [page, setPage] = useState(1);
+  const [size, setSize] = usePageSize();
   const [searchTerm, setSearchTerm] = useState("");
-  const [amountSearch, setAmountSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [formDateRange, setFormDateRange] = useState<DateRange | undefined>();
-  const [imageFile, setImageFile] = useState<File | null>(null);
 
-  // API hooks
-  const { products = [], isLoading: productsLoading, refetch: refetchProducts } = useProducts();
-  const { categories = [], refetch: refetchCategories } = useCategories();
-  const { create: createProduct, isLoading: isCreating } = useCreateProduct();
-  const { update: updateProduct, isLoading: isUpdating } = useUpdateProduct();
-  const { delete: deleteProduct, isLoading: isDeleting } = useDeleteProduct();
-
-  // Form state
-  const [formData, setFormData] = useState<ProductRequest>({
-    name: "",
-    price: 0,
-    categoryId: 0,
-    status: "ACTIVE",
-    imageUrl: "",
+  const {
+    data: productPage,
+    isFetching,
+    error,
+    refetch,
+  } = useListProductsQuery({
+    page,
+    size,
+    // The API filters by category server-side; status and name are narrowed client-side.
+    ...(categoryFilter ? { categoryId: categoryFilter } : {}),
   });
 
-  const hasApiData = products && products.length > 0;
+  const { data: categoryPage, isSuccess: categoriesLoaded } = useListCategoriesQuery({
+    page: 1,
+    size: 200,
+  });
+  const categories = useMemo(() => categoryPage?.content ?? [], [categoryPage]);
+
+  /**
+   * Every product needs a category (the API rejects a null categoryId), so on a fresh install
+   * the form cannot be completed at all until one exists. Wait for the query to actually
+   * succeed before saying so — an empty list while loading is not the same as none existing.
+   */
+  const hasNoCategories = categoriesLoaded && categories.length === 0;
+
+  const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
+  const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
+  const [deleteProduct] = useDeleteProductMutation();
+  const [uploadImage, { isLoading: isUploading }] = useUploadProductImageMutation();
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selected, setSelected] = useState<ProductResponse | null>(null);
+  const [formFields, setFormFields] = useState<ProductFormFields>(EMPTY_FORM);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
+  const products = useMemo(() => productPage?.content ?? [], [productPage]);
+
+  const visibleProducts = useMemo(
+    () =>
+      products.filter((product) => {
+        const term = searchTerm.trim().toLowerCase();
+        const matchesSearch =
+          !term ||
+          product.name.toLowerCase().includes(term) ||
+          product.sku.toLowerCase().includes(term);
+        const matchesStatus = !statusFilter || product.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      }),
+    [products, searchTerm, statusFilter]
+  );
+
+  const lowStockCount = products.filter(
+    (p) => Number(p.quantityOnHand) <= Number(p.reorderLevel)
+  ).length;
+  const discountedCount = products.filter((p) => p.discountActive).length;
 
   const handleOpenForm = (product?: ProductResponse) => {
-    if (product) {
-      setIsEditing(true);
-      setSelectedProduct(product);
-      setFormData({
-        name: product.name,
-        price: product.price,
-        categoryId: product.categoryId,
-        status: product.status,
-        imageUrl: product.imageUrl || "",
-      });
-      setFormDateRange(undefined);
-      setImageFile(null);
-    } else {
-      setIsEditing(false);
-      setSelectedProduct(null);
-      setFormData({
-        name: "",
-        price: 0,
-        categoryId: 0,
-        status: undefined,
-        imageUrl: "",
-      });
-      setFormDateRange(undefined);
-      setImageFile(null);
-    }
+    if (!isAdmin) return;
+    setSelected(product ?? null);
+    setImageFile(null);
+    setFormFields(
+      product
+        ? {
+            name: product.name,
+            description: product.description ?? "",
+            sku: product.sku,
+            unit: product.unit,
+            price: String(product.price),
+            categoryId: product.categoryId,
+            reorderLevel: String(product.reorderLevel ?? ""),
+            // Existing discounts are edited on the configuration screen, which also covers
+            // fixed-amount discounts and schedules — the modal only offers one at creation.
+            discountPercent: "",
+            status: product.status,
+          }
+        : { ...EMPTY_FORM, categoryId: categories[0]?.id ?? "" }
+    );
     setFormOpen(true);
   };
 
   const handleCloseForm = () => {
     setFormOpen(false);
-    setIsEditing(false);
-    setSelectedProduct(null);
-    setFormDateRange(undefined);
+    setSelected(null);
+    setFormFields(EMPTY_FORM);
     setImageFile(null);
   };
 
-  const handleImageChange = (file: File | null) => {
-    setImageFile(file);
-    setFormData((prev) => ({
-      ...prev,
-      imageUrl: file ? URL.createObjectURL(file) : prev.imageUrl || "",
-    }));
-  };
-
   const handleSubmitForm = async () => {
-    if (!formData.name || !formData.categoryId || formData.price <= 0) {
-      alert("Please fill all required fields");
+    if (!isAdmin) return;
+    const name = formFields.name.trim();
+    const price = Number(formFields.price);
+
+    if (!name) {
+      toast.error("Product name is required");
+      return;
+    }
+    if (!formFields.categoryId) {
+      // Telling someone to choose from an empty list is a dead end — on a fresh install there
+      // is nothing to choose, and the category is required server-side.
+      toast.error(
+        hasNoCategories
+          ? "Create a category first — a product has to belong to one."
+          : "Please choose a category"
+      );
+      return;
+    }
+    if (!Number.isFinite(price) || price < 0) {
+      toast.error("Enter a valid price");
       return;
     }
 
+    const reorderLevel = formFields.reorderLevel.trim()
+      ? Number(formFields.reorderLevel)
+      : undefined;
+
+    // Blank means "sell at full price" rather than "0% off", so it has to stay undefined —
+    // the API treats a present discountValue as a discount to apply.
+    const discountPercentText = formFields.discountPercent.trim();
+    let discountPercent: number | undefined;
+    if (discountPercentText) {
+      discountPercent = Number(discountPercentText);
+      if (!Number.isFinite(discountPercent) || discountPercent <= 0 || discountPercent > 100) {
+        toast.error("Discount must be a percentage between 0 and 100");
+        return;
+      }
+    }
+
     try {
-      if (isEditing && selectedProduct) {
-        await updateProduct(selectedProduct.id, formData);
+      let productId: string;
+
+      if (selected) {
+        const updated = await updateProduct({
+          id: selected.id,
+          body: {
+            name,
+            description: formFields.description.trim() || undefined,
+            unit: formFields.unit.trim() || undefined,
+            price,
+            categoryId: formFields.categoryId,
+            status: formFields.status,
+            reorderLevel,
+          },
+        }).unwrap();
+        productId = updated.id;
       } else {
-        await createProduct(formData);
+        if (!formFields.sku.trim()) {
+          toast.error("SKU is required");
+          return;
+        }
+        if (!formFields.unit.trim()) {
+          toast.error("Unit is required");
+          return;
+        }
+        const created = await createProduct({
+          name,
+          description: formFields.description.trim() || undefined,
+          sku: formFields.sku.trim(),
+          unit: formFields.unit.trim(),
+          price,
+          categoryId: formFields.categoryId,
+          reorderLevel,
+          ...(discountPercent !== undefined
+            ? { discountType: "PERCENTAGE" as const, discountValue: discountPercent }
+            : {}),
+        }).unwrap();
+        productId = created.id;
       }
+
+      // The image is a separate multipart endpoint, so it only runs once the product exists.
+      if (imageFile) {
+        await uploadImage({ id: productId, file: imageFile }).unwrap();
+      }
+
+      toast.success(selected ? "Product updated" : "Product created");
       handleCloseForm();
-      refetchProducts();
-    } catch (error) {
-      console.error("Form submission error:", error);
+    } catch (err) {
+      toast.error(apiErrorMessage(err as never, "Could not save the product."));
     }
   };
 
-  const handleDeleteProduct = async (id: number) => {
-    if (confirm("Are you sure you want to delete this product?")) {
-      try {
-        await deleteProduct(id);
-        refetchProducts();
-      } catch (error) {
-        console.error("Delete error:", error);
-      }
+  const handleDelete = async (product: ProductResponse) => {
+    if (!isAdmin) return;
+    if (!window.confirm(`Delete product "${product.name}"?`)) return;
+    try {
+      await deleteProduct(product.id).unwrap();
+      toast.success("Product deleted");
+    } catch (err) {
+      toast.error(apiErrorMessage(err as never, "Could not delete the product."));
     }
   };
 
-  const handleViewDetail = (product: ProductResponse) => {
-    setSelectedProduct(product);
-    setDetailView({
-      name: product.name,
-      amount: `$${product.price.toFixed(2)}`,
-      category: getCategoryName(product.categoryId),
-      paymentStartDate: "10-Jan-2025",
-      paymentEndDate: "10-Feb-2025",
-      status: "Paid",
-      imageUrl: product.imageUrl,
-      editProduct: product,
-    });
-    setDetailOpen(true);
-  };
+  const isSaving = isCreating || isUpdating || isUploading;
 
-  const handleViewMockDetail = (row: StaticProductRow) => {
-    setSelectedProduct(null);
-    setDetailView({
-      name: row.name,
-      amount: row.amount,
-      category: row.category,
-      paymentStartDate: row.startDate,
-      paymentEndDate: row.endDate,
-      status: row.status,
-    });
-    setDetailOpen(true);
-  };
-
-  const handleDetailOpenChange = (open: boolean) => {
-    setDetailOpen(open);
-    if (!open) {
-      setDetailView(null);
+  // Shows what a customer will actually pay while the admin types the discount, so a typo like
+  // 90 instead of 9 is obvious before submitting. Null whenever the numbers do not make sense yet.
+  const discountedPreview = (() => {
+    const price = Number(formFields.price);
+    const percent = Number(formFields.discountPercent);
+    if (!formFields.discountPercent.trim() || !Number.isFinite(price) || !Number.isFinite(percent)) {
+      return null;
     }
-  };
-
-  const getCategoryName = (categoryId: number): string => {
-    return categories.find((cat) => cat.id === categoryId)?.name || "1";
-  };
+    // A zero/blank price would render a pointless "$0.00 instead of $0.00" line.
+    if (price <= 0 || percent <= 0 || percent > 100) return null;
+    return price - (price * percent) / 100;
+  })();
 
   return (
     <PageShell>
@@ -278,209 +312,342 @@ export default function Products() {
         rightSlot={<AdminTopActions />}
       />
 
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <StatTile
+          title="All Products"
+          value={String(productPage?.totalElements ?? 0)}
+          tone="gray"
+        />
+        <StatTile
+          title="Low Stock (this page)"
+          value={String(lowStockCount)}
+          tone={lowStockCount > 0 ? "red" : "gray"}
+        />
+        <StatTile title="On Discount" value={String(discountedCount)} tone="green" />
+      </div>
+
       <FilterPanel>
         <TextField
-          label="Name"
-          placeholder="Placeholder"
+          label="Name or SKU"
+          placeholder="Search products"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <TextField
-          label="Amount"
-          placeholder="Placeholder"
-          value={amountSearch}
-          onChange={(e) => setAmountSearch(e.target.value)}
-        />
+        <SelectField
+          label="Category"
+          placeholder="All categories"
+          value={categoryFilter}
+          onChange={(e) => {
+            setCategoryFilter(e.target.value);
+            setPage(1);
+          }}
+        >
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </SelectField>
         <SelectField
           label="Status"
-          placeholder="Select Method"
+          placeholder="All statuses"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
-          <option value="Paid">Paid</option>
-          <option value="Unpaid">Unpaid</option>
           <option value="ACTIVE">Active</option>
           <option value="INACTIVE">Inactive</option>
         </SelectField>
-        <DateField
-          label="Payment Date Range"
-          value={dateRange}
-          onChange={setDateRange}
-        />
-        <FilterActions />
+        <FilterActions onClear={() => { setSearchTerm(""); setStatusFilter(""); setCategoryFilter(""); setPage(1); }} onSearch={refetch} />
       </FilterPanel>
 
       <DataCard
-        title="Menu items"
-        meta="Total Products Amount: 1500 USD"
-        actions={<TableActions onRegister={() => handleOpenForm()} primaryLabel="Register" />}
+        title="Products"
+        meta={`Total Products: ${productPage?.totalElements ?? 0}`}
+        actions={
+          isAdmin ? <TableActions onRegister={() => handleOpenForm()} primaryLabel="Register" /> : undefined
+        }
       >
         <SimpleTable headers={[...PRODUCT_TABLE_HEADERS]}>
-          {hasApiData
-            ? products.map((product, index) => (
-                <Row key={product.id} striped={index % 2 === 1}>
-                  <Cell>{index + 1}</Cell>
-                  <Cell>
-                    <CheckBox checked={false} />
-                  </Cell>
-                  <Cell>
-                    <Thumbnail src={product.imageUrl} />
-                  </Cell>
-                  <Cell>{product.name}</Cell>
-                  <Cell>${product.price.toFixed(2)}</Cell>
-                  <Cell>{getCategoryName(product.categoryId)}</Cell>
-                  <Cell>10-Jan-2025</Cell>
-                  <Cell>10-Feb-2025</Cell>
-                  <Cell>
-                    <StatusBadge label="Paid" tone="success" />
-                  </Cell>
-                  <Cell>
-                    <RowActions
-                      onView={() => handleViewDetail(product)}
-                      onEdit={() => handleOpenForm(product)}
-                      onDelete={() => handleDeleteProduct(product.id)}
-                      isLoading={isDeleting}
-                    />
-                  </Cell>
-                </Row>
-              ))
-            : STATIC_PRODUCT_ROWS.map((product, index) => (
-                <Row key={product.id} striped={index % 2 === 1}>
-                  <Cell>{index + 1}</Cell>
-                  <Cell>
-                    <CheckBox checked={product.checked} />
-                  </Cell>
-                  <Cell>
-                    <Thumbnail />
-                  </Cell>
-                  <Cell>{product.name}</Cell>
-                  <Cell>{product.amount}</Cell>
-                  <Cell>{product.category}</Cell>
-                  <Cell>{product.startDate}</Cell>
-                  <Cell>{product.endDate}</Cell>
-                  <Cell>
-                    <StatusBadge label={product.status} tone="success" />
-                  </Cell>
-                  <Cell>
-                    <RowActions
-                      onView={() => handleViewMockDetail(product)}
-                      onEdit={() => handleOpenForm()}
-                      onDelete={() => undefined}
-                    />
-                  </Cell>
-                </Row>
-              ))}
+          <TableState
+            colSpan={PRODUCT_TABLE_HEADERS.length}
+            isLoading={isFetching}
+            error={error}
+            isEmpty={visibleProducts.length === 0}
+            emptyLabel={
+              !isAdmin ? "No products found." : hasNoCategories
+                ? "No products yet — and no categories to file one under. Create a category first, then Register a product."
+                : "No products yet. Use Register to add the first one."
+            }
+            onRetry={refetch}
+          />
+          {!isFetching &&
+            !error &&
+            visibleProducts.map((product, index) => (
+              <Row key={product.id} striped={index % 2 === 1}>
+                <Cell>{(page - 1) * size + index + 1}</Cell>
+                <Cell>
+                  <Thumbnail src={product.imageUrl ?? undefined} />
+                </Cell>
+                <Cell className="font-semibold">{product.name}</Cell>
+                <Cell>{product.sku}</Cell>
+                <Cell>{product.categoryName}</Cell>
+                <Cell>
+                  {product.discountActive ? (
+                    <span className="flex flex-col">
+                      <span className="font-semibold">{money(product.finalPrice)}</span>
+                      <span className="text-xs text-muted-foreground line-through">
+                        {money(product.price)}
+                      </span>
+                    </span>
+                  ) : (
+                    money(product.price)
+                  )}
+                </Cell>
+                <Cell>
+                  <span
+                    className={
+                      Number(product.quantityOnHand) <= Number(product.reorderLevel)
+                        ? "font-semibold text-red-600"
+                        : undefined
+                    }
+                  >
+                    {Number(product.quantityOnHand)} {product.unit}
+                  </span>
+                </Cell>
+                <Cell>
+                  <StatusBadge
+                    label={product.status === "ACTIVE" ? "Active" : "Inactive"}
+                    tone={product.status === "ACTIVE" ? "success" : "danger"}
+                  />
+                </Cell>
+                <Cell>
+                  <RowActions
+                    onView={() => {
+                      setSelected(product);
+                      setDetailOpen(true);
+                    }}
+                    onEdit={isAdmin ? () => handleOpenForm(product) : undefined}
+                    onDelete={isAdmin ? () => handleDelete(product) : undefined}
+                    isLoading={isSaving}
+                  />
+                </Cell>
+              </Row>
+            ))}
         </SimpleTable>
-        <PaginationFooter />
+        <PaginationFooter
+          page={productPage?.page ?? page}
+          totalPages={productPage?.totalPages ?? 1}
+          size={size}
+          totalElements={productPage?.totalElements}
+          onPageChange={setPage}
+          onSizeChange={(next) => {
+            setSize(next);
+            setPage(1);
+          }}
+        />
       </DataCard>
 
-      {/* Create/Edit Form Modal */}
       <FormModal
-        open={formOpen}
+        open={isAdmin && formOpen}
         onOpenChange={handleCloseForm}
-        title="Product Register/Modify"
+        title={selected ? "Modify Product" : "Register Product"}
         submitLabel="Submit"
         onSubmit={handleSubmitForm}
-        isLoading={isCreating || isUpdating}
+        isLoading={isSaving}
       >
+        {hasNoCategories && !selected ? (
+          <div
+            className="mx-6 mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3"
+            role="status"
+          >
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <p className="text-sm text-amber-900">
+              There are no categories yet, and every product belongs to one.{" "}
+              <Link href="/categories" className="font-semibold underline">
+                Create a category
+              </Link>{" "}
+              first, then come back here.
+            </p>
+          </div>
+        ) : null}
         <ModalGrid>
           <FormInput
-            label="Name"
-            placeholder="Placeholder"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            label="Product Name"
+            placeholder="e.g. Iced Latte"
+            value={formFields.name}
+            onChange={(e) => setFormFields({ ...formFields, name: e.target.value })}
             required
+          />
+          {/* SKU is immutable once set — UpdateProductRequest has no sku field. */}
+          <FormInput
+            label="SKU"
+            placeholder="e.g. DRK-LAT-01"
+            value={formFields.sku}
+            onChange={(e) => setFormFields({ ...formFields, sku: e.target.value })}
+            readOnly={Boolean(selected)}
+            required={!selected}
           />
           <FormInput
-            label="Amount"
+            label="Unit"
+            placeholder="e.g. cup"
+            value={formFields.unit}
+            onChange={(e) => setFormFields({ ...formFields, unit: e.target.value })}
+            required={!selected}
+          />
+          <FormInput
+            label="Price (USD)"
             type="number"
-            placeholder="Placeholder"
-            value={formData.price || ""}
-            onChange={(e) =>
-              setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })
-            }
+            placeholder="0.00"
+            value={formFields.price}
+            onChange={(e) => setFormFields({ ...formFields, price: e.target.value })}
             required
           />
           <FormSelect
-            label="Status"
-            placeholder="Select Method"
-            value={formData.status ?? ""}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                status: (e.target.value || undefined) as ProductStatus | undefined,
-              })
-            }
-          >
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
-          </FormSelect>
-          <FormSelect
             label="Category"
-            placeholder="Select Method"
-            value={formData.categoryId || ""}
+            placeholder="Select category"
+            value={formFields.categoryId}
             onChange={(e) =>
-              setFormData({ ...formData, categoryId: parseInt(e.target.value, 10) })
+              setFormFields({ ...formFields, categoryId: e.target.value })
             }
             required
           >
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
               </option>
             ))}
           </FormSelect>
-          <div className="md:col-span-2">
-            <DateField
-              label="Payment Date Range"
-              value={formDateRange}
-              onChange={setFormDateRange}
+          <FormInput
+            label="Reorder Level"
+            type="number"
+            placeholder="e.g. 10"
+            value={formFields.reorderLevel}
+            onChange={(e) =>
+              setFormFields({ ...formFields, reorderLevel: e.target.value })
+            }
+          />
+          {/* Creation only. Changing an existing discount — or setting a fixed-amount one, or
+              scheduling it — happens on the product configuration screen linked below. */}
+          {!selected ? (
+            <FormInput
+              label="Discount (%)"
+              type="number"
+              placeholder="e.g. 10"
+              min={0}
+              max={100}
+              value={formFields.discountPercent}
+              onChange={(e) =>
+                setFormFields({ ...formFields, discountPercent: e.target.value })
+              }
             />
-          </div>
+          ) : null}
+          {!selected ? (
+            <p className="text-sm text-muted-foreground md:col-span-3">
+              {discountedPreview !== null
+                ? `Customers pay ${money(discountedPreview)} instead of ${money(Number(formFields.price))} while the discount is on.`
+                : "Optional — leave empty to sell at full price. Entering 10 puts the product on the menu at 10% off."}
+            </p>
+          ) : null}
+          {selected ? (
+            <p className="text-sm text-muted-foreground md:col-span-3">
+              Discount:{" "}
+              {selected.discountValue != null
+                ? `${Number(selected.discountValue)}${
+                    selected.discountType === "PERCENTAGE" ? "%" : " USD"
+                  } off`
+                : "none"}{" "}
+              —{" "}
+              <Link
+                href={`/products/${selected.id}/configuration`}
+                className="font-semibold underline"
+              >
+                manage discount and sizes
+              </Link>
+            </p>
+          ) : null}
+          {selected ? (
+            <FormSelect
+              label="Status"
+              placeholder="Select status"
+              value={formFields.status}
+              onChange={(e) =>
+                setFormFields({ ...formFields, status: e.target.value as Status })
+              }
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </FormSelect>
+          ) : null}
+          <FormInput
+            label="Description"
+            placeholder="Short description"
+            value={formFields.description}
+            onChange={(e) =>
+              setFormFields({ ...formFields, description: e.target.value })
+            }
+          />
           <div className="md:col-span-3">
             <FormImageUpload
-              label="Upload Product Image"
+              label="Product Image"
               file={imageFile}
-              onChange={handleImageChange}
+              onChange={setImageFile}
             />
           </div>
         </ModalGrid>
       </FormModal>
 
-      {/* Detail Modal */}
       <DetailModal
         open={detailOpen}
-        onOpenChange={handleDetailOpenChange}
-        title="Product Detail"
-        onEdit={() => {
-          const productToEdit = detailView?.editProduct;
-          setDetailOpen(false);
-          setDetailView(null);
-          if (productToEdit) {
-            handleOpenForm(productToEdit);
-          } else {
-            handleOpenForm();
-          }
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) setSelected(null);
         }}
+        title="Product Detail"
+        onEdit={isAdmin ? () => {
+          const product = selected;
+          setDetailOpen(false);
+          if (product) handleOpenForm(product);
+        } : undefined}
       >
-        {detailView && (
+        {selected && (
           <div className="admin_modal_form_wrap">
+            {isAdmin && <Link href={`/products/${selected.id}/configuration`} className="mb-4 inline-block underline">Manage sizes and discount</Link>}
             <DetailGrid>
-              <DetailItem label="Name">{detailView.name}</DetailItem>
-              <DetailItem label="Amount">{detailView.amount}</DetailItem>
-              <DetailItem label="Category">{detailView.category}</DetailItem>
-              <DetailItem label="Payment Start Date">
-                {detailView.paymentStartDate}
+              <DetailItem label="Name">{selected.name}</DetailItem>
+              <DetailItem label="SKU">{selected.sku}</DetailItem>
+              <DetailItem label="Category">{selected.categoryName}</DetailItem>
+              <DetailItem label="Price">{money(selected.price)}</DetailItem>
+              <DetailItem label="Final Price">{money(selected.finalPrice)}</DetailItem>
+              <DetailItem label="Discount">
+                {selected.discountActive
+                  ? `${selected.discountValue}${
+                      selected.discountType === "PERCENTAGE" ? "%" : " USD"
+                    } off`
+                  : "None"}
               </DetailItem>
-              <DetailItem label="Payment End Date">
-                {detailView.paymentEndDate}
+              <DetailItem label="Stock">
+                {Number(selected.quantityOnHand)} {selected.unit}
+              </DetailItem>
+              <DetailItem label="Reorder Level">
+                {Number(selected.reorderLevel)} {selected.unit}
               </DetailItem>
               <DetailItem label="Status">
-                <StatusBadge label={detailView.status} tone="success" />
+                <StatusBadge
+                  label={selected.status === "ACTIVE" ? "Active" : "Inactive"}
+                  tone={selected.status === "ACTIVE" ? "success" : "danger"}
+                />
               </DetailItem>
-              <div className="detail_item md:col-span-1">
+              <DetailItem label="Size Options">
+                {selected.sizeOptions.length > 0
+                  ? selected.sizeOptions
+                      .map((option) => `${option.name} (+${Number(option.priceDelta)})`)
+                      .join(", ")
+                  : "None"}
+              </DetailItem>
+              <DetailItem label="Description">{selected.description || "-"}</DetailItem>
+              <div className="detail_item">
                 <p className="detail_item_label">Image :</p>
-                <DetailImage src={detailView.imageUrl} alt={detailView.name} />
+                <DetailImage src={selected.imageUrl ?? undefined} alt={selected.name} />
               </div>
             </DetailGrid>
           </div>

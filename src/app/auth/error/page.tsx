@@ -1,11 +1,12 @@
 "use client";
-import { signOut } from "next-auth/react";
+
+import { clearTokens } from "@/lib/authStorage";
 
 export default function Unauthorized() {
   const handleGoHome = () => {
-    signOut();
-
-    window.location.href = "/";
+    // No NextAuth session to end — the admin's session is the JWT pair it holds itself.
+    clearTokens();
+    window.location.href = "/auth/login";
   };
 
   return (

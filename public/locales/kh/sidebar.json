@@ -1,4 +1,5 @@
 {
+  "nav_attendance": "វត្តមានបុគ្គលិក",
   "nav_home": "ទំព័រដើម",
   "nav_pos": "POS",
   "nav_orders": "ការបញ្ជាទិញ",
@@ -13,5 +14,6 @@
   "nav_report": "របាយការណ៍",
   "nav_staff": "បុគ្គលិក",
   "nav_audit": "Audit Trail",
+  "nav_profile": "ប្រវត្តិរូបរបស់ខ្ញុំ",
   "nav_settings": "ការកំណត់"
 }

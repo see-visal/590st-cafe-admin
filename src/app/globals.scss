@@ -276,6 +276,9 @@ body {
     .sidebar_section[data-divider="true"] { border-top-color: transparent; }
     .sidebar_item { justify-content: center; gap: 0; padding-left: 0; padding-right: 0; }
     .sidebar_user { justify-content: center; }
+    // The name is hidden here, so the link must stop growing or it would push the sign-out
+    // button off-centre instead of letting the avatar sit in the middle.
+    .sidebar_user_link { flex: 0 0 auto; gap: 0; }
   }
 }
 // Dashboard
@@ -412,6 +415,44 @@ body {
   .filter_icon { height: 20px; width: 20px; }
   .filter_title { font-size: 1.5rem; font-weight: 500; color: #35373D; }
 }
+// Product search dropdown (AdminKit's FormProductSelect).
+//
+// Deliberately NOT nested inside .form_field. Radix renders PopoverContent through a portal
+// attached to document.body, so the list is not a descendant of the field that opened it and
+// any selector scoped to that container silently matches nothing. Nested here previously, the
+// rows rendered as two unstyled inline spans — "CocaSKU: 003 · 10 Drink" — with the Selected
+// badge wrapping onto its own line.
+.form_product_select_popover {
+  padding: 0 !important; border: 1px solid #CED1D8; border-radius: 8px;
+  background-color: #ffffff; box-shadow: 0px 8px 24px rgba(32, 33, 36, 0.08);
+  // Outside .form_field, so the field's font is not inherited either.
+  font-family: var(--font-sfdisplaypro), "SF Pro Display", sans-serif;
+  .form_product_select_list {
+    margin-top: 0; max-height: 220px; overflow-y: auto;
+    border: none; border-radius: 0; background-color: transparent; box-shadow: none;
+    // The divider belongs to the row, but each button is the only child of its <li>, so
+    // :last-child on the button matched every row and erased all the dividers.
+    > li:last-child .form_product_select_item { border-bottom: none; }
+  }
+  .form_product_select_item {
+    display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 16px; border: none; border-bottom: 1px solid #f3f4f6; background: transparent;
+    text-align: left; cursor: pointer; transition: background-color 150ms ease;
+    &:hover { background-color: #f9fafb; }
+    &.is_selected { background-color: #f0fce0; }
+  }
+  .form_product_select_item_main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .form_product_select_name { font-size: 0.875rem; font-weight: 600; color: #1E1E1E; }
+  .form_product_select_meta { font-size: 0.75rem; color: #6b7280; }
+  .form_product_select_badge {
+    flex-shrink: 0; padding: 4px 10px; border-radius: 9999px;
+    background-color: #befe35; font-size: 0.75rem; font-weight: 600; color: #000000;
+  }
+  .form_product_select_empty {
+    padding: 16px; text-align: center; font-size: 0.875rem; color: #6b7280;
+  }
+}
+
 // Shared form fields (input / select / date)
 .form_field {
   display: flex; flex-direction: column; gap: 8px; width: 100%;
@@ -430,6 +471,7 @@ body {
     &:focus { border-color: #7ec900; box-shadow: 0 0 0 2px rgba(190, 254, 53, 0.25); }
     &.is_active { border-color: #22c55e; }
     &.is_readonly { background-color: #f9fafb; color: #6b7280; cursor: default; }
+    &.is_disabled { background-color: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
   }
   .form_field_textarea {
     height: auto; min-height: 96px; resize: vertical; padding-top: 10px; padding-bottom: 10px;
@@ -439,34 +481,7 @@ body {
     pointer-events: none; position: absolute; left: 14px; top: 50%;
     height: 16px; width: 16px; transform: translateY(-50%); color: #9ca3af;
   }
-  &.form_field_product_select {
-    .form_product_select_popover {
-      padding: 0 !important; border: 1px solid #CED1D8; border-radius: 8px;
-      background-color: #ffffff; box-shadow: 0px 8px 24px rgba(32, 33, 36, 0.08);
-    }
-    .form_product_select_list {
-      margin-top: 0; max-height: 220px; overflow-y: auto;
-      border: none; border-radius: 0; background-color: transparent; box-shadow: none;
-    }
-    .form_product_select_item {
-      display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px;
-      padding: 12px 16px; border: none; border-bottom: 1px solid #f3f4f6; background: transparent;
-      text-align: left; cursor: pointer; transition: background-color 150ms ease;
-      &:last-child { border-bottom: none; }
-      &:hover { background-color: #f9fafb; }
-      &.is_selected { background-color: #f0fce0; }
-    }
-    .form_product_select_item_main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .form_product_select_name { font-size: 0.875rem; font-weight: 600; color: #1E1E1E; }
-    .form_product_select_meta { font-size: 0.75rem; color: #6b7280; }
-    .form_product_select_badge {
-      flex-shrink: 0; padding: 4px 10px; border-radius: 9999px;
-      background-color: #befe35; font-size: 0.75rem; font-weight: 600; color: #000000;
-    }
-    .form_product_select_empty {
-      padding: 16px; text-align: center; font-size: 0.875rem; color: #6b7280;
-    }
-  }
+
   .form_field_select {
     appearance: none; -webkit-appearance: none; padding-right: 40px; cursor: pointer;
     &:invalid, &:has(option[value=""]:checked) { color: #9ca3af; }

@@ -1,184 +1,59 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { type DateRange } from "react-day-picker";
+import { useState } from "react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
-import {
-  AdminTopActions,
-  Cell,
-  DataCard,
-  DateField,
-  FilterActions,
-  FilterPanel,
-  PaginationFooter,
-  Row,
-  SelectField,
-  SimpleTable,
-  TableActions,
-  TextField,
-} from "@/components/common/AdminKit";
-import {
-  AuditActionBadge,
-  AuditRoleBadge,
-} from "@/features/audit/components/AuditBadges";
-import {
-  AUDIT_TOTAL_COUNT,
-  STATIC_AUDIT_ROWS,
-  type AuditAction,
-  type AuditEntity,
-  type AuditLogRow,
-  type AuditRole,
-} from "@/features/audit/constants/audit.mock";
+import { AdminTopActions, Cell, DataCard, PaginationFooter, Row, SimpleTable, TableState } from "@/components/common/AdminKit";
+import { useGetOrderHistoryQuery, useListOrdersQuery } from "@/store/api/orderApi";
+import { useGetAttendanceHistoryQuery, useListAttendanceQuery } from "@/store/api/attendanceApi";
+import { useRefreshOptions } from "@/contexts/AdminPreferencesContext";
 
-const AUDIT_TABLE_HEADERS = [
-  "ID",
-  "Timestamp",
-  "Actor",
-  "Role",
-  "Entity",
-  "Action",
-  "Description",
-  "IP Address",
-] as const;
+const readable = (value: string) => value.toLowerCase().replaceAll("_", " ");
 
 export default function AuditManagementView() {
-  const [auditId, setAuditId] = useState("");
-  const [actor, setActor] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [entityFilter, setEntityFilter] = useState("");
-  const [actionFilter, setActionFilter] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const polling = useRefreshOptions();
+  const [source, setSource] = useState<"orders" | "attendance">("orders");
+  const [page, setPage] = useState(1);
+  const [selectedId, setSelectedId] = useState("");
+  const orders = useListOrdersQuery({ page, size: 10 }, { ...polling, skip: source !== "orders" });
+  const attendance = useListAttendanceQuery({ page, size: 10 }, { ...polling, skip: source !== "attendance" });
+  const orderHistory = useGetOrderHistoryQuery(selectedId, { skip: source !== "orders" || !selectedId });
+  const attendanceHistory = useGetAttendanceHistoryQuery(selectedId, { skip: source !== "attendance" || !selectedId });
+  const records = source === "orders" ? orders : attendance;
+  const history = source === "orders" ? orderHistory : attendanceHistory;
+  const rows = source === "orders"
+    ? orders.data?.content.map((order) => ({ id: order.id, name: order.customerName ?? "Walk-in", date: order.createdAt, status: order.status }))
+    : attendance.data?.content.map((entry) => ({ id: entry.id, name: entry.baristaName, date: entry.checkInAt, status: entry.open ? "OPEN" : "CLOSED" }));
 
-  const filteredRows = useMemo(() => {
-    return STATIC_AUDIT_ROWS.filter((row) => {
-      const matchesAuditId =
-        !auditId ||
-        row.auditId.toLowerCase().includes(auditId.toLowerCase()) ||
-        row.description.toLowerCase().includes(auditId.toLowerCase());
-
-      const matchesActor =
-        !actor || row.actor.toLowerCase().includes(actor.toLowerCase());
-
-      const matchesRole =
-        !roleFilter || row.role.toLowerCase() === roleFilter.toLowerCase();
-
-      const matchesEntity =
-        !entityFilter || row.entity.toLowerCase() === entityFilter.toLowerCase();
-
-      const matchesAction =
-        !actionFilter || row.action.toLowerCase() === actionFilter.toLowerCase();
-
-      return (
-        matchesAuditId &&
-        matchesActor &&
-        matchesRole &&
-        matchesEntity &&
-        matchesAction
-      );
-    });
-  }, [actionFilter, actor, auditId, entityFilter, roleFilter]);
-
-  const isWarningAction = (row: AuditLogRow) =>
-    row.action === "Updated" &&
-    (row.entity === "Inventory" || row.entity === "Staff");
-
-  return (
-    <PageShell>
-      <PageHeader
-        title="Audit Trail"
-        breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "Analytics & Admin" },
-          { label: "Audit Trail" },
-        ]}
-        rightSlot={<AdminTopActions />}
-      />
-
-      <FilterPanel defaultCollapsed={false}>
-        <TextField
-          label="Audit ID / Keyword"
-          placeholder="e.g. AUD-0248"
-          value={auditId}
-          onChange={(event) => setAuditId(event.target.value)}
-        />
-        <TextField
-          label="Actor"
-          placeholder="Search by actor name"
-          value={actor}
-          onChange={(event) => setActor(event.target.value)}
-        />
-        <SelectField
-          label="Role"
-          placeholder="All Roles"
-          value={roleFilter}
-          onChange={(event) => setRoleFilter(event.target.value)}
-        >
-          <option value="admin">Admin</option>
-          <option value="system">System</option>
-          <option value="barista">Barista</option>
-          <option value="manager">Manager</option>
-        </SelectField>
-        <SelectField
-          label="Entity"
-          placeholder="All Entities"
-          value={entityFilter}
-          onChange={(event) => setEntityFilter(event.target.value)}
-        >
-          <option value="product">Product</option>
-          <option value="order">Order</option>
-          <option value="promotion">Promotion</option>
-          <option value="inventory">Inventory</option>
-          <option value="settings">Settings</option>
-          <option value="staff">Staff</option>
-        </SelectField>
-        <SelectField
-          label="Action"
-          placeholder="All Actions"
-          value={actionFilter}
-          onChange={(event) => setActionFilter(event.target.value)}
-        >
-          <option value="updated">Updated</option>
-          <option value="created">Created</option>
-          <option value="adjusted">Adjusted</option>
-          <option value="login">Login</option>
-        </SelectField>
-        <DateField label="Date Range" value={dateRange} onChange={setDateRange} />
-        <FilterActions />
-      </FilterPanel>
-
-      <div className="audit_data_card">
-        <DataCard
-          title="Audit Log"
-          meta={`Total Records: ${AUDIT_TOTAL_COUNT}`}
-          actions={<TableActions showRegister={false} />}
-        >
-        <div className="audit_table_wrap">
-          <SimpleTable headers={[...AUDIT_TABLE_HEADERS]}>
-            {filteredRows.map((row, index) => (
-              <Row key={row.id} striped={index % 2 === 1}>
-                <Cell className="audit_cell_strong">{row.auditId}</Cell>
-                <Cell>{row.timestamp}</Cell>
-                <Cell className="audit_cell_strong">{row.actor}</Cell>
-                <Cell>
-                  <AuditRoleBadge role={row.role as AuditRole} />
-                </Cell>
-                <Cell>{row.entity}</Cell>
-                <Cell>
-                  <AuditActionBadge
-                    action={row.action as AuditAction}
-                    warning={isWarningAction(row)}
-                  />
-                </Cell>
-                <Cell className="audit_cell_description">{row.description}</Cell>
-                <Cell>{row.ipAddress}</Cell>
-              </Row>
-            ))}
-          </SimpleTable>
-        </div>
-        <PaginationFooter />
-        </DataCard>
-      </div>
-    </PageShell>
-  );
+  return <PageShell>
+    <PageHeader title="Audit Trail" breadcrumbs={[{ label: "Home", href: "/" }, { label: "Audit Trail" }]} rightSlot={<AdminTopActions />} />
+    <p className="text-sm text-muted-foreground">Select an order or attendance record to view its recorded actions and the people who performed them.</p>
+    <label className="text-sm">History source
+      <select aria-label="History source" className="ml-3 rounded border p-2" value={source} onChange={(event) => {
+        setSource(event.target.value as "orders" | "attendance"); setPage(1); setSelectedId("");
+      }}><option value="orders">Orders</option><option value="attendance">Attendance</option></select>
+    </label>
+    <DataCard title={source === "orders" ? "Orders" : "Attendance"} meta={records.data ? `${records.data.totalElements} records` : undefined}>
+      <SimpleTable headers={["Record", "Name", "Date", "Status", "History"]}>
+        <TableState colSpan={5} isLoading={records.isFetching} error={records.error} isEmpty={!rows?.length} onRetry={records.refetch} />
+        {!records.isFetching && !records.error && rows?.map((row) => <Row key={row.id}>
+          <Cell><span className="font-mono">{row.id.slice(0, 8).toUpperCase()}</span></Cell>
+          <Cell>{row.name}</Cell><Cell>{row.date.replace("T", " ")}</Cell><Cell>{readable(row.status)}</Cell>
+          <Cell><button type="button" className="underline" onClick={() => setSelectedId(row.id)}>{selectedId === row.id ? "Selected" : "View history"}</button></Cell>
+        </Row>)}
+      </SimpleTable>
+      <PaginationFooter page={page} size={10} totalElements={records.data?.totalElements} totalPages={records.data?.totalPages ?? 0}
+        onPageChange={(next) => { setPage(next); setSelectedId(""); }} />
+    </DataCard>
+    {selectedId && <DataCard title={`History: ${selectedId.slice(0, 8).toUpperCase()}`}>
+      <SimpleTable headers={["Date", "Action", "Actor", "Role", "Note"]}>
+        <TableState colSpan={5} isLoading={history.isFetching} error={history.error} isEmpty={!history.currentData?.length} onRetry={history.refetch} />
+        {!history.isFetching && !history.error && history.currentData?.map((entry) => <Row key={entry.id}>
+          <Cell>{entry.createdAt.replace("T", " ")}</Cell><Cell>{readable(entry.action)}</Cell>
+          <Cell>{entry.actorName ?? "Unknown actor"}</Cell><Cell>{entry.actorRole ? readable(entry.actorRole) : "—"}</Cell>
+          <Cell>{"note" in entry ? entry.note : "—"}</Cell>
+        </Row>)}
+      </SimpleTable>
+    </DataCard>}
+  </PageShell>;
 }

@@ -1,1 +1,5 @@
-export default function Page() { return <div>receipts</div>; }
+import { redirect } from "next/navigation";
+
+export default function Page() {
+  redirect("/orders");
+}
