@@ -27,6 +27,9 @@ type PosPaymentModalProps = {
   total: number;
   orderTable?: string;
   orderId?: string;
+  /** Receives the cash tendered on the numpad; resolves once the API call settles. */
+  onConfirm?: (amountTendered: number) => void | Promise<void>;
+  isLoading?: boolean;
 };
 
 const NUMPAD_ROWS = [
@@ -47,6 +50,8 @@ export function PosPaymentModal({
   total,
   orderTable = "Order Table #51",
   orderId = "#542845",
+  onConfirm,
+  isLoading = false,
 }: PosPaymentModalProps) {
   const [cashInput, setCashInput] = useState(total.toFixed(2));
 
@@ -197,8 +202,14 @@ export function PosPaymentModal({
                 </dd>
               </dl>
 
-              <button type="button" className="btn_primary_yellow pos_payment_confirm">
-                Confirm Payment
+              <button
+                type="button"
+                className="btn_primary_yellow pos_payment_confirm"
+                // Short-changing the till is a hard stop, not a warning.
+                disabled={isLoading || balance < 0 || items.length === 0}
+                onClick={() => onConfirm?.(credit)}
+              >
+                {isLoading ? "Processing..." : "Confirm Payment"}
               </button>
             </section>
           </div>
