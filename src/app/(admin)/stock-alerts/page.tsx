@@ -1,1 +1,5 @@
-export default function Page() { return <div>stock-alerts</div>; }
+import StockAlertView from "@/features/stock-alert";
+
+export default function Page() {
+  return <StockAlertView />;
+}

@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { type DateRange } from "react-day-picker";
+import toast from "react-hot-toast";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
   AdminTopActions,
   Cell,
   DataCard,
-  DateField,
+  ExcelImportButton,
   FilterActions,
   FilterPanel,
   FormInput,
@@ -27,310 +27,405 @@ import {
   StatTile,
   StatusBadge,
   TableActions,
+  TableState,
+  listLoadState,
   TextField,
 } from "@/components/common/AdminKit";
+import { apiErrorMessage } from "@/store/api/baseApi";
+import { usePageSize } from "@/contexts/AdminPreferencesContext";
 import {
-  getProductOptionById,
-  MOCK_STOCK_PRODUCTS,
-  STATIC_INVENTORY_ROWS,
-  type InventoryListRow,
-} from "@/features/inventory/constants/inventory.mock";
-import { useInventory, useAdjustInventory } from "@/hooks/useAdmin";
+  useDownloadMonthlyStockExpenseReportMutation,
+  useListInventoryQuery,
+  useStockCutMutation,
+  useStockInFromExcelMutation,
+  useStockInMutation,
+} from "@/store/api/inventoryApi";
+import { useListProductsQuery } from "@/store/api/productApi";
+import { useCurrentRole } from "@/store/api/useCurrentRole";
+import type { InventoryResponse, StockStrategy } from "@/store/api/types";
+import { downloadBlob, humanise, titleCase } from "@/lib/utils";
+import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
+import { usePersistentState } from "@/hooks/usePersistentState";
 
 const INVENTORY_TABLE_HEADERS = [
   "No",
   "Product Name",
-  "SKU",
   "Current Stock",
   "Unit",
+  "Reorder Level",
   "Status",
   "Action",
 ] as const;
 
-type AdjustmentType = "ADD" | "REMOVE" | "SET";
+/** The API models movements as stock-in (a purchase with a cost) or stock-cut (a draw-down). */
+type MovementKind = "STOCK_IN" | "STOCK_CUT";
 
-interface InventoryItem {
-  id: number;
-  item: string;
-  amount: number;
-  status: string;
+type StockLevel = "OUT" | "LOW" | "OK";
+
+function stockLevel(item: InventoryResponse): StockLevel {
+  const onHand = Number(item.quantityOnHand);
+  if (onHand <= 0) return "OUT";
+  if (onHand <= Number(item.reorderLevel)) return "LOW";
+  return "OK";
 }
 
-function getStatusTone(status: string): "success" | "danger" | "warning" {
-  const normalized = status.toLowerCase();
-  if (normalized.includes("low")) return "warning";
-  if (normalized.includes("out")) return "danger";
-  return "success";
-}
+const LEVEL_LABEL: Record<StockLevel, string> = {
+  OUT: "Out of Stock",
+  LOW: "Low Stock",
+  OK: "In Stock",
+};
 
-function calculateNewQuantity(
-  current: number,
-  quantity: number,
-  adjustmentType: AdjustmentType
-) {
-  if (adjustmentType === "ADD") return current + quantity;
-  if (adjustmentType === "REMOVE") return Math.max(0, current - quantity);
-  return quantity;
-}
+const LEVEL_TONE: Record<StockLevel, "success" | "warning" | "danger"> = {
+  OUT: "danger",
+  LOW: "warning",
+  OK: "success",
+};
 
 export default function Inventory() {
+  const { isAdmin } = useCurrentRole();
   const router = useRouter();
-  const { inventory, refetch } = useInventory();
-  const { adjust, isLoading: isAdjusting } = useAdjustInventory();
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [formOpen, setFormOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<ProductSelectOption | null>(null);
-  const [adjustmentType, setAdjustmentType] = useState<AdjustmentType>("ADD");
-  const [quantity, setQuantity] = useState("");
-  const [reason, setReason] = useState("");
+  const [page, setPage] = usePersistentState("inventory:page", 1);
+  const [size, setSize] = usePageSize();
+  const [searchTerm, setSearchTerm] = usePersistentState("inventory:searchTerm", "");
+  const [levelFilter, setLevelFilter] = usePersistentState("inventory:levelFilter", "");
+  // yyyy-MM, matching both <input type="month"> and the API's own YearMonth param.
+  const [expenseMonth, setExpenseMonth] = usePersistentState("inventory:expenseMonth", () => new Date().toISOString().slice(0, 7));
 
-  const items = useMemo(() => {
-    return (inventory as unknown as InventoryItem[]) || [];
-  }, [inventory]);
+  const {
+    data: inventoryPage,
+    currentData,
+    isFetching,
+    error,
+    refetch,
+  } = useListInventoryQuery({ page, size });
+  const list = listLoadState({ isFetching, currentData, error });
 
-  const hasApiData = items.length > 0;
+  // A stock-in, stock-cut or Excel import from another tab reaches this list instantly instead
+  // of only on this page's own next mutation or a manual refresh.
+  useInventoryAlerts(useCallback(() => { void refetch(); }, [refetch]));
 
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      const matchesSearch = item.item.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus =
-        !statusFilter || item.status.toLowerCase() === statusFilter.toLowerCase();
-      return matchesSearch && matchesStatus;
-    });
-  }, [items, searchTerm, statusFilter]);
+  // The inventory rows carry no SKU, so pair them with the product list for the picker.
+  const { data: productPage } = useListProductsQuery({ page: 1, size: 500 });
 
-  const parsedQuantity = parseInt(quantity, 10) || 0;
-  const newQuantity = selectedProduct
-    ? calculateNewQuantity(
-        selectedProduct.currentStock,
-        parsedQuantity,
-        adjustmentType
-      )
-    : 0;
+  const [stockIn, { isLoading: isStockingIn }] = useStockInMutation();
+  const [stockCut, { isLoading: isCutting }] = useStockCutMutation();
+  const [stockInFromExcel] = useStockInFromExcelMutation();
+  const [downloadExpenseReport, { isLoading: isDownloadingExpenseReport }] =
+    useDownloadMonthlyStockExpenseReportMutation();
 
-  const handleOpenForm = (product?: ProductSelectOption | null) => {
-    setSelectedProduct(product ?? null);
-    setAdjustmentType("ADD");
+  const handleDownloadExpenseReport = async () => {
+    try {
+      const blob = await downloadExpenseReport({ month: expenseMonth }).unwrap();
+      downloadBlob(blob, `stock-expenses-${expenseMonth}.xlsx`);
+    } catch (err) {
+      toast.error(apiErrorMessage(err as never, "Could not download the expense report."));
+    }
+  };
+
+  const [formOpen, setFormOpen] = usePersistentState("inventory:formOpen", false);
+  const [selectedProduct, setSelectedProduct] = usePersistentState<ProductSelectOption | null>("inventory:selectedProduct", null);
+  const [movementKind, setMovementKind] = usePersistentState<MovementKind>("inventory:movementKind", "STOCK_IN");
+  const [quantity, setQuantity] = usePersistentState("inventory:quantity", "");
+  const [unitCost, setUnitCost] = usePersistentState("inventory:unitCost", "");
+  const [strategy, setStrategy] = usePersistentState<StockStrategy>("inventory:strategy", "FIFO");
+  const [note, setNote] = usePersistentState("inventory:note", "");
+
+  const inventory = useMemo(() => inventoryPage?.content ?? [], [inventoryPage]);
+
+  const productOptions = useMemo<ProductSelectOption[]>(
+    () =>
+      (productPage?.content ?? []).map((product) => ({
+        id: product.id,
+        name: product.name,
+        sku: product.sku,
+        currentStock: Number(product.quantityOnHand),
+        unit: humanise(product.stockUnit),
+      })),
+    [productPage]
+  );
+
+  const visibleInventory = useMemo(
+    () =>
+      inventory.filter((item) => {
+        const term = searchTerm.trim().toLowerCase();
+        const matchesSearch = !term || item.productName.toLowerCase().includes(term);
+        const matchesLevel = !levelFilter || stockLevel(item) === levelFilter;
+        return matchesSearch && matchesLevel;
+      }),
+    [inventory, searchTerm, levelFilter]
+  );
+
+  const lowCount = inventory.filter((i) => stockLevel(i) === "LOW").length;
+  const outCount = inventory.filter((i) => stockLevel(i) === "OUT").length;
+
+  const handleOpenForm = (item?: InventoryResponse) => {
+    if (!isAdmin) return;
+    const option = item
+      ? productOptions.find((p) => p.id === item.productId) ?? {
+          id: item.productId,
+          name: item.productName,
+          sku: "-",
+          currentStock: Number(item.quantityOnHand),
+          unit: humanise(item.unit),
+        }
+      : null;
+    setSelectedProduct(option);
+    setMovementKind("STOCK_IN");
     setQuantity("");
-    setReason("");
+    setUnitCost("");
+    setStrategy("FIFO");
+    setNote("");
     setFormOpen(true);
   };
 
-  const handleCloseForm = () => {
-    setFormOpen(false);
-    setSelectedProduct(null);
-    setQuantity("");
-    setReason("");
-  };
-
-  const handleOpenFormFromRow = (row: InventoryListRow) => {
-    handleOpenForm(getProductOptionById(row.productId) ?? null);
-  };
-
-  const handleViewDetail = (productId: string) => {
-    router.push(`/inventory/${productId}`);
-  };
-
-  const handleSubmitForm = async () => {
+  const handleSubmit = async () => {
+    if (!isAdmin) return;
     if (!selectedProduct) {
-      alert("Please select a product");
+      toast.error("Choose a product first");
       return;
     }
-    if (!parsedQuantity && adjustmentType !== "SET") {
-      alert("Please enter a quantity");
+    const qty = Number(quantity);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      toast.error("Quantity must be greater than zero");
       return;
     }
 
     try {
-      const inventoryId = parseInt(selectedProduct.id, 10);
-      const delta =
-        adjustmentType === "ADD"
-          ? parsedQuantity
-          : adjustmentType === "REMOVE"
-          ? -parsedQuantity
-          : newQuantity - selectedProduct.currentStock;
-      await adjust(inventoryId, delta);
-      handleCloseForm();
-      refetch();
+      if (movementKind === "STOCK_IN") {
+        const cost = Number(unitCost);
+        if (!Number.isFinite(cost) || cost < 0) {
+          toast.error("Enter a valid unit cost");
+          return;
+        }
+        await stockIn({
+          productId: selectedProduct.id,
+          quantity: qty,
+          unitCost: cost,
+          note: note.trim() || undefined,
+        }).unwrap();
+        toast.success(`Stocked in ${qty} ${selectedProduct.unit}`);
+      } else {
+        await stockCut({
+          productId: selectedProduct.id,
+          quantity: qty,
+          strategy,
+          note: note.trim() || undefined,
+        }).unwrap();
+        toast.success(`Cut ${qty} ${selectedProduct.unit}`);
+      }
+      setFormOpen(false);
     } catch (err) {
-      console.error("Adjustment failed:", err);
+      toast.error(apiErrorMessage(err as never, "Could not record the stock movement."));
     }
   };
+
+  const isSaving = isStockingIn || isCutting;
 
   return (
     <PageShell>
       <PageHeader
-        title="Inventory List"
+        title="Inventory"
         breadcrumbs={[
           { label: "Home", href: "/" },
           { label: "Inventory" },
-          { label: "Inventory List" },
+          { label: "Stock List" },
         ]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatTile title="Total Products" value="5" tone="gray" />
-        <StatTile title="In Stock" value="3" tone="green" />
-        <StatTile title="Low Stock" value="2" tone="orange" />
+        <StatTile
+          title="Tracked Products"
+          value={String(inventoryPage?.totalElements ?? 0)}
+          tone="gray"
+        />
+        <StatTile
+          title="Low Stock (this page)"
+          value={String(lowCount)}
+          tone={lowCount > 0 ? "orange" : "gray"}
+        />
+        <StatTile
+          title="Out of Stock (this page)"
+          value={String(outCount)}
+          tone={outCount > 0 ? "red" : "gray"}
+        />
       </div>
 
       <FilterPanel>
         <TextField
           label="Product Name"
-          placeholder="Placeholder"
+          placeholder="Search products"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         <SelectField
-          label="Status"
-          placeholder="Select Method"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          label="Stock Level"
+          placeholder="All levels"
+          value={levelFilter}
+          onChange={(e) => setLevelFilter(e.target.value)}
         >
-          <option value="in stock">In Stock</option>
-          <option value="low stock">Low Stock</option>
-          <option value="out of stock">Out of Stock</option>
+          <option value="OK">In Stock</option>
+          <option value="LOW">Low Stock</option>
+          <option value="OUT">Out of Stock</option>
         </SelectField>
-        <DateField
-          label="Select Date Range"
-          value={dateRange}
-          onChange={setDateRange}
-        />
-        <FilterActions />
+        <FilterActions onClear={() => { setSearchTerm(""); setLevelFilter(""); setPage(1); }} onSearch={refetch} />
       </FilterPanel>
 
       <DataCard
-        title="Inventory"
-        meta="Total Items: 5 Products"
+        title="Stock Levels"
+        meta={`Tracked Products: ${inventoryPage?.totalElements ?? 0}`}
         actions={
-          <TableActions
-            onRegister={() => handleOpenForm(MOCK_STOCK_PRODUCTS[0])}
-            primaryLabel="Stock Adjustment"
-            showRegister
-          />
+          isAdmin ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="form_field w-auto">
+                  <input
+                    type="month"
+                    value={expenseMonth}
+                    onChange={(e) => setExpenseMonth(e.target.value)}
+                    className="form_field_control"
+                    aria-label="Stock expense report month"
+                    title="Month to export"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleDownloadExpenseReport}
+                  disabled={isDownloadingExpenseReport || !expenseMonth}
+                  className="btn_outline_black text-xs"
+                  title="Every stock-purchase (stock-in) cost recorded this month, as an Excel file"
+                >
+                  {isDownloadingExpenseReport ? "Exporting..." : "Export Stock Expenses"}
+                </button>
+              </div>
+              <ExcelImportButton
+                label="Import Stock-In"
+                columnsHint="sku, quantity, unitCost, note"
+                onImport={(file) => stockInFromExcel(file).unwrap()}
+              />
+              <TableActions onRegister={() => handleOpenForm()} primaryLabel="Adjust Stock" />
+            </div>
+          ) : undefined
         }
       >
         <SimpleTable headers={[...INVENTORY_TABLE_HEADERS]}>
-          {hasApiData
-            ? filteredItems.map((item, index) => (
-                <Row key={item.id} striped={index % 2 === 1}>
-                  <Cell>{index + 1}</Cell>
-                  <Cell className="font-semibold">{item.item}</Cell>
-                  <Cell>SKU-{String(item.id).padStart(3, "0")}</Cell>
-                  <Cell>{item.amount.toLocaleString()}</Cell>
-                  <Cell>units</Cell>
+          <TableState
+            colSpan={INVENTORY_TABLE_HEADERS.length}
+            isLoading={list.isLoading}
+            error={list.error}
+            isEmpty={visibleInventory.length === 0}
+            emptyLabel="No inventory records. Products get a stock row when they are created."
+            onRetry={refetch}
+          />
+          {list.showRows &&
+            visibleInventory.map((item, index) => {
+              const level = stockLevel(item);
+              return (
+                <Row key={item.productId} striped={index % 2 === 1}>
+                  <Cell>{(page - 1) * size + index + 1}</Cell>
+                  <Cell className="font-semibold">{titleCase(item.productName)}</Cell>
+                  <Cell>{Number(item.quantityOnHand).toLocaleString()}</Cell>
+                  <Cell>{humanise(item.unit)}</Cell>
+                  <Cell>{Number(item.reorderLevel).toLocaleString()}</Cell>
                   <Cell>
-                    <StatusBadge
-                      label={item.status}
-                      tone={getStatusTone(item.status)}
-                    />
+                    <StatusBadge label={LEVEL_LABEL[level]} tone={LEVEL_TONE[level]} />
                   </Cell>
                   <Cell>
                     <RowActions
-                      onView={() => handleViewDetail(String(item.id))}
-                      onEdit={() =>
-                        handleOpenForm(
-                          MOCK_STOCK_PRODUCTS.find(
-                            (product) => product.name === item.item
-                          ) ?? null
-                        )
-                      }
+                      onView={() => router.push(`/inventory/${item.productId}`)}
+                      onEdit={isAdmin ? () => handleOpenForm(item) : undefined}
+                      isLoading={isSaving}
                     />
                   </Cell>
                 </Row>
-              ))
-            : STATIC_INVENTORY_ROWS.map((row, index) => (
-                <Row key={row.id} striped={index % 2 === 1}>
-                  <Cell>{index + 1}</Cell>
-                  <Cell className="font-semibold">{row.name}</Cell>
-                  <Cell>{row.sku}</Cell>
-                  <Cell>{row.stock}</Cell>
-                  <Cell>{row.unit}</Cell>
-                  <Cell>
-                    <StatusBadge label={row.status} tone={getStatusTone(row.status)} />
-                  </Cell>
-                  <Cell>
-                    <RowActions
-                      onView={() => handleViewDetail(row.productId)}
-                      onEdit={() => handleOpenFormFromRow(row)}
-                    />
-                  </Cell>
-                </Row>
-              ))}
+              );
+            })}
         </SimpleTable>
-        <PaginationFooter />
+        <PaginationFooter
+          page={inventoryPage?.page ?? page}
+          totalPages={inventoryPage?.totalPages ?? 1}
+          size={size}
+          totalElements={inventoryPage?.totalElements}
+          onPageChange={setPage}
+          onSizeChange={(next) => {
+            setSize(next);
+            setPage(1);
+          }}
+        />
       </DataCard>
 
       <FormModal
-        open={formOpen}
-        onOpenChange={(open) => {
-          if (!open) handleCloseForm();
-        }}
-        title="Stock Adjustment"
+        open={isAdmin && formOpen}
+        onOpenChange={setFormOpen}
+        title="Stock Movement"
         submitLabel="Submit"
-        onSubmit={handleSubmitForm}
-        isLoading={isAdjusting}
+        onSubmit={handleSubmit}
+        isLoading={isSaving}
       >
         <ModalGrid>
           <div className="md:col-span-3">
             <FormProductSelect
-              label="Select Product"
+              label="Product"
               required
-              options={MOCK_STOCK_PRODUCTS}
+              options={productOptions}
               value={selectedProduct}
               onChange={setSelectedProduct}
             />
           </div>
-
-          {selectedProduct && (
-            <div className="inventory_form_summary md:col-span-3">
-              <FormInput label="Product Name" value={selectedProduct.name} readOnly />
-              <FormInput label="SKU" value={selectedProduct.sku} readOnly />
-              <FormInput
-                label="Current Stock"
-                value={`${selectedProduct.currentStock} ${selectedProduct.unit}`}
-                readOnly
-              />
-            </div>
-          )}
-
           <FormSelect
-            label="Adjustment Type"
+            label="Movement"
+            placeholder="Select movement"
+            value={movementKind}
+            onChange={(e) => setMovementKind(e.target.value as MovementKind)}
             required
-            placeholder="Select Method"
-            value={adjustmentType}
-            onChange={(e) => setAdjustmentType(e.target.value as AdjustmentType)}
           >
-            <option value="ADD">Add Stock</option>
-            <option value="REMOVE">Remove Stock</option>
-            <option value="SET">Set Stock</option>
+            <option value="STOCK_IN">Stock In (purchase)</option>
+            <option value="STOCK_CUT">Stock Cut (draw-down)</option>
           </FormSelect>
           <FormInput
             label="Quantity"
-            required
             type="number"
-            placeholder="Enter quantity"
+            placeholder="0"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
+            required
           />
-          <FormInput
-            label="New Quantity"
-            value={selectedProduct ? String(newQuantity) : ""}
-            readOnly
-          />
+          {movementKind === "STOCK_IN" ? (
+            <FormInput
+              label="Unit Cost (USD)"
+              type="number"
+              placeholder="0.00"
+              value={unitCost}
+              onChange={(e) => setUnitCost(e.target.value)}
+              required
+            />
+          ) : (
+            /* Which cost layers the cut consumes — FIFO takes the oldest batch first. */
+            <FormSelect
+              label="Costing Strategy"
+              placeholder="Select strategy"
+              value={strategy}
+              onChange={(e) => setStrategy(e.target.value as StockStrategy)}
+              required
+            >
+              <option value="FIFO">FIFO (oldest batch first)</option>
+              <option value="LIFO">LIFO (newest batch first)</option>
+            </FormSelect>
+          )}
           <div className="md:col-span-3">
             <FormTextarea
-              label="Reason / Notes"
-              placeholder="Enter reason for adjustment..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={4}
+              label="Note"
+              placeholder="Optional reason or reference"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
             />
           </div>
+          {selectedProduct ? (
+            <p className="md:col-span-3 text-sm text-muted-foreground">
+              Current stock: {selectedProduct.currentStock} {selectedProduct.unit}
+            </p>
+          ) : null}
         </ModalGrid>
       </FormModal>
     </PageShell>

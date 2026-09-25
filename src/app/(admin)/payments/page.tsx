@@ -1,1 +1,5 @@
-export default function Page() { return <div>payments</div>; }
+import PaymentManagementView from "@/features/payment";
+
+export default function Page() {
+  return <PaymentManagementView />;
+}
