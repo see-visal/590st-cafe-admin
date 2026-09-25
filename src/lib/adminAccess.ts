@@ -4,7 +4,9 @@ import type { Role } from "@/store/api/types";
 export function canAccessAdminPage(role: Role | undefined, pathname: string): boolean {
   if (!role || role === "CUSTOMER") return false;
   const route = pathname.split("/")[1] || "dashboard";
-  if (route === "pos") return role === "BARISTA";
+  // Admin and barista each ring up walk-in sales against their own endpoint pair
+  // (/api/admin/orders vs /api/barista/orders) — both are staffed tills, not a barista-only one.
+  if (route === "pos") return true;
   // Every signed-in staff account owns its profile and its own preferences, so both are open
   // to baristas too — the admin-only controls inside Settings are gated in the page itself.
   if (route === "profile" || route === "settings" || route === "attendance") return true;
