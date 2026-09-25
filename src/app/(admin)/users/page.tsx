@@ -1,1 +1,5 @@
-export default function Page() { return <div>users</div>; }
+import UserManagementView from "@/features/user";
+
+export default function Page() {
+  return <UserManagementView title="Users" />;
+}

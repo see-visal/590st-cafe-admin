@@ -1,1 +1,5 @@
-export default function Page() { return <div>events</div>; }
+import EventManagementView from "@/features/event";
+
+export default function Page() {
+  return <EventManagementView />;
+}
