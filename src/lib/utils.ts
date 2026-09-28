@@ -33,14 +33,7 @@ export function formatSku(sku: string): string {
   return sku.toUpperCase();
 }
 
-/// The one place that turns a plain number into money for display, currency-aware. Riel has no
-export function openBlobInNewTab(blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank", "noopener,noreferrer");
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
-
-// The one place that turns a plain number into money for display, currency-aware. Riel has no
+// Prints a PDF through a hidden iframe so the print dialog opens without leaving the page.
 export function printPdfBlob(blob: Blob) {
   const url = URL.createObjectURL(blob);
   const frame = document.createElement("iframe");
@@ -52,7 +45,8 @@ export function printPdfBlob(blob: Blob) {
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
     } catch {
-      openBlobInNewTab(blob);
+      // Print blocked (e.g. some mobile browsers) — let the browser show the PDF instead.
+      window.open(url, "_blank");
     }
     // Long enough for the print dialog to have spooled the document.
     setTimeout(() => {
@@ -73,10 +67,11 @@ export function downloadBlob(blob: Blob, filename: string) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  // Revoking in the same tick can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
-// A one-off download of a blob, e.g. an invoice PDF or a CSV export, without leaving the current page.
+/** Capitalises the first letter of every word, leaving the rest as typed. */
 export function titleCase(value: string): string {
   return value.replace(
     /\S+/g,
@@ -88,7 +83,8 @@ function formatMoney(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
-// A one-off download of a blob, e.g. an invoice PDF or a CSV export, without leaving the current page.
+/// The one place that turns a plain number into money for display, currency-aware. Riel has no
+/// decimals, so it is rounded and shown with the ៛ sign; everything else is dollars.
 export function formatByCurrency(
   value: number | string | null | undefined,
   currency: "USD" | "KHR" | null | undefined,
@@ -111,7 +107,7 @@ export function timeAgo(value: string): string {
   return `${Math.floor(hours / 24)} d ago`;
 }
 
-// A one-off download of a blob, e.g. an invoice PDF or a CSV export, without leaving the current page.
+/** A product's price as shown in lists: one price, or a "min–max" range across active variants. */
 export function productPriceLabel(
   variants: { finalPrice: number; status: string }[],
 ): string {

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, FileText, Loader2, Printer } from "lucide-react";
+import { CheckCircle2, Download, FileText, Loader2, Printer } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   Dialog,
@@ -9,15 +9,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useOrderInvoice } from "@/hooks/useOrderInvoice";
+import { orderCode, useOrderInvoice } from "@/hooks/useOrderInvoice";
 import type { OrderResponse } from "@/store/api/types";
 import { cn, formatByCurrency, humanise } from "@/lib/utils";
 
-// get invoice as PDF
 const orderNumber = (order: Pick<OrderResponse, "id">) =>
-  `#${order.id.slice(0, 8).toUpperCase()}`;
+  `#${orderCode(order.id)}`;
 
-/** Print + View buttons, for detail modals and the POS sale-complete dialog. */
+/** Print + View + Download buttons, for detail modals and the POS sale-complete dialog. */
 export function InvoiceActions({
   order,
   className,
@@ -28,7 +27,8 @@ export function InvoiceActions({
   /** Lets the cashier hit Enter to print, straight after a sale. */
   autoFocusPrint?: boolean;
 }) {
-  const { printInvoice, viewInvoice, isBusy } = useOrderInvoice();
+  const { printInvoice, viewInvoice, downloadInvoice, isBusy } =
+    useOrderInvoice();
   if (order.paidAt == null) return null;
   const busy = isBusy(order.id);
 
@@ -60,6 +60,19 @@ export function InvoiceActions({
           <FileText />
         )}
         {isBusy(order.id, "view") ? "Opening..." : "View PDF"}
+      </button>
+      <button
+        type="button"
+        onClick={() => downloadInvoice(order.id)}
+        disabled={busy}
+        className="btn_outline_black"
+      >
+        {isBusy(order.id, "download") ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <Download />
+        )}
+        {isBusy(order.id, "download") ? "Downloading..." : "Download"}
       </button>
     </div>
   );

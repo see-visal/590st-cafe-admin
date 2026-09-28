@@ -535,7 +535,7 @@ export default function Staff() {
             <p className="md:col-span-3 text-sm text-muted-foreground">
               No email or password needed — {formKind === "ADMIN" ? "the admin" : "the barista"} activates
               their account by opening the Telegram invite link and confirming this phone number, then
-              signs in on the login page under the <span className="font-semibold">Telegram</span> tab.
+              signs in on the login page under the <span className="font-semibold">Phone number</span> tab.
             </p>
           )}
           <FormSelect
@@ -642,8 +642,8 @@ export default function Staff() {
             </DetailGrid>
             <p className="mt-3 text-sm text-muted-foreground">
               Share this link with the invitee. After they open it and share their phone number in
-              Telegram, the account is active and they sign in on the login page with{" "}
-              <span className="font-semibold">Log in with Telegram</span>.
+              Telegram, the account is active and they sign in on the login page under{" "}
+              <span className="font-semibold">Phone number</span> — the code arrives in Telegram.
             </p>
             <button
               type="button"
