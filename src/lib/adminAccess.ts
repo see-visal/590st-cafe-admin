@@ -12,6 +12,8 @@ export function canAccessAdminPage(role: Role | undefined, pathname: string): bo
   if (route === "profile" || route === "settings" || route === "attendance") return true;
   if (route === "barista-queue" || route === "notifications" || route === "stock-alerts") return true;
   if (route === "categories" || route === "reports") return true;
+  // Opened from an order on either the dashboard or the queue board; the API picks the endpoint.
+  if (route === "invoices") return true;
   if (route === "inventory") return true;
   // Product creation and configuration are separate pages with write controls.
   if (route === "products" && pathname.replace(/\/$/, "") === "/products") return true;

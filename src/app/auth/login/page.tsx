@@ -8,21 +8,28 @@ import {
   Eye,
   EyeOff,
   Mail,
-  Send,
+  Phone,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { TelegramLoginPanel } from "@/features/auth/components/TelegramLoginPanel";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import {
   useLoginMutation,
+  useLoginPhoneMutation,
   useResendOtpMutation,
   useVerifyLoginOtpMutation,
 } from "@/store/api/authApi";
+import {
+  formatPhoneInput,
+  PHONE_INVALID_MESSAGE,
+  PHONE_MAX_LENGTH,
+  PHONE_PATTERN,
+  PHONE_PLACEHOLDER,
+} from "@/lib/phone";
 
-// two step for authentication login page with email/password and Telegram login options. It handles user input, form submission, OTP verification, and error handling. The page also remembers the last login method used and provides a responsive design with a poster section for visual appeal.
+// Two-step login page: email + password, or phone number (for staff invited over Telegram). It handles user input, form submission, OTP verification, and error handling. The page also remembers the last login method used and provides a responsive design with a poster section for visual appeal.
 function resolveNextPath(): string {
   if (typeof window === "undefined") return "/";
   const next = new URLSearchParams(window.location.search).get("next");
@@ -30,36 +37,54 @@ function resolveNextPath(): string {
   return next;
 }
 
-type LoginMethod = "EMAIL" | "TELEGRAM";
+type LoginMethod = "EMAIL" | "PHONE";
 
 const LOGIN_METHODS: {
   value: LoginMethod;
   label: string;
   icon: typeof Mail;
+  hint: string;
 }[] = [
-  { value: "EMAIL", label: "Email", icon: Mail },
-  { value: "TELEGRAM", label: "Telegram", icon: Send },
+  {
+    value: "EMAIL",
+    label: "Email",
+    icon: Mail,
+    hint: "Enter your email and password to access the admin dashboard",
+  },
+  {
+    value: "PHONE",
+    label: "Phone number",
+    icon: Phone,
+    hint: "Invited over Telegram? Enter your phone number and we'll send a code to your Telegram",
+  },
 ];
 
 const LOGIN_METHOD_KEY = "loginMethod";
+
+const FIELD_CLASS =
+  "h-11 w-full rounded-md border border-gray-300 text-sm outline-none focus:border-[#befe35] focus:ring-2 focus:ring-lime-100";
+const SUBMIT_CLASS =
+  "mt-8 h-12 w-full rounded-md bg-black text-sm font-semibold text-white disabled:opacity-60";
 
 export default function AuthPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Remembers the last method used on this browser, so a Telegram-only barista isn't sent back
-  // to the email form every time. Restored after mount to keep the prerendered HTML stable.
+  // Remembers the last method used on this browser, so a phone-only barista isn't sent back to
+  // the email form every time. Restored after mount to keep the prerendered HTML stable.
+  // "TELEGRAM" is what the old Telegram-widget tab stored; it now means the phone tab.
   const [method, setMethod] = useState<LoginMethod>("EMAIL");
   useEffect(() => {
     try {
-      if (window.localStorage.getItem(LOGIN_METHOD_KEY) === "TELEGRAM")
-        setMethod("TELEGRAM");
+      const saved = window.localStorage.getItem(LOGIN_METHOD_KEY);
+      if (saved === "PHONE" || saved === "TELEGRAM") setMethod("PHONE");
     } catch {
       // Storage blocked — the email form is a fine default.
     }
@@ -78,6 +103,7 @@ export default function AuthPage() {
   const [otp, setOtp] = useState("");
 
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+  const [loginPhone, { isLoading: isSendingPhoneCode }] = useLoginPhoneMutation();
   const [verifyOtp, { isLoading: isVerifying }] = useVerifyLoginOtpMutation();
   const [resendOtp, { isLoading: isResending }] = useResendOtpMutation();
 
@@ -101,6 +127,28 @@ export default function AuthPage() {
         apiErrorMessage(
           err as Parameters<typeof apiErrorMessage>[0],
           "Login failed. Check your credentials and try again.",
+        ),
+      );
+    }
+  };
+
+  const handlePhone = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    const phoneNumber = phone.trim();
+    if (!PHONE_PATTERN.test(phoneNumber)) {
+      setError(PHONE_INVALID_MESSAGE);
+      return;
+    }
+
+    try {
+      const result = await loginPhone({ phoneNumber }).unwrap();
+      if (result.loginTicket) setLoginTicket(result.loginTicket);
+    } catch (err) {
+      setError(
+        apiErrorMessage(
+          err as Parameters<typeof apiErrorMessage>[0],
+          "Could not send a code to this number. Please try again.",
         ),
       );
     }
@@ -172,14 +220,13 @@ export default function AuthPage() {
             <div className="text-center">
               <h1 className="text-2xl font-bold">Login to your account</h1>
               <p className="mt-3 text-sm text-gray-500">
-                {method === "TELEGRAM"
-                  ? "Sign in with the Telegram account your invite was sent to"
-                  : "Enter your email and password to access the admin dashboard"}
+                {LOGIN_METHODS.find(({ value }) => value === method)?.hint}
               </p>
             </div>
 
-            {/* Two ways in: staff invited over Telegram have no email or password at all, while
-                the super admin and password-created staff sign in by email. */}
+            {/* Two ways in: staff invited over Telegram have no email or password — they sign in by
+                phone with a code sent to Telegram — while the super admin and password-created
+                staff sign in by email. */}
             <div
               role="tablist"
               aria-label="Sign-in method"
@@ -198,20 +245,49 @@ export default function AuthPage() {
                       : "text-gray-500 hover:text-gray-800"
                   }`}
                 >
-                  <Icon
-                    className={`h-4 w-4 ${value === "TELEGRAM" && method === value ? "text-[#229ED9]" : ""}`}
-                  />
+                  <Icon className="h-4 w-4" />
                   {label}
                 </button>
               ))}
             </div>
 
             <div className="mt-8">
-              {method === "TELEGRAM" ? (
-                <TelegramLoginPanel
-                  remember={rememberMe}
-                  onSuccess={() => router.push(resolveNextPath())}
-                />
+              {method === "PHONE" ? (
+                <form onSubmit={handlePhone} noValidate>
+                  <label className="block text-sm font-medium">
+                    Phone number
+                    <span className="relative mt-2 block">
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        className={`${FIELD_CLASS} px-11 tabular-nums`}
+                        placeholder={PHONE_PLACEHOLDER}
+                        value={phone}
+                        onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+                        maxLength={PHONE_MAX_LENGTH}
+                        autoComplete="tel-national"
+                        required
+                      />
+                      <Phone className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
+                    </span>
+                  </label>
+                  <p className="mt-2 text-xs text-gray-500">
+                    The number your admin invited. The code arrives in the Telegram chat that
+                    accepted the invite.
+                  </p>
+
+                  {error ? (
+                    <p className="mt-4 text-sm text-red-600">{error}</p>
+                  ) : null}
+
+                  <button
+                    type="submit"
+                    disabled={isSendingPhoneCode}
+                    className={SUBMIT_CLASS}
+                  >
+                    {isSendingPhoneCode ? "Sending code..." : "Send code"}
+                  </button>
+                </form>
               ) : (
                 <form onSubmit={handleCredentials}>
                   <div className="space-y-6">
@@ -220,7 +296,7 @@ export default function AuthPage() {
                       <span className="relative mt-2 block">
                         <input
                           type="email"
-                          className="h-11 w-full rounded-md border border-gray-300 px-11 text-sm outline-none focus:border-[#befe35] focus:ring-2 focus:ring-lime-100"
+                          className={`${FIELD_CLASS} px-11`}
                           placeholder="admin@590st.cafe"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
@@ -236,7 +312,7 @@ export default function AuthPage() {
                       <span className="relative mt-2 block">
                         <input
                           type={showPassword ? "text" : "password"}
-                          className="h-11 w-full rounded-md border border-gray-300 px-4 pr-11 text-sm outline-none focus:border-[#befe35] focus:ring-2 focus:ring-lime-100"
+                          className={`${FIELD_CLASS} px-4 pr-11`}
                           placeholder="Password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
@@ -268,7 +344,7 @@ export default function AuthPage() {
                   <button
                     type="submit"
                     disabled={isLoggingIn}
-                    className="mt-8 h-12 w-full rounded-md bg-black text-sm font-semibold text-white disabled:opacity-60"
+                    className={SUBMIT_CLASS}
                   >
                     {isLoggingIn ? "Signing in..." : "Login"}
                   </button>
@@ -336,15 +412,24 @@ export default function AuthPage() {
             <div className="text-center">
               <h1 className="text-xl font-bold">Enter your code</h1>
               <p className="mt-3 text-sm text-gray-500">
-                We sent a 6-digit verification code to{" "}
-                <span className="font-medium text-gray-700">{email}</span>
+                {method === "PHONE" ? (
+                  <>
+                    We sent a 6-digit verification code to your Telegram for{" "}
+                    <span className="font-medium text-gray-700">{phone}</span>
+                  </>
+                ) : (
+                  <>
+                    We sent a 6-digit verification code to{" "}
+                    <span className="font-medium text-gray-700">{email}</span>
+                  </>
+                )}
               </p>
             </div>
 
             <label className="mt-8 block text-sm font-medium">
               Verification code
               <input
-                className="mt-2 h-12 w-full rounded-md border border-gray-300 text-center text-2xl tracking-[0.5em] outline-none focus:border-[#befe35] focus:ring-2 focus:ring-lime-100"
+                className={`${FIELD_CLASS} mt-2 h-12 text-center text-2xl tracking-[0.5em]`}
                 placeholder="000000"
                 value={otp}
                 onChange={(e) =>
@@ -364,7 +449,7 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={isVerifying || otp.length !== 6}
-              className="mt-8 h-12 w-full rounded-md bg-black text-sm font-semibold text-white disabled:opacity-60"
+              className={SUBMIT_CLASS}
             >
               {isVerifying ? "Verifying..." : "Verify and sign in"}
             </button>
