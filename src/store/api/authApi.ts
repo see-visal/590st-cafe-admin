@@ -7,6 +7,7 @@ import type {
   ChangePasswordRequest,
   LoginRequest,
   LoginResponse,
+  PhoneLoginRequest,
   TelegramWidgetAuthRequest,
   UpdateProfileRequest,
   UserResponse,
@@ -34,6 +35,20 @@ export const authApi = baseApi.injectEndpoints({
         return result;
       },
       invalidatesTags: ["Auth"],
+    }),
+
+    /**
+     * Step one for staff invited over Telegram (no email or password): the API sends a code to
+     * the Telegram chat linked to this phone number and returns a loginTicket. Step two is the
+     * same `verifyLoginOtp` as the email login.
+     */
+    loginPhone: builder.mutation<LoginResponse, PhoneLoginRequest>({
+      query: (body) => ({
+        url: "/api/auth/login/phone",
+        method: "POST",
+        body,
+      }),
+      transformResponse: unwrap<LoginResponse>,
     }),
 
     /** Step two, for the accounts that got an OTP challenge. */
@@ -195,6 +210,7 @@ export const {
   useVerifyLoginOtpMutation,
   useResendOtpMutation,
   useLoginTelegramMutation,
+  useLoginPhoneMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useLogoutMutation,

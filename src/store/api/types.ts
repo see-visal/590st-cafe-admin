@@ -131,6 +131,11 @@ export interface LoginRequest {
   password: string;
 }
 
+/** Staff invited over Telegram sign in by phone; the code goes to their linked Telegram chat. */
+export interface PhoneLoginRequest {
+  phoneNumber: string;
+}
+
 export interface VerifyLoginOtpRequest {
   loginTicket: string;
   otp: string;
