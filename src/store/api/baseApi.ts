@@ -211,6 +211,7 @@ export const baseApi = createApi({
     "Admin",
     "Barista",
     "Event",
+    "Banner",
     "Report",
     "Finance",
     "ExchangeRate",
