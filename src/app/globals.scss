@@ -1016,7 +1016,13 @@ body {
 .form_multi_select_placeholder { font-size: 0.875rem; color: var(--ink-subtle); }
 .form_multi_select_tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px 4px 10px; border-radius: 9999px; background-color: var(--info-bg); color: var(--info-text); font-size: 0.75rem; font-weight: 600; }
 .form_multi_select_tag_remove { display: grid; place-items: center; border: none; background: transparent; color: inherit; cursor: pointer; padding: 0; }
-.form_multi_select_add { min-width: 120px; border: none; background: transparent; outline: none; font-size: 0.875rem; color: var(--ink); cursor: pointer; }
+.form_multi_select_add {
+  min-width: 120px; height: auto; padding: 0; border: none; background: transparent; box-shadow: none;
+  outline: none; font-size: 0.875rem; color: var(--ink); cursor: pointer;
+  &[data-placeholder] { color: var(--ink-subtle); }
+  // The field already draws its own chevron at the right edge.
+  > svg { display: none; }
+}
 
 // Dashboard business overview
 .dashboard_primary_grid {

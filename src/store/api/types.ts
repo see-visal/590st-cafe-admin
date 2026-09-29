@@ -701,6 +701,40 @@ export interface UpdateEventRequest {
   status?: Status;
 }
 
+// ---- banner ----
+
+/** A storefront homepage slide. ACTIVE banners show there in ascending `sortOrder`. */
+export interface BannerResponse {
+  id: UUID;
+  title: string;
+  imageUrl: string | null;
+  /** Where tapping the slide goes — a storefront path ("/menu") or a full URL. */
+  linkUrl: string | null;
+  sortOrder: number;
+  status: Status;
+  adminId: UUID | null;
+  adminName: string | null;
+  adminRole: Role | null;
+  updatedByAdminId: UUID | null;
+  updatedByAdminName: string | null;
+  updatedByAdminRole: Role | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateBannerRequest {
+  title: string;
+  linkUrl?: string;
+  sortOrder?: number;
+}
+
+export interface UpdateBannerRequest {
+  title?: string;
+  linkUrl?: string;
+  sortOrder?: number;
+  status?: Status;
+}
+
 // ---- reports & finance ----
 
 export interface DailyReportResponse {
