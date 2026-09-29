@@ -215,6 +215,7 @@ export const {
   useResetPasswordMutation,
   useLogoutMutation,
   useGetCurrentUserQuery,
+  useLazyGetCurrentUserQuery,
   useUpdateProfileMutation,
   useChangePasswordMutation,
   useUploadAvatarMutation,
