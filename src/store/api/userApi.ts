@@ -17,7 +17,6 @@ interface UserListQuery extends PageQuery {
   role?: Role;
 }
 
-/// A single API slice for all user management, including admins and baristas. It uses the same `baseApi` as the other slices, so it shares the same auth headers and error handling.
 export const userApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     listUsers: builder.query<PageResponse<UserResponse>, UserListQuery | void>({
@@ -89,8 +88,6 @@ export const userApi = baseApi.injectEndpoints({
         { type: "Barista", id: "LIST" },
       ],
     }),
-
-    // ---- admins ----
 
     uploadStaffAvatar: builder.mutation<
       UserResponse,
@@ -184,8 +181,6 @@ export const userApi = baseApi.injectEndpoints({
         transformResponse: unwrap<TelegramLinkCodeResponse>,
       },
     ),
-
-    // ---- baristas ----
 
     listBaristas: builder.query<PageResponse<UserResponse>, PageQuery | void>({
       query: (params) => ({

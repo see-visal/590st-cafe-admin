@@ -12,7 +12,6 @@ interface ClientProvidersProps {
   children: ReactNode;
 }
 
-//sets up the client-side context providers for the app, including theme, i18n, font, and store. Also sets up react-hot-toast with custom styling.
 export default function ClientProvider({ children }: ClientProvidersProps) {
   useOpenNativePickers();
   return (
@@ -25,9 +24,6 @@ export default function ClientProvider({ children }: ClientProvidersProps) {
         <I18nProvider>
           <FontProvider>
             <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
-            {/* Every mutation reports success/failure through react-hot-toast, styled with the
-                same tokens and radius as the rest of the admin UI (StatusBadge's status-color
-                pairs, --radius-control) instead of the library's plain default look. */}
             <Toaster
               position="top-right"
               containerClassName="admin_toaster"

@@ -1,4 +1,3 @@
-// src/app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.scss";
 import { Analytics } from "@vercel/analytics/next";
@@ -13,7 +12,6 @@ import {
   Source_Sans_3,
   Nunito,
   Work_Sans,
-  // Khmer fonts
   Koh_Santepheap,
   Kantumruy_Pro,
   Battambang,
@@ -23,14 +21,6 @@ import {
 } from "next/font/google";
 import ClientProvider from "@/contexts/client-provider";
 
-// Only the default pair (Google Sans Flex + Noto Sans Khmer) is preloaded. Every preloaded
-// font becomes an entry in the `Link` response header of each server-rendered page, and with
-// all 16 families preloaded that header grew past 5 KB — over nginx's default 4 KB upstream
-// header buffer, so every dynamic route (/invoices/:id, /products/:id/configuration, ...)
-// came back as a 502 Bad Gateway in production. The alternatives are only used when picked in
-// Settings, and still load on demand then (display: swap covers the switch).
-
-// English fonts
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
@@ -54,9 +44,6 @@ const roboto = Roboto({
   preload: false,
 });
 
-// Same pairing as the customer UI (Coffee-Shop-UI): self-hosted by Next.js at build time, no
-// runtime request to Google's servers. Google Sans Flex only ships a latin/latin-ext charset,
-// so Khmer text still needs Noto Sans Khmer layered in behind it — see --current-khmer-font.
 const googleSansFlex = Google_Sans_Flex({
   subsets: ["latin"],
   weight: "variable",
@@ -146,7 +133,6 @@ const dangrek = Dangrek({
   preload: false,
 });
 
-// Matches the customer UI's Khmer pairing exactly.
 const notoSansKhmer = Noto_Sans_Khmer({
   subsets: ["khmer"],
   weight: ["400", "500", "600", "700"],
@@ -154,12 +140,10 @@ const notoSansKhmer = Noto_Sans_Khmer({
   display: "swap",
 });
 
-// favicon project of 590st CAFE
 export const metadata: Metadata = {
   title: "590st Cafe Admin Dashboard",
   description: "590st Cafe Admin Dashboard",
 
-  // White 590st mark on a black tile, so the tab icon reads on light and dark browser chrome.
   icons: {
     icon: [
       { url: "/logos/icon-32.png", sizes: "32x32", type: "image/png" },

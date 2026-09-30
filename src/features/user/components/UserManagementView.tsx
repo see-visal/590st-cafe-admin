@@ -71,10 +71,6 @@ export function statusTone(
   return "danger";
 }
 
-/**
- * Super admins can view, edit and delete stored accounts here.
- * New staff accounts are created on the Staff screen.
- */
 export default function UserManagementView({
   role,
   title = "Users",
@@ -207,7 +203,6 @@ export default function UserManagementView({
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        {/* Locked when the screen is already scoped to one role (e.g. Customers). */}
         {role ? null : (
           <SelectField
             label="Role"

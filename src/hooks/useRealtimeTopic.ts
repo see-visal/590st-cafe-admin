@@ -6,7 +6,6 @@ import { getAccessToken, isAuthenticated } from "@/lib/authStorage";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "wss://api.590stcafe.shop/ws";
 
-// A hook that subscribes to a websocket topic and calls the provided callback whenever a new message is received. The message is parsed as JSON and passed to the callback. The subscription is only active while the user is authenticated, and is cleaned up when the component unmounts or the topic changes.
 export function useRealtimeTopic<T>(
   topic: string,
   onMessage: (message: T) => void,
@@ -33,7 +32,6 @@ export function useRealtimeTopic<T>(
           const message = JSON.parse(frame.body) as T;
           onMessageRef.current(message);
         } catch {
-          // Malformed push — ignore rather than take the subscription down.
         }
       });
     };

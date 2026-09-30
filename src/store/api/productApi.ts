@@ -43,7 +43,6 @@ export const productApi = baseApi.injectEndpoints({
     createProduct: builder.mutation<ProductResponse, CreateProductRequest>({
       query: (body) => ({ url: "/api/admin/products", method: "POST", body }),
       transformResponse: unwrap<ProductResponse>,
-      // A new product also creates its inventory row, so the stock screens are stale too.
       invalidatesTags: [
         { type: "Product", id: "LIST" },
         { type: "Inventory", id: "LIST" },
@@ -108,7 +107,6 @@ export const productApi = baseApi.injectEndpoints({
       query: ({ id, file }) => {
         const formData = new FormData();
         formData.append("file", file);
-        // No explicit Content-Type: the browser must set the multipart boundary itself.
         return { url: `/api/admin/products/${id}/image`, method: "POST", body: formData };
       },
       transformResponse: unwrap<ProductResponse>,
@@ -140,8 +138,6 @@ export const productApi = baseApi.injectEndpoints({
         { type: "Inventory", id: "LOW_STOCK" },
       ],
     }),
-
-    // ---- variants (each carries its own absolute price) ----
 
     listVariants: builder.query<ProductVariantResponse[], UUID>({
       query: (productId) => `/api/admin/products/${productId}/variants`,
@@ -195,14 +191,9 @@ export const productApi = baseApi.injectEndpoints({
       ],
     }),
 
-    // ---- extras offered on a product (see extraApi for the global add-on catalog) ----
-
     listProductExtras: builder.query<ProductExtraResponse[], UUID>({
       query: (productId) => `/api/admin/products/${productId}/extras`,
       transformResponse: unwrap<ProductExtraResponse[]>,
-      // Also tagged with the catalog-wide LIST id: name/price/image all live on the underlying
-      // Extra, not this attachment, so a catalog edit (extraApi) must refetch this too or an
-      // already-open product page keeps showing the old photo/price for an extra it offers.
       providesTags: (_r, _e, productId) => [
         { type: "ProductExtra", id: productId },
         { type: "ProductExtra", id: "LIST" },

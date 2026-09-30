@@ -16,7 +16,6 @@ import { cn, formatByCurrency, humanise } from "@/lib/utils";
 const orderNumber = (order: Pick<OrderResponse, "id">) =>
   `#${orderCode(order.id)}`;
 
-/** Print + View + Download buttons, for detail modals and the POS sale-complete dialog. */
 export function InvoiceActions({
   order,
   className,
@@ -24,7 +23,6 @@ export function InvoiceActions({
 }: {
   order: Pick<OrderResponse, "id" | "paidAt">;
   className?: string;
-  /** Lets the cashier hit Enter to print, straight after a sale. */
   autoFocusPrint?: boolean;
 }) {
   const { printInvoice, viewInvoice, downloadInvoice, isBusy } =
@@ -78,7 +76,6 @@ export function InvoiceActions({
   );
 }
 
-/** Compact printer icon for an order card on the queue board — paid orders only. */
 export function PrintInvoiceIconButton({
   order,
 }: {
@@ -106,10 +103,6 @@ export function PrintInvoiceIconButton({
   );
 }
 
-/**
- * Success toast for a payment taken on the queue board, with the invoice one tap away while the
- * customer is still at the counter.
- */
 export function toastPaidWithInvoice(
   message: string,
   orderId: string,
@@ -135,10 +128,6 @@ export function toastPaidWithInvoice(
   );
 }
 
-/**
- * Shown on the POS the moment a walk-in sale is paid: what was charged, any change to hand
- * back, and the invoice — instead of a toast that is gone before the customer asks for it.
- */
 export function SaleCompleteModal({
   sale,
   onNewSale,

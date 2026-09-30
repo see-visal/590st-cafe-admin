@@ -25,7 +25,6 @@ interface WelcomeToastCardProps {
   avatarUrl?: string | null;
 }
 
-//toast card for the welcome toast, with a close button and a progress bar
 function WelcomeToastCard({
   t,
   greeting,
@@ -74,10 +73,6 @@ function WelcomeToastCard({
   );
 }
 
-/**
- * Greets the admin or barista by name right after they sign in (see lib/welcomeToast).
- * Mounted inside AuthGuard, so the profile is already loaded; renders nothing itself.
- */
 export function LoginWelcome() {
   const { data: user } = useGetCurrentUserQuery();
 

@@ -8,7 +8,6 @@ import type {
   UUID,
 } from "./types";
 
-/** Storefront homepage banners — ADMIN and SUPER_ADMIN only (`/api/admin/banners`). */
 export const bannerApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     listBanners: builder.query<PageResponse<BannerResponse>, PageQuery | void>({

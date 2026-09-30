@@ -9,9 +9,6 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   width?: string;
 }
 
-/**
- * Generic skeleton loader component
- */
 export function Skeleton({
   count = 1,
   variant = "text",
@@ -46,9 +43,6 @@ export function Skeleton({
   return count === 1 ? skeletons[0] : <div className="space-y-2">{skeletons}</div>;
 }
 
-/**
- * Skeleton for table rows
- */
 export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
     <div className="space-y-2">
@@ -63,9 +57,6 @@ export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
   );
 }
 
-/**
- * Skeleton for card grid
- */
 export function CardGridSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -80,9 +71,6 @@ export function CardGridSkeleton({ count = 4 }: { count?: number }) {
   );
 }
 
-/**
- * Loading spinner component
- */
 interface LoadingSpinnerProps {
   size?: "sm" | "md" | "lg";
   fullScreen?: boolean;

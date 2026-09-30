@@ -49,7 +49,6 @@ function MovementTypeBadge({ type }: { type: StockMovementType }) {
   );
 }
 
-/** Stock-in adds, stock-out subtracts — the API sends both as a positive magnitude. */
 function QuantityChange({
   value,
   type,
@@ -95,8 +94,6 @@ export default function InventoryDetailView({ productId }: { productId: string }
   const { data: movementPage, refetch } = movementsQuery;
   const movements = listLoadState(movementsQuery);
 
-  // Only this product's own stock changes matter here — a stock-in/cut elsewhere reaches every
-  // other open tab on this same product instantly instead of on the next manual refresh.
   useInventoryAlerts(
     useCallback(
       (message) => {
@@ -166,7 +163,6 @@ export default function InventoryDetailView({ productId }: { productId: string }
           title="SKU"
           value={product?.sku ? formatSku(product.sku) : "-"}
           tone="gray"
-          size="compact"
         />
       </div>
 

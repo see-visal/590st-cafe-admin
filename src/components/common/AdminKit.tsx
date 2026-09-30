@@ -113,8 +113,6 @@ export function AdminTopActions() {
   const currentLang =
     LANGUAGES.find((lang) => lang.code === locale) ?? LANGUAGES[0];
   const pathname = usePathname();
-  // The Current Alerts page already shows this exact content full-size — opening the same
-  // list again in a slide-over on top of it is pure duplication, not a second view of anything.
   const onAlertsPage = pathname === "/notifications";
 
   return (
@@ -234,7 +232,6 @@ export function TextField({
   placeholder?: string;
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  /** "date"/"number" for filters that select a period rather than free text. */
   type?: string;
 }) {
   return (
@@ -253,33 +250,19 @@ export function TextField({
 
 type SelectOptionProps = { value?: string | number; children?: ReactNode; disabled?: boolean };
 
-/** Radix disallows an actual empty-string item value (that's reserved to mean "nothing
- * selected" internally), so a blank/"All ..." choice is tracked under this sentinel instead and
- * translated back to "" at the SelectField/FormSelect boundary — otherwise, once someone picked
- * a real option, there would be no item left in the list to click back to clear it. */
 const UNSET = "__unset__";
 
-/**
- * SelectField/FormSelect take plain <option> children — the natural, idiomatic API — but render
- * them through Radix's Select so the open list is fully custom-styled instead of the browser's
- * own unstyled native listbox (which ignores the app's theme entirely, mismatched fonts and
- * all). This walks the <option> children into the {value, label} pairs Radix needs.
- */
 function optionsFromChildren(children: ReactNode): { value: string; label: ReactNode; disabled?: boolean }[] {
   return Children.toArray(children)
     .filter((child): child is ReactElement<SelectOptionProps> => isValidElement(child) && child.type === "option")
     .map((child) => {
       const raw = child.props.value;
-      // A bare <option>Text</option> with no value attribute defaults to its own text, same as
-      // a native <select>; an explicit value="" is the one reserved for "nothing selected".
       const text = typeof child.props.children === "string" ? child.props.children : "";
       const value = raw === "" ? UNSET : raw != null ? String(raw) : text || UNSET;
       return { value, label: child.props.children, disabled: child.props.disabled };
     });
 }
 
-/** Ensures exactly one clickable "blank" item exists — the caller's own `<option value="">`
- * (e.g. "All staff") if they supplied one, else one synthesised from `placeholder`. */
 function withUnsetOption(options: { value: string; label: ReactNode; disabled?: boolean }[], placeholder: string) {
   return options.some((option) => option.value === UNSET)
     ? options
@@ -507,8 +490,6 @@ export function TableActions({
   );
 }
 
-/** Shape shared by every bulk-Excel-import endpoint (products, stock-in, ...) — same three
- * counters plus one error per row that failed, the rest still get created. */
 export interface ExcelImportResult {
   totalRows: number;
   created: number;
@@ -516,19 +497,12 @@ export interface ExcelImportResult {
   errors: { rowNumber: number; sku?: string; message: string }[];
 }
 
-/**
- * File picker + upload button for the admin's Excel-import endpoints. Handles the mutation call,
- * the summary toast, and a results dialog listing which rows failed and why — every import
- * screen wants the same three things, so this is the one place that does them.
- */
 export function ExcelImportButton({
   label = "Import Excel",
   columnsHint,
   onImport,
 }: {
   label?: string;
-  /** Plain-English column order, shown in the results dialog so a fix-and-retry doesn't need
-   * to go spelunking in the API docs. */
   columnsHint: string;
   onImport: (file: File) => Promise<ExcelImportResult>;
 }) {
@@ -792,7 +766,6 @@ export function RowActions({
   onEdit?: () => void;
   onDelete?: () => void;
   onHistory?: () => void;
-  /** Print the row's invoice — pass only for a paid order. */
   onPrint?: () => void;
   isLoading?: boolean;
 }) {
@@ -825,18 +798,12 @@ export function RowActions({
 
 const PAGE_SIZE_CHOICES = [5, 10, 20, 50];
 
-/** Windows the page buttons around the current page so long result sets stay one row. */
 function pageWindow(current: number, total: number, span = 3): number[] {
   const start = Math.max(1, Math.min(current - Math.floor(span / 2), total - span + 1));
   const count = Math.min(span, total);
   return Array.from({ length: Math.max(count, 0) }, (_, i) => start + i);
 }
 
-/**
- * Pagination bound to a `PageResponse`. Page numbers are 1-based to match the API.
- * Called with no props it renders a disabled single-page bar, which is what the screens
- * that have no server-side list yet still use.
- */
 export function PaginationFooter({
   page = 1,
   totalPages = 1,
@@ -933,15 +900,10 @@ export function PaginationFooter({
   );
 }
 
-/** A grey placeholder bar/block while data is on its way. */
 export function SkeletonBlock({ className }: { className?: string }) {
   return <span aria-hidden className={cn("block animate-pulse rounded-md bg-gray-200", className)} />;
 }
 
-/**
- * Placeholder for a DataCard's body while its data loads — a few lines of varying width, so
- * the page keeps its shape instead of jumping when the data arrives.
- */
 export function CardSkeleton({ lines = 3, className }: { lines?: number; className?: string }) {
   const widths = ["w-2/3", "w-full", "w-1/2", "w-5/6", "w-3/4"];
   return (
@@ -953,7 +915,6 @@ export function CardSkeleton({ lines = 3, className }: { lines?: number; classNa
   );
 }
 
-/** The one way a card/page reports a failed load: the API's message plus a retry. */
 export function ErrorState({
   error,
   fallback = "Could not load this data.",
@@ -982,12 +943,6 @@ export function ErrorState({
   );
 }
 
-/**
- * Splits a list query's state into "first load" and "background refresh". Polling, tab focus
- * and post-save refetches keep the rows on screen (no flash of skeleton rows); the skeleton only
- * shows when there is nothing yet for the current page/filters, and a failed refresh keeps the
- * last good rows rather than replacing them with an error (the app-wide toast covers outages).
- */
 export function listLoadState(query: { isFetching: boolean; currentData?: unknown; error?: unknown }) {
   const hasData = query.currentData !== undefined;
   return {
@@ -997,11 +952,6 @@ export function listLoadState(query: { isFetching: boolean; currentData?: unknow
   };
 }
 
-/**
- * What a table shows instead of data while loading, after a failure, or when the server
- * returned nothing. Loading draws skeleton rows the width of the table, so every list has the
- * same look while it waits.
- */
 export function TableState({
   colSpan,
   isLoading,
@@ -1062,15 +1012,11 @@ export function StatTile({
   value,
   hint,
   tone = "gray",
-  size = "default",
 }: {
   title: string;
   value: string;
   hint?: string;
   tone?: "green" | "yellow" | "orange" | "red" | "gray";
-  /** "compact" is for text-heavy values (a SKU, a code) that would otherwise wrap awkwardly at
-   * the default large numeric-stat size. */
-  size?: "default" | "compact";
 }) {
   const color = {
     green: "text-green-600",
@@ -1084,7 +1030,7 @@ export function StatTile({
     <div className="metric_card">
       <div className="metric_card_content">
         <p className="metric_title">{title}</p>
-        <p className={cn("metric_value", size === "compact" && "is_compact", color)}>{value}</p>
+        <p className={cn("metric_value", color)}>{value}</p>
         {hint && <p className="metric_hint">{hint}</p>}
       </div>
     </div>
@@ -1271,12 +1217,6 @@ export function DetailModal({
   );
 }
 
-/**
- * The app's own replacement for `window.confirm` — same "are you sure?" guard, but styled
- * like everything else instead of the browser's native dialog. Rendered by `useConfirmDialog`,
- * which also supplies the promise-based `confirm()` call that makes the swap a one-line change
- * at each call site.
- */
 export function ConfirmDialog({
   open,
   title,
@@ -1433,10 +1373,6 @@ export function FormInput({
   );
 }
 
-/**
- * The one phone field for the dashboard: formats to "012 345 6789" as staff type, caps at
- * 10 digits and opens the numeric keypad on tablets. `onChange` receives the formatted value.
- */
 export function FormPhoneInput({
   label = "Phone Number",
   value,
@@ -1695,8 +1631,6 @@ export function FormCategoryMultiSelect({
               })
             )}
           </div>
-          {/* Same Radix dropdown as SelectField/FormSelect, not a native <select>. Held at ""
-              so it always shows its prompt: picking an item adds a tag rather than selecting it. */}
           {available.length > 0 && (
             <Select value="" onValueChange={addCategory}>
               <SelectTrigger className="form_multi_select_add" aria-label={`Add ${label}`}>

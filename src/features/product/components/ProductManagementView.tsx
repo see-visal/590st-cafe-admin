@@ -80,8 +80,6 @@ type ProductFormFields = {
   categoryId: string;
   reorderLevel: string;
   status: Status;
-  // Creation only — a product needs at least one variant to have a price, so the form collects
-  // its first one here. Editing a variant's price afterward happens on the configuration screen.
   variantName: VariantLabel | "";
   variantPrice: string;
 };
@@ -121,7 +119,6 @@ export default function Products() {
   } = useListProductsQuery({
     page,
     size,
-    // The API filters by category server-side; status and name are narrowed client-side.
     ...(categoryFilter ? { categoryId: categoryFilter } : {}),
   });
   const list = listLoadState({ isFetching, currentData, error });
@@ -132,9 +129,6 @@ export default function Products() {
   });
   const categories = useMemo(() => categoryPage?.content ?? [], [categoryPage]);
 
-  // A product, category or extra changed anywhere (another tab, another staff member, an Excel
-  // import) reaches this list the instant the API broadcasts it, instead of only on this page's
-  // own next mutation or a manual refresh.
   useCatalogAlerts(
     useCallback(() => {
       void refetch();
@@ -142,11 +136,6 @@ export default function Products() {
     }, [refetch, refetchCategories])
   );
 
-  /**
-   * Every product needs a category (the API rejects a null categoryId), so on a fresh install
-   * the form cannot be completed at all until one exists. Wait for the query to actually
-   * succeed before saying so — an empty list while loading is not the same as none existing.
-   */
   const hasNoCategories = categoriesLoaded && categories.length === 0;
 
   const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
@@ -223,8 +212,6 @@ export default function Products() {
       return;
     }
     if (!formFields.categoryId) {
-      // Telling someone to choose from an empty list is a dead end — on a fresh install there
-      // is nothing to choose, and the category is required server-side.
       toast.error(
         hasNoCategories
           ? "Create a category first — a product has to belong to one."
@@ -268,8 +255,6 @@ export default function Products() {
           toast.error("SKU is required");
           return;
         }
-        // A product with no variant has no price at all, so the form collects one up front —
-        // more can be added afterward on the configuration screen.
         const variantPrice = Number(formFields.variantPrice);
         if (!formFields.variantName) {
           toast.error("Choose a variant (e.g. Medium) for the starting price");
@@ -296,7 +281,6 @@ export default function Products() {
         }).unwrap();
       }
 
-      // The image is a separate multipart endpoint, so it only runs once the product exists.
       if (imageFile) {
         await uploadImage({ id: productId, file: imageFile }).unwrap();
       }
@@ -560,8 +544,6 @@ export default function Products() {
               setFormFields({ ...formFields, reorderLevel: e.target.value })
             }
           />
-          {/* A product has no price of its own — creation collects its first variant here.
-              More variants, extras and the discount are managed on the configuration screen. */}
           {!selected ? (
             <FormSelect
               label="Variant"

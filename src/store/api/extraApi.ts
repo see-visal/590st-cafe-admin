@@ -6,16 +6,11 @@ import type {
   UUID,
 } from "./types";
 
-/// A single API slice for the shop-wide add-on catalog (e.g. Pearl) — a flat list, not paginated. Attaching one of these to a specific product is a separate step (productApi's *ProductExtra endpoints). It uses the same `baseApi` as the other slices, so it shares the same auth headers and error handling.
 const CATALOG_CHANGE_TAGS = [
   { type: "Extra" as const, id: "LIST" },
   { type: "ProductExtra" as const, id: "LIST" },
 ];
 
-/**
- * The shop-wide add-on catalog (e.g. Pearl) — a flat list, not paginated. Attaching one of
- * these to a specific product is a separate step (productApi's *ProductExtra endpoints).
- */
 export const extraApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     listExtras: builder.query<ExtraResponse[], void>({
@@ -27,7 +22,6 @@ export const extraApi = baseApi.injectEndpoints({
     createExtra: builder.mutation<ExtraResponse, CreateExtraRequest>({
       query: (body) => ({ url: "/api/admin/extras", method: "POST", body }),
       transformResponse: unwrap<ExtraResponse>,
-      // A brand-new extra can't be attached to a product yet, so no ProductExtra list is stale.
       invalidatesTags: [{ type: "Extra", id: "LIST" }],
     }),
 
@@ -49,7 +43,6 @@ export const extraApi = baseApi.injectEndpoints({
       invalidatesTags: CATALOG_CHANGE_TAGS,
     }),
 
-    // Photo shown to customers next to the add-on choice (e.g. a picture of Pearl).
     uploadExtraImage: builder.mutation<ExtraResponse, { id: UUID; file: File }>(
       {
         query: ({ id, file }) => {

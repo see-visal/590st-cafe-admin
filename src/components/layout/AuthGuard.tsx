@@ -12,19 +12,15 @@ import { adminHome, canAccessAdminPage } from "@/lib/adminAccess";
 import { clearTokens, isAuthenticated } from "@/lib/authStorage";
 import { useMounted } from "@/hooks/useMounted";
 
-/** While the API is unreachable, try again on its own so the page recovers without a click. */
 const AUTO_RETRY_MS = 5000;
 
 function statusOf(error: unknown): number | string | undefined {
   return (error as FetchBaseQueryError | undefined)?.status;
 }
 
-//permissions guard for the admin dashboard — shows a loading spinner while the session is checked, and a "no access" card if the user is signed in but not allowed to see this page. If the API is unreachable, it keeps retrying until it gets an answer.
 export function AuthGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  // A token only exists in this browser, so the check waits for mount (server and hydration
-  // render the spinner alike).
   const mounted = useMounted();
   const checked = mounted && isAuthenticated();
   const profile = useGetCurrentUserQuery(undefined, { skip: !checked });
@@ -32,8 +28,6 @@ export function AuthGuard({ children }: { children: ReactNode }) {
 
   const status = statusOf(profile.error);
   const hasAccount = profile.data !== undefined;
-  // Same rule as the app-wide "system unavailable" toast: no answer, or a gateway saying the API
-  // behind it is down. A 500 did answer — that is a server error, reported with its message.
   const serverUnreachable =
     status === "FETCH_ERROR" ||
     status === "TIMEOUT_ERROR" ||
@@ -44,7 +38,6 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   const loginUrl = `/auth/login?next=${encodeURIComponent(pathname ?? "/")}`;
 
   useEffect(() => {
-    // Come back here once signed in.
     if (mounted && !checked) router.replace(loginUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, checked, router, pathname]);
@@ -57,7 +50,6 @@ export function AuthGuard({ children }: { children: ReactNode }) {
       router.replace(home);
   }, [profile.data?.role, pathname, router, home]);
 
-  // A session the server no longer accepts is not something to retry — sign in again.
   useEffect(() => {
     if (!hasAccount && status === 401) {
       clearTokens();
@@ -103,7 +95,6 @@ export function AuthGuard({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  // First load in flight (or a retry of it) — never flash the error while a new answer is coming.
   if (
     !checked ||
     profile.isUninitialized ||
@@ -188,7 +179,6 @@ function GuardCard({
   );
 }
 
-/** Ends the session even if the server can't be told, then returns to the login page. */
 function SignOutButton({ primary = false }: { primary?: boolean }) {
   const [logout, { isLoading }] = useLogoutMutation();
   return (
@@ -200,7 +190,6 @@ function SignOutButton({ primary = false }: { primary?: boolean }) {
         try {
           await logout().unwrap();
         } catch {
-          // The mutation clears local tokens either way.
         }
         window.location.href = "/auth/login";
       }}

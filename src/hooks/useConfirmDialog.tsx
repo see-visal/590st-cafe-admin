@@ -11,12 +11,10 @@ type ConfirmOptions = {
   tone?: "default" | "danger";
 };
 
-// A hook that provides a confirm dialog and a function to show it. The confirm function returns a promise that resolves to true if the user confirmed, or false if they cancelled.
 export function useConfirmDialog() {
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const resolverRef = useRef<((value: boolean) => void) | null>(null);
 
-  // Shows the confirm dialog with the given options, and returns a promise that resolves to true if the user confirmed, or false if they cancelled.
   const confirm = (next: ConfirmOptions) => {
     setOptions(next);
     return new Promise<boolean>((resolve) => {

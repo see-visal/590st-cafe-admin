@@ -76,15 +76,12 @@ function formatDateTime(value: string | null) {
 }
 
 function statusTone(status: OrderStatus): "success" | "warning" | "danger" | "info" {
-  // DELIVERED is the delivery counterpart of COMPLETED: both mean the customer has it.
   if (status === "COMPLETED" || status === "DELIVERED") return "success";
-  // Paid but not yet handed over — money is in, the drink is still owed.
   if (status === "PAID" || status === "PREPARING" || status === "OUT_FOR_DELIVERY") return "info";
   if (status === "PENDING") return "warning";
   return "danger";
 }
 
-/** "x2 Iced Latte, x1 Croissant" — the same summary the table and detail modal both want. */
 function summariseItems(order: OrderResponse): string {
   if (order.items.length === 0) return "-";
   return order.items
@@ -94,19 +91,9 @@ function summariseItems(order: OrderResponse): string {
 
 type NextStep =
   | { kind: "action"; label: string; hint: string }
-  // Something else has to happen first — always on the Payments page — before the button above
-  // would do anything. Showing it unconditionally used to dead-end here: the API rejects
-  // "start preparing" on an unpaid Bakong/still-unpriced-delivery order and "mark delivered" on
-  // an unpaid cash one, with nothing on this screen able to recover from that.
   | { kind: "blocked"; message: string }
   | null;
 
-/**
- * What "move this order along" means next, mirroring the backend's own fulfillment state
- * machine (prepare -> complete, or prepare -> dispatch -> deliver for delivery orders) and its
- * payment gates (a Bakong order must clear, a delivery order must be priced, cash collected
- * before completion/delivery — see requireDeliveryFeeQuoted/requirePaymentSettled on the API).
- */
 function describeNextStep(order: OrderResponse): NextStep {
   if (order.status === "PENDING" || order.status === "PAID") {
     if (order.fulfillmentMethod === "DELIVERY" && order.deliveryFeeSetAt == null) {
@@ -161,8 +148,6 @@ export default function Orders() {
   }, refresh);
   const list = listLoadState({ isFetching, currentData, error });
 
-  // A new order, or any status/fee change to one already on this page, reaches the table the
-  // instant the API broadcasts it rather than on the next poll.
   useStaffOrderAlerts(useCallback(() => { void refetch(); }, [refetch]));
 
   const [cancelOrder, { isLoading: isCancelling }] = useCancelOrderMutation();
@@ -178,11 +163,8 @@ export default function Orders() {
   const [selectedId, setSelectedId] = usePersistentState<string | null>("orders:selectedId", null);
   const [historyFor, setHistoryFor] = usePersistentState<string | null>("orders:historyFor", null);
 
-  // Live rather than a frozen row snapshot, so the modal reflects a delivery fee or a status
-  // change the moment it happens instead of only after the list page is closed and reopened.
   const { currentData: selected } = useGetOrderQuery(selectedId ?? "", { skip: !selectedId });
 
-  // Only fetched while a history modal is actually open.
   const { currentData: history, isFetching: historyLoading, error: historyError, refetch: refetchHistory } = useGetOrderHistoryQuery(historyFor ?? "", {
     skip: !historyFor,
   });
@@ -190,8 +172,6 @@ export default function Orders() {
   const orders = useMemo(() => orderPage?.content ?? [], [orderPage]);
 
   const pendingCount = orders.filter((o) => o.status === "PENDING").length;
-  // Revenue counts every order that has been paid for, not only the ones already handed over:
-  // a drink still on the bar has been charged for and belongs in the takings.
   const pageRevenue = orders
     .filter((o) => o.paidAt != null)
     .reduce((sum, o) => sum + Number(o.totalAmount), 0);

@@ -17,7 +17,6 @@ export function OrderFulfillmentDetails({
   isSettingFee = false,
 }: {
   order: OrderResponse;
-  /** Omit to render read-only (e.g. a closed-out order, or a screen with no staff actions). */
   onSetDeliveryFee?: (fee: number) => void;
   isSettingFee?: boolean;
 }) {
