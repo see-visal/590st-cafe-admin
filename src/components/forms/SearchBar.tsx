@@ -35,10 +35,12 @@ export function SearchBar({
     return () => clearTimeout(timer);
   }, [localValue, value, onChange, onSearch, debounceMs]);
 
-  // Update local value when external value changes
-  useEffect(() => {
+  // Follow the external value when it changes (e.g. a "clear filters" elsewhere).
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
     setLocalValue(value);
-  }, [value]);
+  }
 
   return (
     <div className="relative w-full">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { Compass, Loader2, MapPin, Navigation, Search } from "lucide-react";
 import {
@@ -52,8 +52,11 @@ export function LocationPickerModal({
   const [isLocating, setIsLocating] = useState(false);
 
   // Re-seed from whatever the form currently holds each time the picker opens, so reopening it
-  // starts from the last confirmed pin rather than wherever it was left mid-search.
-  useEffect(() => {
+  // starts from the last confirmed pin rather than wherever it was left mid-search. Done while
+  // rendering the opening frame, so it never flashes the old pin first.
+  const [wasOpen, setWasOpen] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setCoords(
         initialLat != null && initialLng != null
@@ -63,8 +66,7 @@ export function LocationPickerModal({
       setAddress("");
       setSearchQuery("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }
 
   const reverseGeocode = async (lat: number, lng: number) => {
     try {

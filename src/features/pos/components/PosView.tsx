@@ -146,6 +146,8 @@ export default function PosView() {
   const [isCheckingBakong, setIsCheckingBakong] = useState(false);
   // Guards against overlapping calls; the state above is what the UI actually renders from.
   const isGeneratingBakongRef = useRef(false);
+  /** The last check failure already shown, so a broken bank link isn't re-toasted every poll. */
+  const bakongCheckErrorRef = useRef<string | null>(null);
   const isCheckingBakongRef = useRef(false);
 
   const { data: categoryPage, refetch: refetchCategories } = useListCategoriesQuery({ page: 1, size: 100 });
@@ -359,21 +361,27 @@ export default function PosView() {
     }
   };
 
-  const handleCheckBakongPayment = async () => {
+  // `manual` is the Check Payment button, which always gets an answer. The auto-poll stays quiet
+  // unless the check itself breaks, and then reports that once — not on every tick.
+  const handleCheckBakongPayment = async (manual = false) => {
     if (!pendingOrder || isCheckingBakongRef.current) return;
     isCheckingBakongRef.current = true;
     setIsCheckingBakong(true);
     try {
       const updated = await confirmBakongPayment(pendingOrder.id).unwrap();
+      bakongCheckErrorRef.current = null;
       if (updated.paidAt) {
         setPaymentOpen(false);
         resetCart();
         setCompletedSale(updated);
+      } else if (manual) {
+        // Not a failure: the bank has no transfer for this QR yet.
+        toast("No payment has arrived yet. Check again once the customer has paid.");
       }
-      // No transfer found yet — the API hands back the order untouched rather than failing, so
-      // silently doing nothing here is correct; the next auto-poll or manual click tries again.
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not check the payment."));
+      const message = apiErrorMessage(err as never, "Could not check the payment.");
+      if (manual || bakongCheckErrorRef.current !== message) toast.error(message);
+      bakongCheckErrorRef.current = message;
     } finally {
       isCheckingBakongRef.current = false;
       setIsCheckingBakong(false);
@@ -715,7 +723,7 @@ export default function PosView() {
           secondsLeft: bakongSecondsLeft,
           isChecking: isCheckingBakong,
           failure: bakongFailure,
-          onCheckPayment: () => { void handleCheckBakongPayment(); },
+          onCheckPayment: () => { void handleCheckBakongPayment(true); },
           onRetry: () => { void handleGenerateBakongQr(); },
         }}
       />

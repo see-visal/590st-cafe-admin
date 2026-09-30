@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 import { usePathname } from "next/navigation";
 import { useGetCurrentUserQuery } from "@/store/api/authApi";
@@ -98,10 +90,13 @@ export function AdminPreferencesProvider({
     read(undefined),
   );
 
-  // The account id arrives one render after mount, so re-read under the real key once it does.
-  useEffect(() => {
+  // The account id arrives one render after mount, so re-read under the real key once it does —
+  // while rendering, so no frame shows the previous account's settings.
+  const [readFor, setReadFor] = useState(userId);
+  if (userId !== readFor) {
+    setReadFor(userId);
     setState(read(userId));
-  }, [userId]);
+  }
 
   const setPreferences = useCallback(
     (patch: Partial<AdminPreferences>) => {
