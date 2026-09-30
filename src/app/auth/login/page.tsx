@@ -16,8 +16,10 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import {
+  useLazyGetCurrentUserQuery,
   useLoginMutation,
   useLoginPhoneMutation,
+  useLogoutMutation,
   useResendOtpMutation,
   useVerifyLoginOtpMutation,
 } from "@/store/api/authApi";
@@ -98,6 +100,37 @@ export default function AuthPage() {
   const [loginPhone, { isLoading: isSendingPhoneCode }] = useLoginPhoneMutation();
   const [verifyOtp, { isLoading: isVerifying }] = useVerifyLoginOtpMutation();
   const [resendOtp, { isLoading: isResending }] = useResendOtpMutation();
+  const [fetchCurrentUser] = useLazyGetCurrentUserQuery();
+  const [logout] = useLogoutMutation();
+
+  /**
+   * Every sign-in path ends here. The dashboard is staff-only, so a customer account is signed
+   * straight back out with an explanation instead of landing on the "no access" screen. If the
+   * profile lookup fails, carry on — AuthGuard checks the role again on the next page.
+   */
+  const finishSignIn = async () => {
+    let role;
+    try {
+      role = (await fetchCurrentUser(undefined, false).unwrap()).role;
+    } catch {
+      role = undefined;
+    }
+    if (role !== "CUSTOMER") {
+      router.push(resolveNextPath());
+      return;
+    }
+    try {
+      await logout().unwrap();
+    } catch {
+      // The mutation clears local tokens either way.
+    }
+    setLoginTicket(null);
+    setOtp("");
+    setPassword("");
+    setError(
+      "This is a customer account. Customer accounts can't open the staff dashboard — sign in with an admin or barista account.",
+    );
+  };
 
   const handleCredentials = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -112,7 +145,7 @@ export default function AuthPage() {
       if (result.otpRequired && result.loginTicket) {
         setLoginTicket(result.loginTicket);
       } else {
-        router.push(resolveNextPath());
+        await finishSignIn();
       }
     } catch (err) {
       setError(
@@ -157,7 +190,7 @@ export default function AuthPage() {
         otp: otp.trim(),
         remember: rememberMe,
       }).unwrap();
-      router.push(resolveNextPath());
+      await finishSignIn();
     } catch (err) {
       setError(
         apiErrorMessage(
