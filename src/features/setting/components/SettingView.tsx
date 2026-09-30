@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
@@ -80,12 +80,13 @@ export default function Settings() {
   const [khrPerUsd, setKhrPerUsd] = useState("");
   const [marketRate, setMarketRate] = useState("");
 
-  useEffect(() => {
-    if (rate) {
-      setKhrPerUsd(String(rate.khrPerUsdRate));
-      setMarketRate(rate.marketRate != null ? String(rate.marketRate) : "");
-    }
-  }, [rate]);
+  // Seed the inputs from each rate the server returns (first load, and after a save).
+  const [seededFrom, setSeededFrom] = useState<typeof rate>(undefined);
+  if (rate && rate !== seededFrom) {
+    setSeededFrom(rate);
+    setKhrPerUsd(String(rate.khrPerUsdRate));
+    setMarketRate(rate.marketRate != null ? String(rate.marketRate) : "");
+  }
 
   const handleSaveRate = async () => {
     const value = Number(khrPerUsd);

@@ -134,19 +134,15 @@ export default function Staff() {
   const [form, setForm] = usePersistentState<StaffFormFields>("staff:form", EMPTY_FORM);
   const [creationMode, setCreationMode] = usePersistentState<CreationMode>("staff:creationMode", "PASSWORD");
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>();
+  // A blob URL for the picked file; revoked when the file changes or the view unmounts.
+  const imagePreview = useMemo(() => (imageFile ? URL.createObjectURL(imageFile) : undefined), [imageFile]);
   const [inviteResult, setInviteResult] = usePersistentState<TelegramLinkCodeResponse | null>("staff:inviteResult", null);
   const [inviteResultOpen, setInviteResultOpen] = usePersistentState("staff:inviteResultOpen", false);
 
   useEffect(() => {
-    if (!imageFile) {
-      setImagePreview(undefined);
-      return;
-    }
-    const url = URL.createObjectURL(imageFile);
-    setImagePreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [imageFile]);
+    if (!imagePreview) return;
+    return () => URL.revokeObjectURL(imagePreview);
+  }, [imagePreview]);
 
   const handlePickImage = (file: File | null) => {
     if (submitting.current) return;

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Check,
   Eye,
@@ -30,6 +30,7 @@ import {
   PHONE_PATTERN,
   PHONE_PLACEHOLDER,
 } from "@/lib/phone";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 // Two-step login page: email + password, or phone number (for staff invited over Telegram). It handles user input, form submission, OTP verification, and error handling. The page also remembers the last login method used and provides a responsive design with a poster section for visual appeal.
 function resolveNextPath(): string {
@@ -68,6 +69,10 @@ const FIELD_CLASS =
 const SUBMIT_CLASS =
   "mt-8 h-12 w-full rounded-md bg-black text-sm font-semibold text-white disabled:opacity-60";
 
+// "TELEGRAM" is what the old Telegram-widget tab stored; it now means the phone tab.
+const parseLoginMethod = (raw: string | null): LoginMethod =>
+  raw === "PHONE" || raw === "TELEGRAM" ? "PHONE" : "EMAIL";
+
 export default function AuthPage() {
   const router = useRouter();
 
@@ -82,23 +87,10 @@ export default function AuthPage() {
   // Remembers the last method used on this browser, so a phone-only barista isn't sent back to
   // the email form every time. Restored after mount to keep the prerendered HTML stable.
   // "TELEGRAM" is what the old Telegram-widget tab stored; it now means the phone tab.
-  const [method, setMethod] = useState<LoginMethod>("EMAIL");
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(LOGIN_METHOD_KEY);
-      if (saved === "PHONE" || saved === "TELEGRAM") setMethod("PHONE");
-    } catch {
-      // Storage blocked — the email form is a fine default.
-    }
-  }, []);
+  const [method, setMethod] = useLocalStorageState<LoginMethod>(LOGIN_METHOD_KEY, parseLoginMethod);
   const chooseMethod = (next: LoginMethod) => {
-    setMethod(next);
+    setMethod(next); // also remembers it for next time
     setError("");
-    try {
-      window.localStorage.setItem(LOGIN_METHOD_KEY, next);
-    } catch {
-      // Not remembering the choice is harmless.
-    }
   };
 
   const [loginTicket, setLoginTicket] = useState<string | null>(null);

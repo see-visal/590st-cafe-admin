@@ -23,11 +23,19 @@ import {
 } from "next/font/google";
 import ClientProvider from "@/contexts/client-provider";
 
+// Only the default pair (Google Sans Flex + Noto Sans Khmer) is preloaded. Every preloaded
+// font becomes an entry in the `Link` response header of each server-rendered page, and with
+// all 16 families preloaded that header grew past 5 KB — over nginx's default 4 KB upstream
+// header buffer, so every dynamic route (/invoices/:id, /products/:id/configuration, ...)
+// came back as a 502 Bad Gateway in production. The alternatives are only used when picked in
+// Settings, and still load on demand then (display: swap covers the switch).
+
 // English fonts
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
+  preload: false,
 });
 
 const poppins = Poppins({
@@ -35,6 +43,7 @@ const poppins = Poppins({
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-poppins",
   display: "swap",
+  preload: false,
 });
 
 const roboto = Roboto({
@@ -42,6 +51,7 @@ const roboto = Roboto({
   weight: ["300", "400", "500", "700"],
   variable: "--font-roboto",
   display: "swap",
+  preload: false,
 });
 
 // Same pairing as the customer UI (Coffee-Shop-UI): self-hosted by Next.js at build time, no
@@ -58,12 +68,14 @@ const openSans = Open_Sans({
   subsets: ["latin"],
   variable: "--font-open-sans",
   display: "swap",
+  preload: false,
 });
 
 const montserrat = Montserrat({
   subsets: ["latin"],
   variable: "--font-montserrat",
   display: "swap",
+  preload: false,
 });
 
 const lato = Lato({
@@ -71,24 +83,28 @@ const lato = Lato({
   weight: ["300", "400", "700", "900"],
   variable: "--font-lato",
   display: "swap",
+  preload: false,
 });
 
 const sourceSans = Source_Sans_3({
   subsets: ["latin"],
   variable: "--font-source-sans",
   display: "swap",
+  preload: false,
 });
 
 const nunito = Nunito({
   subsets: ["latin"],
   variable: "--font-nunito",
   display: "swap",
+  preload: false,
 });
 
 const workSans = Work_Sans({
   subsets: ["latin"],
   variable: "--font-work-sans",
   display: "swap",
+  preload: false,
 });
 
 const kohSantepheap = Koh_Santepheap({
@@ -96,12 +112,14 @@ const kohSantepheap = Koh_Santepheap({
   weight: ["100", "300", "400", "700", "900"],
   variable: "--font-koh-santepheap",
   display: "swap",
+  preload: false,
 });
 
 const kantumruyPro = Kantumruy_Pro({
   subsets: ["khmer", "latin"],
   variable: "--font-kantumruy-pro",
   display: "swap",
+  preload: false,
 });
 
 const battambang = Battambang({
@@ -109,6 +127,7 @@ const battambang = Battambang({
   weight: ["100", "300", "400", "700", "900"],
   variable: "--font-battambang",
   display: "swap",
+  preload: false,
 });
 
 const siemreap = Siemreap({
@@ -116,6 +135,7 @@ const siemreap = Siemreap({
   weight: ["400"],
   variable: "--font-siemreap",
   display: "swap",
+  preload: false,
 });
 
 const dangrek = Dangrek({
@@ -123,6 +143,7 @@ const dangrek = Dangrek({
   weight: ["400"],
   variable: "--font-dangrek",
   display: "swap",
+  preload: false,
 });
 
 // Matches the customer UI's Khmer pairing exactly.

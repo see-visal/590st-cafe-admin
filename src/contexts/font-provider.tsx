@@ -1,7 +1,8 @@
 // src/components/FontProvider.tsx
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useEffect } from "react";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 export const enFontOptions = [
   {
@@ -77,34 +78,18 @@ interface FontContextType {
 
 const FontContext = createContext<FontContextType | undefined>(undefined);
 
+// A saved font must still be one we offer; anything else falls back to the default.
+const parseEnglishFont = (raw: string | null) =>
+  raw && enFontOptions.some((f) => f.value === raw) ? raw : "google-sans";
+const parseKhmerFont = (raw: string | null) =>
+  raw && khmerFontOptions.some((f) => f.value === raw) ? raw : "noto-sans-khmer";
+
 export function FontProvider({ children }: { children: React.ReactNode }) {
-  const [englishFont, setEnglishFont] = useState("google-sans");
-  const [khmerFont, setKhmerFont] = useState("noto-sans-khmer");
+  const [englishFont, setEnglishFont] = useLocalStorageState("english-font", parseEnglishFont);
+  const [khmerFont, setKhmerFont] = useLocalStorageState("khmer-font", parseKhmerFont);
 
-  // Load saved font preferences on mount
+  // Apply the English font to the document (the choice itself is saved by its setter)
   useEffect(() => {
-    const savedEnglishFont = localStorage.getItem("english-font");
-    const savedKhmerFont = localStorage.getItem("khmer-font");
-
-    if (
-      savedEnglishFont &&
-      enFontOptions.some((f) => f.value === savedEnglishFont)
-    ) {
-      setEnglishFont(savedEnglishFont);
-    }
-
-    if (
-      savedKhmerFont &&
-      khmerFontOptions.some((f) => f.value === savedKhmerFont)
-    ) {
-      setKhmerFont(savedKhmerFont);
-    }
-  }, []);
-
-  // Save English font preference and apply to document
-  useEffect(() => {
-    localStorage.setItem("english-font", englishFont);
-
     const selectedFont = enFontOptions.find((f) => f.value === englishFont);
     if (selectedFont) {
       document.documentElement.style.setProperty(
@@ -114,10 +99,8 @@ export function FontProvider({ children }: { children: React.ReactNode }) {
     }
   }, [englishFont]);
 
-  // Save Khmer font preference and apply to document
+  // Apply the Khmer font to the document
   useEffect(() => {
-    localStorage.setItem("khmer-font", khmerFont);
-
     const selectedFont = khmerFontOptions.find((f) => f.value === khmerFont);
     if (selectedFont) {
       document.documentElement.style.setProperty(

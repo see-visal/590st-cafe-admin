@@ -608,7 +608,9 @@ export default function BaristaQueueView() {
       if (updated.paidAt) {
         toastPaidWithInvoice("Bakong payment confirmed", updated.id, printInvoice);
       } else {
-        toast.error("No payment received for this order yet.");
+        // Not a failure — the bank simply has no transfer for this QR yet. A check that couldn't
+        // reach the bank at all comes back as an error instead (the catch below).
+        toast("No payment has arrived for this order yet. Check again once the customer has paid.");
       }
     } catch (err) {
       toast.error(apiErrorMessage(err as never, "Could not confirm the payment."));

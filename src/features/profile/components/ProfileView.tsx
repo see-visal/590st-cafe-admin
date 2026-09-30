@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import {
@@ -86,12 +86,13 @@ export default function ProfileView() {
 
   // Re-seed the form from the server whenever the profile changes — including right after a
   // save, so the inputs show exactly what was persisted (a trimmed name, a cleared phone).
-  useEffect(() => {
-    if (!user) return;
+  const [seededFrom, setSeededFrom] = useState<typeof user>(undefined);
+  if (user && user !== seededFrom) {
+    setSeededFrom(user);
     setFullName(user.fullName ?? "");
     setPhoneNumber(formatPhoneInput(user.phoneNumber));
     setGender(user.gender ?? "");
-  }, [user]);
+  }
 
   const isDirty =
     !!user &&

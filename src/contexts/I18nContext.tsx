@@ -22,6 +22,13 @@ const timeUnitTranslations: Record<string, string> = {
 };
 
 // Define types for the translation messages structure
+
+/**
+ * Page translation files under public/locales/<locale>/. Only the sidebar is translated so far;
+ * add a page's name here when its <page>.json lands in both en/ and kh/.
+ */
+const PAGE_TRANSLATION_FILES = new Set<string>([]);
+
 type TranslationMessages = {
   [key: string]: string | TranslationMessages;
 };
@@ -113,6 +120,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         // Always load sidebar translations first
         const sidebarMessages = await loadSidebar();
 
+        // Only ask for page files that exist — otherwise every navigation fired two or three
+        // 404s (page file, common.json, English fallback) before settling on the sidebar.
+        if (!PAGE_TRANSLATION_FILES.has(pageName)) {
+          setMessages(sidebarMessages);
+          return;
+        }
+
         // Then load page-specific translations
         const res = await fetch(`/locales/${locale}/${pageName}.json`);
 
@@ -171,6 +185,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   // Load translations when pathname or locale changes
   useEffect(() => {
     const pageName = getPageName(pathname);
+    // Data fetching: loadPage only sets state after its awaits resolve, which the rule can't see.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadPage(pageName);
   }, [pathname, locale, loadPage]);
 
