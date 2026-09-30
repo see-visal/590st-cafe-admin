@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, LogOut, RotateCcw, ShieldAlert, WifiOff } from "lucide-react";
@@ -10,6 +10,7 @@ import { apiErrorMessage } from "@/store/api/baseApi";
 import { useGetCurrentUserQuery, useLogoutMutation } from "@/store/api/authApi";
 import { adminHome, canAccessAdminPage } from "@/lib/adminAccess";
 import { clearTokens, isAuthenticated } from "@/lib/authStorage";
+import { useMounted } from "@/hooks/useMounted";
 
 /** While the API is unreachable, try again on its own so the page recovers without a click. */
 const AUTO_RETRY_MS = 5000;
@@ -22,7 +23,10 @@ function statusOf(error: unknown): number | string | undefined {
 export function AuthGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [checked, setChecked] = useState(false);
+  // A token only exists in this browser, so the check waits for mount (server and hydration
+  // render the spinner alike).
+  const mounted = useMounted();
+  const checked = mounted && isAuthenticated();
   const profile = useGetCurrentUserQuery(undefined, { skip: !checked });
   const home = adminHome(profile.data?.role);
 
@@ -40,14 +44,10 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   const loginUrl = `/auth/login?next=${encodeURIComponent(pathname ?? "/")}`;
 
   useEffect(() => {
-    if (isAuthenticated()) {
-      setChecked(true);
-      return;
-    }
     // Come back here once signed in.
-    router.replace(loginUrl);
+    if (mounted && !checked) router.replace(loginUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, pathname]);
+  }, [mounted, checked, router, pathname]);
 
   useEffect(() => {
     if (
