@@ -1695,22 +1695,25 @@ export function FormCategoryMultiSelect({
               })
             )}
           </div>
+          {/* Same Radix dropdown as SelectField/FormSelect, not a native <select>. Held at ""
+              so it always shows its prompt: picking an item adds a tag rather than selecting it. */}
           {available.length > 0 && (
-            <select
-              className="form_multi_select_add"
-              value=""
-              onChange={(e) => addCategory(e.target.value)}
-              aria-label={`Add ${label}`}
-            >
-              <option value="">
-                {value.length === 0 ? placeholder : "Add category"}
-              </option>
-              {available.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select value="" onValueChange={addCategory}>
+              <SelectTrigger className="form_multi_select_add" aria-label={`Add ${label}`}>
+                <SelectValue placeholder={value.length === 0 ? placeholder : "Add category"} />
+              </SelectTrigger>
+              <SelectContent className="form_field_select_content">
+                {available.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="form_field_select_item"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
         <ChevronDown className="form_field_icon" />
