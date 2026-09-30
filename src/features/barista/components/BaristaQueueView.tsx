@@ -94,8 +94,6 @@ const STATUS_CLASSES: Record<OrderStatus, string> = {
   CANCELLED: "bg-red-100 text-red-700",
 };
 
-// PENDING reads as "unpaid" on this screen: to a barista the interesting thing about that
-// column is that no money has come in, not that the API calls it pending.
 const STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING: "UNPAID",
   PAID: "PAID",
@@ -122,7 +120,6 @@ function OrderCard({
   actionLabel?: string;
   secondaryLabel?: string;
   onSecondary?: () => void;
-  /** Shown instead of a button when the next step is someone else's (usually the customer's). */
   hint?: string;
   onAction?: () => void;
   onCancel?: () => void;
@@ -138,9 +135,6 @@ function OrderCard({
       )}
     >
       <div className="flex items-start justify-between">
-        {/* The heading doubles as the affordance for the detail view, in every column —
-            completed and cancelled orders carry no action buttons, so without this there would
-            be no way to inspect them. */}
         <button
           type="button"
           onClick={onOpen}
@@ -170,7 +164,6 @@ function OrderCard({
               Fee needed
             </span>
           )}
-          {/* Past the unpaid column but the cash hasn't been taken yet (pay-at-counter). */}
           {order.paymentMethod === "CASH" &&
             order.paidAt == null &&
             order.status !== "PENDING" &&
@@ -179,7 +172,6 @@ function OrderCard({
                 Cash due
               </span>
             )}
-          {/* Only ever passed for unpaid orders — see the board below. */}
           {onCancel && (
             <button
               type="button"
@@ -201,8 +193,6 @@ function OrderCard({
         </span>
       </div>
 
-      {/* Where the order came from and how it will be paid — an online order is served
-          differently from a walk-in (the customer may still be on their way, or paying by QR). */}
       <div className="mt-3 flex flex-wrap gap-1.5">
         <OrderChip icon={order.customerId ? Globe : Store}>{order.customerId ? "Online" : "Walk-in"}</OrderChip>
         {order.fulfillmentMethod ? (
@@ -240,15 +230,10 @@ function OrderCard({
         ))}
       </div>
 
-      {/* What the customer typed at checkout. On the card rather than only in the detail
-          modal: it is an instruction to whoever makes the drink, and nobody opens a modal per
-          order mid-rush. */}
       <OrderFulfillmentDetails order={order} />
       {order.note ? (
         <div className="mt-3 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
           <MessageSquareText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-          {/* pre-line: the note is the customer's own words on one line and the pickup or
-              delivery logistics on the next. */}
           <p className="min-w-0 text-xs font-medium whitespace-pre-line wrap-break-word text-amber-900">
             {order.note}
           </p>
@@ -312,7 +297,6 @@ function QueueColumn({
   isLoading: boolean;
   emptyLabel: string;
   renderCard: (order: OrderResponse) => React.ReactNode;
-  /** Spans the whole board and lays its cards out in the board's own columns (Completed). */
   fullWidth?: boolean;
 }) {
   return (
@@ -346,14 +330,6 @@ function QueueColumn({
   );
 }
 
-/**
- * One column's worth of orders.
- *
- * Admins are 403 on /api/barista/** and baristas are 403 on /api/admin/**, so each column has
- * to read through whichever endpoint set matches the signed-in role. Both hooks are always
- * called — rules of hooks — and the one for the wrong role is skipped, so only a single
- * request per column actually goes out.
- */
 function useQueue(
   status: OrderStatus,
   {
@@ -377,29 +353,11 @@ function useQueue(
   return isAdmin ? admin : barista;
 }
 
-/**
- * The live order board, one column per stage of an order's life:
- * unpaid -> paid -> preparing -> completed (see OrderStatus).
- *
- * The split that matters is between the first column and the rest. Everything under "Awaiting
- * Payment" is money the shop has not taken yet, so those are the only orders that can be
- * cancelled and the only ones showing a payment button. Everything to the right of it is
- * already paid for — stock has moved, the customer has an invoice — and cancelling is no
- * longer a cancellation but a refund, which the API refuses.
- *
- * The customer's own order screen reads the same status off the same order, so pressing
- * "Start Preparing" here is what advances their tracker.
- *
- * Polls so a second till's sales, and customers paying by QR on their phones, show up without
- * anyone hitting refresh.
- */
 export default function BaristaQueueView() {
   const { isAdmin, isBarista, isLoading: isLoadingRole } = useCurrentRole();
   const { confirm, confirmDialog } = useConfirmDialog();
   const roles = { isAdmin, isBarista };
 
-  // Unpaid and paid-but-unmade are what the barista is actively waiting on, so they poll
-  // fastest; finished work can lag.
   const pendingQuery = useQueue("PENDING", { ...roles, size: 50, pollingInterval: 15000 });
   const paidQuery = useQueue("PAID", { ...roles, size: 50, pollingInterval: 10000 });
   const preparingQuery = useQueue("PREPARING", { ...roles, size: 50, pollingInterval: 15000 });
@@ -408,8 +366,6 @@ export default function BaristaQueueView() {
   const deliveredQuery = useQueue("DELIVERED", { ...roles, size: 20, pollingInterval: 30000 });
   const cancelledQuery = useQueue("CANCELLED", { ...roles, size: 20 });
 
-  // A new walk-in, a customer's own checkout, or any status/fee change reaches every column
-  // the instant the API broadcasts it, rather than waiting on that column's own poll interval.
   useStaffOrderAlerts(
     useCallback(() => {
       void pendingQuery.refetch();
@@ -425,9 +381,6 @@ export default function BaristaQueueView() {
 
   const { error, refetch } = pendingQuery;
 
-  // Two ways to take cash, per role: "collect" works on any order whose customer chose cash
-  // (their online orders included), "pay" only on a walk-in this staff member rang up and that
-  // has no payment method yet. Bakong is always "accept", which works on any order.
   const [baristaPayCash, { isLoading: isPayingBarista }] = usePayOrderCashMutation();
   const [baristaCollectCash, { isLoading: isCollectingBarista }] = useCollectBaristaCashMutation();
   const [adminPayCash, { isLoading: isPayingAdmin }] = usePayAdminOrderCashMutation();
@@ -462,20 +415,9 @@ export default function BaristaQueueView() {
       ? isAdmin ? adminCollectCash : baristaCollectCash
       : isAdmin ? adminPayCash : baristaPayCash;
   const confirmBakong = isAdmin ? adminAcceptBakong : baristaAcceptBakong;
-  // Staff can cancel their own unpaid walk-ins; a customer's online order is the customer's to
-  // cancel (admins keep the override).
   const canCancel = (order: OrderResponse) =>
     isAdmin || (order.customerId == null && order.handledById === currentUser?.id);
 
-  /**
-   * The one thing to do next with an unpaid order, mirroring the API's rules:
-   *  - a delivery order can't be paid or started until its fee is set;
-   *  - Bakong must clear before anything is made;
-   *  - a customer who chose cash can have the drink started now and pay at pickup/delivery
-   *    (cash can also be taken straight away if they're at the counter);
-   *  - with no payment method yet, only a walk-in you rang up can be paid here — an online
-   *    customer still has to choose on their phone.
-   */
   const awaitingPaymentStep = (
     order: OrderResponse
   ):
@@ -520,8 +462,6 @@ export default function BaristaQueueView() {
     isDeliveringBarista ||
     isSettingFee;
 
-  // Exchange rate management is admin-only; a barista till stays USD-only until this query
-  // has something to convert with (mirrors the POS's own cash tab).
   const { data: exchangeRate } = useGetExchangeRateQuery(undefined, { skip: !isAdmin });
   const khrPerUsdRate = exchangeRate ? Number(exchangeRate.khrPerUsdRate) : null;
 
@@ -531,8 +471,6 @@ export default function BaristaQueueView() {
   const [detailOrder, setDetailOrder] = useState<OrderResponse | null>(null);
   const [showCancelled, setShowCancelled] = usePersistentState("barista-queue:showCancelled", false);
 
-  // What's actually owed, converted into whichever currency is selected — totalAmount itself
-  // is always the USD-equivalent figure, never the KHR one.
   const payableDue = (order: OrderResponse, targetCurrency: Currency): number =>
     targetCurrency === "USD" || !khrPerUsdRate
       ? Number(order.totalAmount)
@@ -549,8 +487,6 @@ export default function BaristaQueueView() {
     setAmountTendered(exactAmountFor(order, "USD"));
   };
 
-  // Switching currency mid-entry must reseed the amount too — a USD figure left over after
-  // flipping to KHR would look like a valid tender while being off by ~4000x.
   const handleCashCurrencyChange = (next: Currency) => {
     setCashCurrency(next);
     if (cashOrder) setAmountTendered(exactAmountFor(cashOrder, next));
@@ -602,14 +538,10 @@ export default function BaristaQueueView() {
 
   const handleConfirmBakong = async (order: OrderResponse) => {
     try {
-      // The API answers "no transfer found yet" by handing back the order untouched rather
-      // than by failing, so success here does not mean the money arrived — paidAt does.
       const updated = await confirmBakong(order.id).unwrap();
       if (updated.paidAt) {
         toastPaidWithInvoice("Bakong payment confirmed", updated.id, printInvoice);
       } else {
-        // Not a failure — the bank simply has no transfer for this QR yet. A check that couldn't
-        // reach the bank at all comes back as an error instead (the catch below).
         toast("No payment has arrived for this order yet. Check again once the customer has paid.");
       }
     } catch (err) {
@@ -642,8 +574,6 @@ export default function BaristaQueueView() {
     }
   };
 
-  // A pickup order is finished when it is handed over the counter; a delivery order still has
-  // to leave the shop, so the same button dispatches it to a courier instead.
   const handleComplete = async (order: OrderResponse) => {
     const isDelivery = order.fulfillmentMethod === "DELIVERY";
     try {
@@ -720,8 +650,6 @@ export default function BaristaQueueView() {
       ) : null}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {/* Nothing in this column has been paid for, which is why it is the only one that
-            offers cancel. */}
         <QueueColumn
           title="Awaiting Payment"
           accent="bg-amber-500"
@@ -752,9 +680,6 @@ export default function BaristaQueueView() {
           }}
         />
 
-        {/* Paid and untouched: the customer has been charged and is waiting on a drink
-            nobody has started. Highlighted because this is the column that should never sit
-            still. */}
         <QueueColumn
           title="New — Paid"
           accent="bg-blue-500"
@@ -781,9 +706,6 @@ export default function BaristaQueueView() {
           isLoading={isLoadingRole || listLoadState(preparingQuery).isLoading}
           emptyLabel="Nothing on the bar."
           renderCard={(order) => {
-            // A pickup order paid in cash at the counter reaches this column unpaid, and the
-            // API refuses to complete it until the cash is in — so take the cash first. A
-            // delivery order can still be dispatched unpaid; its cash is collected on arrival.
             const needsCash =
               order.paymentMethod === "CASH" &&
               order.paidAt == null &&
@@ -813,11 +735,6 @@ export default function BaristaQueueView() {
           }}
         />
 
-        {/* With a courier, not yet in the customer's hands. A cash order can be dispatched
-            unpaid (collected on arrival), so this column has two different next steps: collect
-            the cash first if it's still owed, otherwise mark it delivered. The API rejects
-            "delivered" on an unpaid order, so offering that button unconditionally was a dead
-            end — the courier had already left with an order nothing here could ever close out. */}
         <QueueColumn
           title="Out for Delivery"
           accent="bg-cyan-500"
@@ -845,8 +762,6 @@ export default function BaristaQueueView() {
           }}
         />
 
-        {/* A fifth lane would wrap into the first column of the four-column board and stack its
-            cards in a quarter of the width, so it runs the full width below the live lanes. */}
         <QueueColumn
           fullWidth
           title="Completed"
@@ -860,8 +775,6 @@ export default function BaristaQueueView() {
         />
       </div>
 
-      {/* Cancelled orders are a record, not work — kept off the board so the four live
-          columns stay readable, but one click away. */}
       <div className="rounded-xl border border-gray-200 bg-white">
         <button
           type="button"
@@ -945,8 +858,6 @@ export default function BaristaQueueView() {
         </ModalGrid>
       </FormModal>
 
-      {/* Open from any column. Read-only: the board's own buttons are the only way to move an
-          order along, so this is purely the full record of one order. */}
       <DetailModal
         open={detailOrder !== null}
         onOpenChange={(open) => {

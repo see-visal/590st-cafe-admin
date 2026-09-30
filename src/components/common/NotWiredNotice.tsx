@@ -1,6 +1,5 @@
 import { PlugZap } from "lucide-react";
 
-//notice for not wired feature
 export function NotWiredNotice({
   feature,
   detail,

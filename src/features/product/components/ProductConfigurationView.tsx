@@ -67,8 +67,6 @@ function DiscountForm({ product }: { product: ProductResponse }) {
   </form>;
 }
 
-/** Every variant has its own absolute price — unlike the old size options, which only added a
- * delta on top of one shared product price. */
 function VariantForm({ productId, variant, takenLabels }: { productId: string; variant?: ProductVariantResponse; takenLabels: VariantLabel[] }) {
   const { confirm, confirmDialog } = useConfirmDialog();
   const [name, setName] = useState<VariantLabel>(variant?.name ?? VARIANT_LABELS.find((l) => !takenLabels.includes(l)) ?? "MEDIUM");
@@ -119,8 +117,6 @@ function VariantForm({ productId, variant, takenLabels }: { productId: string; v
   </form>;
 }
 
-/** One row of the shop-wide add-on catalog (e.g. Pearl) — separate from offering it on this
- * particular product, which is ProductExtraRow below. */
 function ExtraCatalogForm({ extra }: { extra?: ExtraResponse }) {
   const { confirm, confirmDialog } = useConfirmDialog();
   const [name, setName] = useState(extra?.name ?? "");
@@ -203,7 +199,6 @@ function ExtraCatalogForm({ extra }: { extra?: ExtraResponse }) {
   </form>;
 }
 
-/** One extra currently offered on this product, with a control to stop offering it. */
 function ProductExtraRow({ productId, productExtra }: { productId: string; productExtra: ProductExtraResponse }) {
   const { confirm, confirmDialog } = useConfirmDialog();
   const [update, updateState] = useUpdateProductExtraMutation();
@@ -244,8 +239,6 @@ function ExtrasSection({ productId }: { productId: string }) {
   const [attach, attachState] = useAttachProductExtraMutation();
   const [selectedExtraId, setSelectedExtraId] = useState("");
 
-  // A catalog extra's price/photo, or this product's own attached extras, changing anywhere
-  // reaches this section instantly instead of only on this page's own next mutation.
   useCatalogAlerts(
     useCallback(() => {
       void catalog.refetch();
@@ -289,8 +282,6 @@ export default function ProductConfigurationView({ productId }: { productId: str
   const extraCatalog = useListExtrasQuery();
   const takenLabels = (variants.data ?? []).map((v) => v.name);
 
-  // This product's own discount/variants (a PRODUCT push) or the extras catalog changing
-  // anywhere reaches this page instantly instead of only on its own next mutation.
   useCatalogAlerts(
     useCallback(() => {
       void product.refetch();

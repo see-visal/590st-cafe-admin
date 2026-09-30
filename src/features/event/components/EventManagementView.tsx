@@ -63,9 +63,6 @@ const EVENT_TABLE_HEADERS = [
 type EventFormFields = {
   title: string;
   description: string;
-  // Kept as strings for the form's own numeric inputs; parsed to numbers only on submit. Must
-  // be given together, or both left blank — mirrors the API's own latitude/longitude pairing
-  // rule (400s otherwise).
   latitude: string;
   longitude: string;
   startAt: string;
@@ -83,7 +80,6 @@ const EMPTY_FORM: EventFormFields = {
   status: "ACTIVE",
 };
 
-/** The API takes ISO local date-time; <input type="datetime-local"> already produces that. */
 function toInputValue(iso: string | null): string {
   if (!iso) return "";
   return iso.slice(0, 16);

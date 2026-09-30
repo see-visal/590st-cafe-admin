@@ -1,7 +1,6 @@
 import { baseApi, unwrap } from "./baseApi";
 import type { PageResponse } from "./types";
 
-/// A single API slice for all contact messages, with a query for the paginated list and a mutation to update a message's status. It uses the same `baseApi` as the other slices, so it shares the same auth headers and error handling.
 export type ContactTopic =
   | "GENERAL_INQUIRY"
   | "CATERING_EVENTS"

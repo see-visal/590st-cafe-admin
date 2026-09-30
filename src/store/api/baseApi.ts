@@ -18,15 +18,10 @@ import type { ApiEnvelope, ApiErrorBody, AuthTokenResponse } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-/**
- * Every controller wraps its payload in `ApiResponse<T>`, so each endpoint unwraps with this
- * rather than repeating `(r) => r.data` inline.
- */
 export function unwrap<T>(response: ApiEnvelope<T>): T {
   return response.data;
 }
 
-/** Pulls the human-readable message out of an `ErrorResponse` body for toasts. */
 export function apiErrorMessage(
   error: FetchBaseQueryError | undefined,
   fallback = "Something went wrong. Please try again.",
@@ -48,7 +43,6 @@ const rawBaseQuery = fetchBaseQuery({
   },
 });
 
-/// The base query with automatic token refresh and a single app-wide "server down" toast. It wraps
 const refreshLock = {
   pending: null as Promise<void> | null,
   isLocked() {
@@ -69,7 +63,6 @@ const refreshLock = {
   },
 };
 
-// A single toast that appears when the API is unreachable, and disappears once it is reachable again. It is not a "retry" toast — the base query itself retries automatically, so this is just a status indicator.
 const SERVER_STATUS_TOAST_ID = "server-status";
 let serverDown = false;
 
@@ -98,7 +91,6 @@ function trackServerStatus(error: FetchBaseQueryError | undefined): void {
     }
     return;
   }
-  // Any real answer from the server, even a 4xx, means it is reachable again.
   if (serverDown) {
     serverDown = false;
     toast.success("Connection restored", {
@@ -108,10 +100,6 @@ function trackServerStatus(error: FetchBaseQueryError | undefined): void {
   }
 }
 
-/**
- * Wraps the base query so an expired access token is refreshed once and the original request
- * retried. A failed refresh clears the session and sends the user to the login page.
- */
 const baseQueryWithStatus: BaseQueryFn<
   string | FetchArgs,
   unknown,
@@ -133,7 +121,6 @@ const baseQueryWithReauth: BaseQueryFn<
   if (result.error?.status !== 401) return result;
 
   if (refreshLock.isLocked()) {
-    // Another request is already refreshing — wait for it, then retry with the new token.
     await refreshLock.waitForUnlock();
     return rawBaseQuery(args, api, extraOptions);
   }
@@ -183,10 +170,6 @@ function forceLogout(): void {
   }
 }
 
-/**
- * Single API slice; each domain file injects its own endpoints so the store stays one cache
- * and cross-domain invalidation (an order changing inventory, say) actually works.
- */
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithStatus,

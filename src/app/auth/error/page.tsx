@@ -4,7 +4,6 @@ import { clearTokens } from "@/lib/authStorage";
 
 export default function Unauthorized() {
   const handleGoHome = () => {
-    // No NextAuth session to end — the admin's session is the JWT pair it holds itself.
     clearTokens();
     window.location.href = "/auth/login";
   };

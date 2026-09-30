@@ -10,7 +10,6 @@ import type { TelegramWidgetAuthRequest } from "@/store/api/types";
 
 declare global {
   interface Window {
-    /** Telegram's widget calls this by name once the user confirms the login. */
     onTelegramAuth?: (user: TelegramWidgetAuthRequest) => void;
   }
 }
@@ -21,7 +20,6 @@ const STEPS = [
   { icon: ShieldCheck, text: "Confirm the login in your Telegram app." },
 ];
 
-/** The `role` claim from a freshly issued access token — only read to keep customers out. */
 function roleFromToken(accessToken: string): string | null {
   try {
     const payload = accessToken
@@ -34,7 +32,6 @@ function roleFromToken(accessToken: string): string | null {
   }
 }
 
-//login panel for Telegram login, with steps and a Telegram widget. The widget calls window.onTelegramAuth when the user confirms the login, which calls the API to log in and store the tokens. If the role is not ADMIN or BARISTA, it clears the tokens and shows an error.
 export function TelegramLoginPanel({
   remember,
   onSuccess,
@@ -47,7 +44,6 @@ export function TelegramLoginPanel({
   const [error, setError] = useState("");
   const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
 
-  // Read by the widget callback without re-injecting the script whenever these change.
   const latest = useRef({ remember, onSuccess });
   useEffect(() => {
     latest.current = { remember, onSuccess };

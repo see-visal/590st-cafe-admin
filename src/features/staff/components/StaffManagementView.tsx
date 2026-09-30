@@ -69,10 +69,8 @@ const STAFF_TABLE_HEADERS = [
   "Action",
 ] as const;
 
-/** Admins and baristas are separate endpoints, so the screen tabs between them. */
 type StaffKind = "ADMIN" | "BARISTA";
 
-/** Telegram invitees have no email/password — they verify by phone over Telegram instead. */
 type CreationMode = "PASSWORD" | "TELEGRAM";
 
 type StaffFormFields = {
@@ -134,7 +132,6 @@ export default function Staff() {
   const [form, setForm] = usePersistentState<StaffFormFields>("staff:form", EMPTY_FORM);
   const [creationMode, setCreationMode] = usePersistentState<CreationMode>("staff:creationMode", "PASSWORD");
   const [imageFile, setImageFile] = useState<File | null>(null);
-  // A blob URL for the picked file; revoked when the file changes or the view unmounts.
   const imagePreview = useMemo(() => (imageFile ? URL.createObjectURL(imageFile) : undefined), [imageFile]);
   const [inviteResult, setInviteResult] = usePersistentState<TelegramLinkCodeResponse | null>("staff:inviteResult", null);
   const [inviteResultOpen, setInviteResultOpen] = usePersistentState("staff:inviteResultOpen", false);
@@ -242,7 +239,6 @@ export default function Staff() {
     try {
       let savedMember: UserResponse;
       if (selected) {
-        // Email and password are not editable through UpdateStaffRequest.
         const body = {
           fullName,
           phoneNumber: form.phoneNumber.trim() || undefined,
@@ -277,7 +273,6 @@ export default function Staff() {
         }
       }
       detailsSaved = true;
-      // Preserve the created account if its separate photo upload fails, so retry edits it.
       setSelected(savedMember);
       setForm((current) => ({ ...current, password: "" }));
       if (imageFile) {
@@ -511,7 +506,6 @@ export default function Staff() {
               required={!selected}
             />
           )}
-          {/* Only set at creation — the API offers no password change on this resource. */}
           {!selected && creationMode === "PASSWORD" && (
             <FormInput
               label="Password"

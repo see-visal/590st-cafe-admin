@@ -19,8 +19,6 @@ export function ContactInbox() {
     skip: !isAdmin, pollingInterval: 15000, refetchOnMountOrArgChange: true,
   });
 
-  // A new message submitted from the customer app shows up here the instant it's sent, rather
-  // than up to 15s later.
   useFeedbackAlerts(useCallback(() => { if (isAdmin) void refetch(); }, [isAdmin, refetch]));
   const [updateStatus, { isLoading: isUpdating }] = useUpdateContactStatusMutation();
   if (!isAdmin) return null;

@@ -22,8 +22,6 @@ export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
     >
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
-        // On a phone only the current page stays (truncated to one line); the trail above it
-        // is still one tap away in the menu, and it was wrapping the header onto three lines.
         return (
           <div
             key={`${item.label}-${index}`}
