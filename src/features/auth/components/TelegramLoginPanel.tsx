@@ -49,7 +49,9 @@ export function TelegramLoginPanel({
 
   // Read by the widget callback without re-injecting the script whenever these change.
   const latest = useRef({ remember, onSuccess });
-  latest.current = { remember, onSuccess };
+  useEffect(() => {
+    latest.current = { remember, onSuccess };
+  });
 
   useEffect(() => {
     const container = containerRef.current;

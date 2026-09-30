@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Banknote, Delete, Loader2, QrCode, RefreshCw } from "lucide-react";
 import {
@@ -106,12 +106,12 @@ export function PosPaymentModal({
   // Re-seeds the numpad to the exact amount whenever the modal (re)opens, the total changes,
   // or the currency is switched — a stale USD figure left over from before a currency swap
   // would silently short-change the till.
-  useEffect(() => {
-    if (open) {
-      setCashInput(formatForInput(payable, cash.currency));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, payable, cash.currency]);
+  const seedKey = `${open}|${payable}|${cash.currency}`;
+  const [seededFor, setSeededFor] = useState(seedKey);
+  if (seedKey !== seededFor) {
+    setSeededFor(seedKey);
+    if (open) setCashInput(formatForInput(payable, cash.currency));
+  }
 
   const credit = useMemo(() => {
     const parsed = Number.parseFloat(cashInput);
