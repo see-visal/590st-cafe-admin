@@ -1,4 +1,3 @@
-// src/components/FontProvider.tsx
 "use client";
 
 import React, { createContext, useContext, useEffect } from "react";
@@ -78,7 +77,6 @@ interface FontContextType {
 
 const FontContext = createContext<FontContextType | undefined>(undefined);
 
-// A saved font must still be one we offer; anything else falls back to the default.
 const parseEnglishFont = (raw: string | null) =>
   raw && enFontOptions.some((f) => f.value === raw) ? raw : "google-sans";
 const parseKhmerFont = (raw: string | null) =>
@@ -88,7 +86,6 @@ export function FontProvider({ children }: { children: React.ReactNode }) {
   const [englishFont, setEnglishFont] = useLocalStorageState("english-font", parseEnglishFont);
   const [khmerFont, setKhmerFont] = useLocalStorageState("khmer-font", parseKhmerFont);
 
-  // Apply the English font to the document (the choice itself is saved by its setter)
   useEffect(() => {
     const selectedFont = enFontOptions.find((f) => f.value === englishFont);
     if (selectedFont) {
@@ -99,7 +96,6 @@ export function FontProvider({ children }: { children: React.ReactNode }) {
     }
   }, [englishFont]);
 
-  // Apply the Khmer font to the document
   useEffect(() => {
     const selectedFont = khmerFontOptions.find((f) => f.value === khmerFont);
     if (selectedFont) {

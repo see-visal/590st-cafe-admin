@@ -34,10 +34,6 @@ const STOCK_ALERT_HEADERS = [
   "Action",
 ] as const;
 
-/**
- * Everything the API reports at or below its reorder level, straight from
- * /api/admin/inventory/low-stock — the same rule the inventory screen colours rows by.
- */
 export default function StockAlertView() {
   const router = useRouter();
   const [page, setPage] = usePersistentState("stock-alerts:page", 1);
@@ -49,9 +45,6 @@ export default function StockAlertView() {
   });
   const list = listLoadState({ isFetching, currentData, error });
 
-  // A stock movement anywhere can push a product at or below (or back above) its reorder
-  // level, so this list reaches that the instant it happens instead of on the next manual
-  // refresh — this page has no polling of its own to fall back on otherwise.
   useInventoryAlerts(useCallback(() => { void refetch(); }, [refetch]));
 
   const alerts = alertPage?.content ?? [];

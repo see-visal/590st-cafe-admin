@@ -3,7 +3,6 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
 // eslint-config-next 16 ships native flat configs; wrapping them in FlatCompat (as this file
-// used to) crashes ESLint before it checks anything. Same setup as the storefront.
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,

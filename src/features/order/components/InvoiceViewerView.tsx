@@ -13,11 +13,6 @@ import {
 } from "@/hooks/useOrderInvoice";
 import { downloadBlob } from "@/lib/utils";
 
-/**
- * The invoice on its own page (/invoices/:orderId), so the tab shows a real app address — on
- * localhost and in production alike — instead of a blob: link. The PDF is fetched with the
- * signed-in session, so the link is useless to anyone who is not logged in as staff.
- */
 export default function InvoiceViewerView({ orderId }: { orderId: string }) {
   const { isAdmin } = useCurrentRole();
   const [adminDownload] = useDownloadOrderInvoiceMutation();

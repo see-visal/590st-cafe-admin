@@ -64,7 +64,6 @@ const ATTENDANCE_HEADERS = [
   "History",
 ];
 
-/** What each recorded order step means, in the words a manager would use. */
 const ORDER_ACTIONS: Record<string, { label: string; tone: Tone }> = {
   CREATED: { label: "Order placed", tone: "neutral" },
   CASH_SELECTED: { label: "Chose to pay cash", tone: "neutral" },
@@ -124,7 +123,6 @@ function orderTone(status: OrderStatus): Tone {
 
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
 
-//doing purposeful null checks on the data to avoid errors when the data is not available yet. The data is fetched from the API and may not be available immediately. The null checks ensure that the component does not crash when the data is not available yet.
 export default function AuditManagementView() {
   const polling = useRefreshOptions();
   const [source, setSource] = usePersistentState<Source>(
@@ -432,7 +430,6 @@ type TimelineEntry = {
   tone: Tone;
 };
 
-/** Oldest first, so the history reads as the story of the record from start to finish. */
 function Timeline({
   query,
   entries,

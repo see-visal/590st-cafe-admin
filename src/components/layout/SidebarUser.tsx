@@ -9,7 +9,6 @@ import { useGetCurrentUserQuery, useLogoutMutation } from "@/store/api/authApi";
 import { humanise, titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
-//sidebar user card, with avatar, name, role, and a logout button. Clicking the name takes you to the profile page.
 export function SidebarUser() {
   const router = useRouter();
   const pathname = usePathname();
@@ -40,7 +39,6 @@ export function SidebarUser() {
     try {
       await logout().unwrap();
     } catch {
-      // onQueryStarted clears the session either way.
     }
     router.replace("/auth/login");
   };

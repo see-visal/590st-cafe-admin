@@ -35,7 +35,6 @@ export function Sidebar() {
 
   const logo = (
     <Link href={adminHome(role)} onClick={handleNavClick} className="logo_link">
-      {/* White mark: the sidebar and mobile header are both brand-ink. */}
       <Image src="/logos/logo-white.png" alt="590st CAFE" width={800} height={539} className="h-11 w-auto" priority />
     </Link>
   );
@@ -62,7 +61,6 @@ export function Sidebar() {
   );
   return (
     <>
-      {/* Mobile Header */}
       <div className="mobile_header">
         <div className="mobile_header_inner">
           {logo}
@@ -76,14 +74,11 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && ( <div className="mobile_overlay" onClick={() => setIsMobileMenuOpen(false)}/>)}
-      {/* Mobile Sidebar Drawer */}
       <div className={cn("mobile_drawer", isMobileMenuOpen && "is_open")}> 
         {navItems}
         <SidebarProfile isMobile={true} />
       </div>
-      {/* Desktop Sidebar */}
       <div className={cn("desktop_sidebar", isCollapsed && "is_collapsed")}>
         <div className="logo_container">
           {logo}

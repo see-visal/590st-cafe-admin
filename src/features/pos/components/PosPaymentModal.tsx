@@ -24,7 +24,6 @@ export type PosCartItem = {
 
 export type PosPaymentMethod = "cash" | "bakong";
 
-/** Everything the Bakong tab needs — owned by PosView, since it holds the actual mutations. */
 export type PosBakongState = {
   currency: Currency;
   onCurrencyChange: (currency: Currency) => void;
@@ -38,11 +37,9 @@ export type PosBakongState = {
   onRetry: () => void;
 };
 
-/** Everything the Cash tab needs for a KHR-aware till, not just USD. */
 export type PosCashState = {
   currency: Currency;
   onCurrencyChange: (currency: Currency) => void;
-  /** Riel per dollar. Null while the rate is still loading — KHR stays disabled until it lands. */
   khrPerUsdRate: number | null;
 };
 
@@ -55,7 +52,6 @@ type PosPaymentModalProps = {
   orderId?: string;
   method: PosPaymentMethod;
   onMethodChange: (method: PosPaymentMethod) => void;
-  /** Receives the currency and amount tendered on the numpad; resolves once the API settles. */
   onConfirm?: (currency: Currency, amountTendered: number) => void | Promise<void>;
   isLoading?: boolean;
   cash: PosCashState;
@@ -69,7 +65,6 @@ const NUMPAD_ROWS = [
   ["00", "0", "backspace"],
 ] as const;
 
-// Common note denominations, offered as one-tap shortcuts above the numpad.
 const QUICK_AMOUNTS: Record<Currency, number[]> = {
   USD: [1, 5, 10, 20, 50],
   KHR: [2000, 5000, 10000, 20000, 50000],
@@ -94,8 +89,6 @@ export function PosPaymentModal({
   cash,
   bakong,
 }: PosPaymentModalProps) {
-  // The grand total is always stored in USD — this is what the cash tab actually charges
-  // against, converted into whichever currency the customer is handing over.
   const payable = useMemo(() => {
     if (cash.currency === "USD" || !cash.khrPerUsdRate) return total;
     return total * cash.khrPerUsdRate;
@@ -103,9 +96,6 @@ export function PosPaymentModal({
 
   const [cashInput, setCashInput] = useState(() => formatForInput(payable, cash.currency));
 
-  // Re-seeds the numpad to the exact amount whenever the modal (re)opens, the total changes,
-  // or the currency is switched — a stale USD figure left over from before a currency swap
-  // would silently short-change the till.
   const seedKey = `${open}|${payable}|${cash.currency}`;
   const [seededFor, setSeededFor] = useState(seedKey);
   if (seedKey !== seededFor) {
@@ -121,7 +111,7 @@ export function PosPaymentModal({
   const balance = credit - payable;
 
   const appendValue = (value: string) => {
-    if (value === "." && cash.currency === "KHR") return; // Riel has no fractional unit.
+    if (value === "." && cash.currency === "KHR") return;
     setCashInput((current) => {
       if (current === "0" && value !== ".") {
         return value === "00" ? "0" : value;
@@ -151,7 +141,6 @@ export function PosPaymentModal({
         </DialogHeader>
 
         <div className="pos_payment_modal_body">
-          {/* Tender type — the numpad and the QR panel below swap based on this. */}
           <div className="pos_payment_method_tabs" role="tablist" aria-label="Payment method">
             <button
               type="button"
@@ -403,7 +392,6 @@ export function PosPaymentModal({
                   <button
                     type="button"
                     className="btn_primary_yellow pos_payment_confirm"
-                    // Short-changing the till is a hard stop, not a warning.
                     disabled={isLoading || balance < 0 || items.length === 0}
                     onClick={() => onConfirm?.(cash.currency, credit)}
                   >

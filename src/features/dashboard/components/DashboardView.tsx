@@ -30,7 +30,6 @@ import { useRefreshOptions } from "@/contexts/AdminPreferencesContext";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 
-// The two series are cash and Bakong, so the colours are the same as the payment buttons in the POS.
 const SERIES_CASH = "#2a78d6";
 const SERIES_BAKONG = "#eb6834";
 
@@ -63,10 +62,6 @@ function topProducts(orders: OrderResponse[]) {
     .slice(0, 5);
 }
 
-/**
- * Two-part split as a meter, not a pie — a two-slice pie is the classic wrong form for a
- * single ratio, and the segments carry direct labels so identity is never colour-alone.
- */
 function PaymentMeter({ cash, bakong }: { cash: number; bakong: number }) {
   const total = cash + bakong;
   const cashPct = total > 0 ? (cash / total) * 100 : 0;
@@ -82,7 +77,6 @@ function PaymentMeter({ cash, bakong }: { cash: number; bakong: number }) {
 
   return (
     <div>
-      {/* 2px surface gap between the segments, per the mark spec. */}
       <div className="flex h-4 w-full gap-0.5 overflow-hidden rounded-full">
         <div
           style={{ width: `${cashPct}%`, background: SERIES_CASH }}
@@ -139,8 +133,6 @@ export default function DashboardView() {
   );
   const weeklyQuery = useGetWeeklyReportsQuery(today, refresh);
 
-  // An order or a stock change anywhere reaches every tile on this page instantly instead of
-  // waiting on the (possibly disabled, per Settings) polling interval.
   useStaffOrderAlerts(
     useCallback(() => {
       void reportQuery.refetch();
@@ -363,7 +355,6 @@ export default function DashboardView() {
                       "Revenue",
                     ]}
                   />
-                  {/* Single series: the card title names it, so no legend box. */}
                   <Bar
                     dataKey="revenue"
                     fill={SERIES_CASH}

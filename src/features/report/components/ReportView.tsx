@@ -46,11 +46,6 @@ function formatUsd(value: number) {
 
 const todayIso = shopDate;
 
-/**
- * Two API surfaces feed this screen: /api/admin/reports/daily gives the per-barista takings
- * breakdown for one day, and /api/admin/finance/{daily,monthly,yearly} gives money in/out and
- * profit for the chosen period. Both accept a date (or year/month) and default to now.
- */
 export default function ReportView() {
   const { isAdmin, isBarista } = useCurrentRole();
   if (isBarista) return <BaristaReportView />;
@@ -70,7 +65,6 @@ function AdminReportView() {
     error: reportError,
     refetch: refetchReport,
   } = useGetDailyReportQuery({ date });
-  // Only a first load (or a new date) shows placeholders; a background refresh keeps the numbers.
   const isLoadingReport = isFetchingReport && !report;
 
   const dailyFinance = useGetDailyFinanceQuery({ date }, { skip: period !== "DAILY" });
@@ -213,7 +207,6 @@ function AdminReportView() {
                 </Cell>
               </Row>
             ))}
-          {/* Shop-wide totals as a footer row, so the per-barista figures add up on screen. */}
           {!isLoadingReport && !reportError && baristas.length > 0 ? (
             <Row>
               <Cell className="font-bold">All Baristas</Cell>

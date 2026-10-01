@@ -97,7 +97,6 @@ const navigationSections = [
         icon: Stamp,
         label: "nav_points",
       },
-      // { name: "Ratings", href: "/ratings", icon: Star, label: "nav_ratings" },
     ],
   },
   {

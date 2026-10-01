@@ -32,7 +32,6 @@ import {
 } from "@/lib/phone";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
-// Two-step login page: email + password, or phone number (for staff invited over Telegram). It handles user input, form submission, OTP verification, and error handling. The page also remembers the last login method used and provides a responsive design with a poster section for visual appeal.
 function resolveNextPath(): string {
   if (typeof window === "undefined") return "/";
   const next = new URLSearchParams(window.location.search).get("next");
@@ -69,7 +68,6 @@ const FIELD_CLASS =
 const SUBMIT_CLASS =
   "mt-8 h-12 w-full rounded-md bg-black text-sm font-semibold text-white disabled:opacity-60";
 
-// "TELEGRAM" is what the old Telegram-widget tab stored; it now means the phone tab.
 const parseLoginMethod = (raw: string | null): LoginMethod =>
   raw === "PHONE" || raw === "TELEGRAM" ? "PHONE" : "EMAIL";
 
@@ -83,13 +81,12 @@ export default function AuthPage() {
   const [error, setError] = useState("");
 
   const [rememberMe, setRememberMe] = useState(true);
-
-  // Remembers the last method used on this browser, so a phone-only barista isn't sent back to
-  // the email form every time. Restored after mount to keep the prerendered HTML stable.
-  // "TELEGRAM" is what the old Telegram-widget tab stored; it now means the phone tab.
-  const [method, setMethod] = useLocalStorageState<LoginMethod>(LOGIN_METHOD_KEY, parseLoginMethod);
+  const [method, setMethod] = useLocalStorageState<LoginMethod>(
+    LOGIN_METHOD_KEY,
+    parseLoginMethod,
+  );
   const chooseMethod = (next: LoginMethod) => {
-    setMethod(next); // also remembers it for next time
+    setMethod(next);
     setError("");
   };
 
@@ -97,17 +94,12 @@ export default function AuthPage() {
   const [otp, setOtp] = useState("");
 
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
-  const [loginPhone, { isLoading: isSendingPhoneCode }] = useLoginPhoneMutation();
+  const [loginPhone, { isLoading: isSendingPhoneCode }] =
+    useLoginPhoneMutation();
   const [verifyOtp, { isLoading: isVerifying }] = useVerifyLoginOtpMutation();
   const [resendOtp, { isLoading: isResending }] = useResendOtpMutation();
   const [fetchCurrentUser] = useLazyGetCurrentUserQuery();
   const [logout] = useLogoutMutation();
-
-  /**
-   * Every sign-in path ends here. The dashboard is staff-only, so a customer account is signed
-   * straight back out with an explanation instead of landing on the "no access" screen. If the
-   * profile lookup fails, carry on — AuthGuard checks the role again on the next page.
-   */
   const finishSignIn = async () => {
     let role;
     try {
@@ -121,9 +113,7 @@ export default function AuthPage() {
     }
     try {
       await logout().unwrap();
-    } catch {
-      // The mutation clears local tokens either way.
-    }
+    } catch {}
     setLoginTicket(null);
     setOtp("");
     setPassword("");
@@ -222,8 +212,6 @@ export default function AuthPage() {
   return (
     <main className="min-h-screen bg-[#1f1f1f] p-4 text-black sm:p-8">
       <p className="mb-4 text-sm text-white/50">Login</p>
-      {/* The card widens with a wide (zoomed-out) viewport instead of stopping at 80rem, so it
-          keeps roughly the same proportions on screen at any zoom level. */}
       <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-[clamp(80rem,70vw,120rem)] overflow-hidden rounded-2xl bg-white lg:grid-cols-2">
         <section className="flex items-center justify-center px-6 py-12">
           <div className="w-full max-w-lg min-[1920px]:max-w-xl">
@@ -249,9 +237,6 @@ export default function AuthPage() {
               </p>
             </div>
 
-            {/* Two ways in: staff invited over Telegram have no email or password — they sign in by
-                phone with a code sent to Telegram — while the super admin and password-created
-                staff sign in by email. */}
             <div
               role="tablist"
               aria-label="Sign-in method"
@@ -288,7 +273,9 @@ export default function AuthPage() {
                         className={`${FIELD_CLASS} px-11 tabular-nums`}
                         placeholder={PHONE_PLACEHOLDER}
                         value={phone}
-                        onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+                        onChange={(e) =>
+                          setPhone(formatPhoneInput(e.target.value))
+                        }
                         maxLength={PHONE_MAX_LENGTH}
                         autoComplete="tel-national"
                         required
@@ -297,8 +284,8 @@ export default function AuthPage() {
                     </span>
                   </label>
                   <p className="mt-2 text-xs text-gray-500">
-                    The number your admin invited. The code arrives in the Telegram chat that
-                    accepted the invite.
+                    The number your admin invited. The code arrives in the
+                    Telegram chat that accepted the invite.
                   </p>
 
                   {error ? (
@@ -377,7 +364,6 @@ export default function AuthPage() {
               )}
             </div>
 
-            {/* Shared by both methods — it picks where the session is stored, not how you sign in. */}
             <label className="mt-6 inline-flex cursor-pointer items-center gap-3 text-sm">
               <input
                 type="checkbox"
@@ -399,9 +385,6 @@ export default function AuthPage() {
           </div>
         </section>
 
-        {/* Posters are placed and sized against this panel (container query units), not in fixed
-            pixels, so the composition holds at any zoom level instead of drifting apart when
-            zoomed out or piling up when zoomed in. */}
         <section className="relative hidden overflow-hidden bg-[#f7f6f1] [container-type:size] lg:block">
           <div className="absolute left-[10%] top-[13%] aspect-[13/18] w-[min(32cqw,25cqh)] -rotate-[28deg] rounded-lg bg-white p-[2.5cqmin] shadow-2xl">
             <Poster
@@ -512,9 +495,6 @@ function Poster({
   subtitle: string;
   light?: boolean;
 }) {
-  // Type and spacing are in container units of the poster itself (the outer div is the
-  // container, so the inner one's padding resolves against it too), letting the artwork scale
-  // with the poster rather than overflowing it when the panel is small.
   return (
     <div
       className={`h-full rounded-md border [container-type:inline-size] ${

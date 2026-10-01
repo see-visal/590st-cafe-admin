@@ -11,7 +11,6 @@ import {
   useMapEvents,
 } from "react-leaflet";
 
-// picker location map
 const pinIcon = L.icon({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   iconRetinaUrl:
@@ -42,9 +41,6 @@ function ClickToPlace({
   return null;
 }
 
-/** Follows `lat`/`lng` from outside the map (the search box, "Locate Me") by recentering the
- *  view on them. A click or drag on the map itself already lands close to the current center,
- *  so this stays quiet then instead of fighting the gesture that just happened. */
 function FollowExternalCoords({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
   const isFirstRender = useRef(true);
@@ -55,7 +51,7 @@ function FollowExternalCoords({ lat, lng }: { lat: number; lng: number }) {
       return;
     }
     const center = map.getCenter();
-    const driftDegrees = 0.0005; // ~50m — a click/drag rarely lands exactly on the old center
+    const driftDegrees = 0.0005;
     if (
       Math.abs(center.lat - lat) > driftDegrees ||
       Math.abs(center.lng - lng) > driftDegrees
@@ -67,10 +63,6 @@ function FollowExternalCoords({ lat, lng }: { lat: number; lng: number }) {
   return null;
 }
 
-/** Drag-the-pin / click-anywhere map picker for staff to set a venue's coordinates, mirroring
- *  the customer app's own delivery-location picker so staff pin locations the same way
- *  customers do. Runs on OpenStreetMap tiles (no API key needed). Always mount this behind a
- *  `next/dynamic(..., { ssr: false })` import — Leaflet touches `window` on import. */
 export default function LocationMapPicker({
   lat,
   lng,
