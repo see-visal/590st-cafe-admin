@@ -62,8 +62,6 @@ type CategoryFormFields = {
   name: string;
   description: string;
   status: Status;
-  // Blank means an internal category (e.g. stock-in materials) that customers never order
-  // from directly, and that accepts no sugar/ice/milk customisation.
   categoryGroup: CategoryGroup | "";
 };
 
@@ -108,12 +106,8 @@ export default function Categories() {
   } = useListCategoriesQuery({ page, size });
   const list = listLoadState({ isFetching, currentData, error });
 
-  // The category endpoint has no product count, so derive it from the product list. One extra
-  // request, and it stays correct as products move between categories.
   const { data: productPage, refetch: refetchProducts } = useListProductsQuery({ page: 1, size: 500 });
 
-  // A category, product or extra changed anywhere reaches this page instantly instead of only
-  // on its own next mutation or a manual refresh — the product-count column depends on both.
   useCatalogAlerts(
     useCallback(() => {
       void refetch();
@@ -140,7 +134,6 @@ export default function Categories() {
     return counts;
   }, [productPage]);
 
-  // Server-side filtering is not offered on this endpoint, so narrow the current page here.
   const visibleCategories = useMemo(
     () =>
       categories.filter((category) => {
@@ -359,7 +352,6 @@ export default function Categories() {
               </option>
             ))}
           </FormSelect>
-          {/* Status is update-only: the API always creates a category ACTIVE. */}
           {selected ? (
             <FormSelect
               label="Status"

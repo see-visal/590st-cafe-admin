@@ -1,8 +1,6 @@
 import type { AuthTokenResponse } from "@/store/api/types";
 import { clearPersistentState } from "@/hooks/usePersistentState";
 
-/// authStorage.ts
-
 const ACCESS_TOKEN_KEY = "authToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
 
@@ -10,7 +8,6 @@ function canUseStorage(): boolean {
   return typeof window !== "undefined";
 }
 
-/** Whichever store currently holds a session — defaults to localStorage for a fresh login. */
 function activeStorage(): Storage {
   return window.sessionStorage.getItem(REFRESH_TOKEN_KEY)
     ? window.sessionStorage
@@ -41,7 +38,6 @@ export function getRefreshToken(): string | null {
   }
 }
 
-// Sets the access and refresh tokens in either localStorage (if `remember` is true) or sessionStorage (if false). If `remember` is undefined, it uses whichever storage currently holds a session. It also clears the other storage to avoid having tokens in both places.
 export function setTokens(tokens: AuthTokenResponse, remember?: boolean): void {
   if (!canUseStorage()) return;
   try {
@@ -60,13 +56,11 @@ export function setTokens(tokens: AuthTokenResponse, remember?: boolean): void {
     storage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
     storage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
   } catch {
-    // Private mode / storage disabled — the session simply will not survive a reload.
   }
 }
 
 export function clearTokens(): void {
   if (!canUseStorage()) return;
-  // Saved drafts and filters belong to the account that made them.
   clearPersistentState();
   try {
     window.localStorage.removeItem(ACCESS_TOKEN_KEY);
@@ -74,7 +68,6 @@ export function clearTokens(): void {
     window.sessionStorage.removeItem(ACCESS_TOKEN_KEY);
     window.sessionStorage.removeItem(REFRESH_TOKEN_KEY);
   } catch {
-    // Nothing to clear.
   }
 }
 

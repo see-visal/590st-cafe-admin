@@ -9,7 +9,6 @@ import type {
   UpdateBakongExchangeRateRequest,
 } from "./types";
 
-/// A single API slice for all reporting endpoints, including daily and weekly reports, finance summaries, and exchange rates. It uses the same `baseApi` as the other slices, so it shares the same auth headers and error handling.
 export const reportApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getOwnDailyReport: builder.query<
@@ -41,7 +40,6 @@ export const reportApi = baseApi.injectEndpoints({
       },
       providesTags: [{ type: "Report", id: "DAILY" }],
     }),
-    /** Shop-wide daily takings, broken down per barista. */
     getDailyReport: builder.query<
       AdminDailyReportResponse,
       { date?: string } | void

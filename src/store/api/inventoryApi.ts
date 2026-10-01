@@ -11,7 +11,6 @@ import type {
   UUID,
 } from "./types";
 
-/// A single API slice for all inventory-related endpoints, including stock movements and low-stock alerts. It uses the same `baseApi` as the other slices, so it shares the same auth headers and error handling.
 const STOCK_MOVEMENT_TAGS = (productId: UUID) => [
   { type: "Inventory" as const, id: productId },
   { type: "Inventory" as const, id: "LIST" },
@@ -44,7 +43,6 @@ export const inventoryApi = baseApi.injectEndpoints({
           : [{ type: "Inventory" as const, id: "LIST" }],
     }),
 
-    /** Backs the stock-alerts screen: everything at or below its reorder level. */
     listLowStock: builder.query<
       PageResponse<InventoryResponse>,
       PageQuery | void
@@ -101,9 +99,6 @@ export const inventoryApi = baseApi.injectEndpoints({
         STOCK_MOVEMENT_TAGS(productId),
     }),
 
-    // Bulk receiving — one row per SKU (sku, quantity, unitCost, note). Which products it
-    // touched isn't known client-side, so this invalidates every list-level tag rather than
-    // per-product ones.
     stockInFromExcel: builder.mutation<StockInImportResponse, File>({
       query: (file) => {
         const formData = new FormData();
@@ -122,10 +117,6 @@ export const inventoryApi = baseApi.injectEndpoints({
       ],
     }),
 
-    // Every stock-purchase expense for one calendar month, as an .xlsx workbook — a report, not
-    // the usual ApiResponse<T> JSON. The API marks it `attachment` (forces Save As, unlike an
-    // inline receipt/invoice PDF), so an error still comes back as JSON and only a 2xx is read
-    // as a blob.
     downloadMonthlyStockExpenseReport: builder.mutation<
       Blob,
       { month: string } | void

@@ -57,7 +57,6 @@ const INVENTORY_TABLE_HEADERS = [
   "Action",
 ] as const;
 
-/** The API models movements as stock-in (a purchase with a cost) or stock-cut (a draw-down). */
 type MovementKind = "STOCK_IN" | "STOCK_CUT";
 
 type StockLevel = "OUT" | "LOW" | "OK";
@@ -89,7 +88,6 @@ export default function Inventory() {
   const [size, setSize] = usePageSize();
   const [searchTerm, setSearchTerm] = usePersistentState("inventory:searchTerm", "");
   const [levelFilter, setLevelFilter] = usePersistentState("inventory:levelFilter", "");
-  // yyyy-MM, matching both <input type="month"> and the API's own YearMonth param.
   const [expenseMonth, setExpenseMonth] = usePersistentState("inventory:expenseMonth", () => new Date().toISOString().slice(0, 7));
 
   const {
@@ -101,11 +99,8 @@ export default function Inventory() {
   } = useListInventoryQuery({ page, size });
   const list = listLoadState({ isFetching, currentData, error });
 
-  // A stock-in, stock-cut or Excel import from another tab reaches this list instantly instead
-  // of only on this page's own next mutation or a manual refresh.
   useInventoryAlerts(useCallback(() => { void refetch(); }, [refetch]));
 
-  // The inventory rows carry no SKU, so pair them with the product list for the picker.
   const { data: productPage } = useListProductsQuery({ page: 1, size: 500 });
 
   const [stockIn, { isLoading: isStockingIn }] = useStockInMutation();
@@ -401,7 +396,6 @@ export default function Inventory() {
               required
             />
           ) : (
-            /* Which cost layers the cut consumes — FIFO takes the oldest batch first. */
             <FormSelect
               label="Costing Strategy"
               placeholder="Select strategy"

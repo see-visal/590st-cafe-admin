@@ -20,7 +20,6 @@ import { usePersistentState } from "@/hooks/usePersistentState";
 
 const emptyForm: AttendanceInput = { baristaId: "", checkInAt: "", checkOutAt: "", note: "" };
 const displayTime = (value: string | null) => value ? value.replace("T", " ").slice(0, 19) : "—";
-// "YYYY-MM-DDTHH:mm" in the browser's own clock, which is what a datetime-local input expects.
 const toLocalInput = (date: Date) =>
   new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
@@ -34,9 +33,7 @@ export default function AttendanceView() {
   const [form, setForm] = usePersistentState<AttendanceInput>("attendance:form", emptyForm);
   const [editing, setEditing] = usePersistentState<AttendanceResponse | null>("attendance:editing", null);
   const [formOpen, setFormOpen] = usePersistentState("attendance:formOpen", false);
-  // Recomputed whenever the form opens, so the pickers never offer a time that has not happened.
   const [latestAllowed, setLatestAllowed] = useState(() => toLocalInput(new Date()));
-  // Which row's one-click check-out is in flight, so only that button shows as busy.
   const [closingId, setClosingId] = useState<string | null>(null);
   const refresh = { pollingInterval: 30000 };
   const staff = useListBaristasQuery({ page: 1, size: 200 }, { skip: !isAdmin });
@@ -65,18 +62,6 @@ export default function AttendanceView() {
       checkOutAt: record.checkOutAt ?? "", note: record.note ?? "" } : emptyForm);
     setFormOpen(true);
   };
-  /**
-   * Closes an open shift from the list, in one click.
-   *
-   * Admins and super admins have no punch card of their own — the check in/out card is
-   * barista-only, and /api/barista/attendance is hasRole("BARISTA") server-side — so the only
-   * way for them to end a shift was the "Correct" dialog, which reads as a data fix rather
-   * than "check this person out" and so was never found. This uses the same correction
-   * endpoint with the check-out time set to now.
-   *
-   * The time is truncated to the current minute, which is always at or behind the server's
-   * clock, so it can never trip the API's "check-out cannot be in the future" rule.
-   */
   const closeShift = async (record: AttendanceResponse) => {
     if (!(await confirm({ title: "Check out", description: `Check ${record.baristaName} out now?` }))) return;
     setClosingId(record.id);
@@ -95,7 +80,6 @@ export default function AttendanceView() {
 
   const save = async () => {
     if (!form.baristaId || !form.checkInAt) { toast.error("Choose a staff member and check-in time."); return; }
-    // Mirrors the API rule, so the mistake is caught in the form rather than after a round trip.
     const now = toLocalInput(new Date());
     if (form.checkInAt > now) { toast.error("Check-in cannot be in the future — that shift has not started yet."); return; }
     if (form.checkOutAt && form.checkOutAt > now) { toast.error("Check-out cannot be in the future — leave it empty if the shift is still running."); return; }
@@ -122,8 +106,6 @@ export default function AttendanceView() {
           {busy ? "Saving..." : currentShift.data ? "Check out" : "Check in"}
         </button>}
     </section>}
-    {/* Same field styling as every other filter bar: label above control, one column on a
-        phone, a row from tablet up. */}
     {isAdmin && <div className="my-4 grid grid-cols-1 items-end gap-4 rounded-xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
       <label className="form_field">
         <span className="form_field_label">Staff</span>
@@ -150,8 +132,6 @@ export default function AttendanceView() {
     {records.error && <div role="alert" className="my-3 text-red-600"><p>{apiErrorMessage(records.error as never, "Could not load attendance.")}</p>
       <button type="button" onClick={() => { void records.refetch(); }} className="underline">Retry</button></div>}
     <div className="mt-4 overflow-x-auto rounded-xl border bg-white">
-      {/* min-w: scroll sideways on a phone rather than crushing Note into a sliver that wraps a
-          word per line and stretches every row. */}
       <table className="w-full min-w-[760px] text-left text-sm"><thead><tr className="border-b bg-gray-50">
         {['Staff', 'Check in', 'Check out', 'Worked', 'Note', ...(isAdmin ? ['Action'] : [])].map((label) => <th key={label} className="whitespace-nowrap p-3">{label}</th>)}
       </tr></thead><tbody>

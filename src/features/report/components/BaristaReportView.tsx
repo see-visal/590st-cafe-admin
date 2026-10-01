@@ -23,7 +23,6 @@ export default function BaristaReportView() {
         <FilterActions onClear={() => setDate(shopDate())} onSearch={refetch} />
       </FilterPanel>
       <DataCard title="My Sales" meta={date}>
-        {/* A background refresh keeps the last numbers; placeholders only before the first answer. */}
         {!report && error ? (
           <div className="p-4">
             <ErrorState error={error} fallback="Could not load your daily report." onRetry={refetch} isRetrying={isFetching} />

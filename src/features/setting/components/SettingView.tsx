@@ -48,17 +48,6 @@ function refreshLabel(seconds: number) {
   return `${seconds / 60} min`;
 }
 
-/**
- * Two kinds of setting live here, and the page keeps them apart on purpose:
- *
- *  - Server settings (the Bakong rate) — shared by everyone, admin-only, stored in the API.
- *  - Browser settings (language, page size, refresh) — per account, per device, held in
- *    localStorage and read back by the screens they affect.
- *
- * Anything that cannot be honoured is not offered. The display-theme switch that used to sit
- * here was one of those: the admin UI paints its own light palette, and the provider runs with
- * `enableSystem={false}`, so none of its three buttons changed anything on screen.
- */
 export default function Settings() {
   const {
     data: currentUser,
@@ -71,7 +60,6 @@ export default function Settings() {
   const { locale, setLocale } = useI18n();
   const { preferences, setPreferences, resetPreferences } = useAdminPreferences();
 
-  // An unreachable API is reported once, app-wide, by a toast (see baseApi) — not per page.
   const rateQuery = useGetExchangeRateQuery(undefined, { skip: !isAdmin });
 
   const [updateRate, { isLoading: isSavingRate }] = useUpdateExchangeRateMutation();
@@ -80,7 +68,6 @@ export default function Settings() {
   const [khrPerUsd, setKhrPerUsd] = useState("");
   const [marketRate, setMarketRate] = useState("");
 
-  // Seed the inputs from each rate the server returns (first load, and after a save).
   const [seededFrom, setSeededFrom] = useState<typeof rate>(undefined);
   if (rate && rate !== seededFrom) {
     setSeededFrom(rate);

@@ -1,4 +1,3 @@
-/** Calendar dates match the API's Asia/Phnom_Penh reporting zone. */
 export function shopDate(date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Phnom_Penh", year: "numeric", month: "2-digit", day: "2-digit",

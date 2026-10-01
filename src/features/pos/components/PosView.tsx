@@ -37,24 +37,8 @@ import { cn, humanise, titleCase } from "@/lib/utils";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
 
-/** How often to ask the API whether the transfer has landed, same cadence as the customer app. */
 const BAKONG_POLL_MS = 4000;
 
-/**
- * Point of sale. Checkout is two API calls: creating a PENDING order from the cart, then
- * settling it with the cash tendered. Admin and barista each ring up their own sale against
- * their own endpoint pair (/api/admin/orders vs /api/barista/orders — both support it, per
- * AdminOrderController's own doc comment: "ring up walk-in sales the same as a barista can").
- * Stock is drawn down server-side, so the product grid refetches after each sale.
- *
- * A product carries no price of its own — every price lives on one of its variants (e.g.
- * Medium/Large), so a cart line is a product plus the specific variant chosen, not a size
- * add-on layered on top of a shared base price. Extras (add-ons like Pearl) exist in the API
- * but aren't offered here yet — a product's own attached extras would need a per-line picker,
- * which is future work, not part of this pass.
- */
-
-/** A cart line is a product plus its chosen variant — the same product in two variants is two lines. */
 type CartLine = {
   key: string;
   product: ProductResponse;
@@ -62,7 +46,6 @@ type CartLine = {
   quantity: number;
 };
 
-/** Deterministic swatch so a product looks the same on every till, with no colour field in the API. */
 function accentFor(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) % 360;
@@ -125,28 +108,18 @@ export default function PosView() {
   const [note, setNote] = usePersistentState("pos:note", "");
   const [pendingOrder, setPendingOrder] = usePersistentState<OrderResponse | null>("pos:pendingOrder", null);
   const confirmingRef = useRef(false);
-  // The sale just paid, held so its invoice can be printed while the customer is still at the
-  // counter — kept across a refresh so a reload doesn't lose the reprint.
   const [completedSale, setCompletedSale] = usePersistentState<OrderResponse | null>("pos:completedSale", null);
 
   const [cashCurrency, setCashCurrency] = useState<Currency>("USD");
-  // The shop's own rate, kept up to date from Settings — a KHR customer is charged against
-  // this, not a client-side guess. Admin-only endpoint (SecurityConfig), so a barista till
-  // simply never sees KHR as a cash option rather than firing a request that would 403.
   const { data: exchangeRate } = useGetExchangeRateQuery(undefined, { skip: !isAdmin });
 
-  // Bakong QR state — a walk-in sale scans this on the shop's own screen, so (unlike the
-  // customer app's payment page) there's no "open in banking app" deeplink: that would open a
-  // banking app on the till, not the customer's phone.
   const [bakongCurrency, setBakongCurrency] = useState<Currency>("USD");
   const [bakongQr, setBakongQr] = useState<{ dataUrl: string; amount: number } | null>(null);
   const [bakongSecondsLeft, setBakongSecondsLeft] = useState<number | null>(null);
   const [bakongFailure, setBakongFailure] = useState<string | null>(null);
   const [isGeneratingBakong, setIsGeneratingBakong] = useState(false);
   const [isCheckingBakong, setIsCheckingBakong] = useState(false);
-  // Guards against overlapping calls; the state above is what the UI actually renders from.
   const isGeneratingBakongRef = useRef(false);
-  /** The last check failure already shown, so a broken bank link isn't re-toasted every poll. */
   const bakongCheckErrorRef = useRef<string | null>(null);
   const isCheckingBakongRef = useRef(false);
 
@@ -157,11 +130,8 @@ export default function PosView() {
     ...(activeCategory !== "All" ? { categoryId: activeCategory } : {}),
   });
   const { data: productPage, refetch } = productsQuery;
-  // A catalog refresh mid-sale keeps the grid in place; placeholders only for a new category.
   const products = listLoadState(productsQuery);
 
-  // A price, stock or catalog change made from another tab (or another staff member) reaches
-  // the till instantly — a stale price at checkout is a real-money mistake, not a cosmetic one.
   useCatalogAlerts(
     useCallback(() => {
       void refetch();
@@ -195,7 +165,6 @@ export default function PosView() {
     const term = search.trim().toLowerCase();
     return (productPage?.content ?? []).filter((product) => {
       if (product.status !== "ACTIVE") return false;
-      // No active variant means no price, which means it can't be rung up at all.
       if (!product.variants.some((v) => v.status === "ACTIVE")) return false;
       if (!term) return true;
       return (
@@ -278,7 +247,6 @@ export default function PosView() {
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const total = cart.reduce((sum, line) => sum + Number(line.variant.finalPrice) * line.quantity, 0);
 
-  // Original (pre-discount) value, so the modal can show what the customer saved.
   const grossTotal = cart.reduce((sum, line) => sum + Number(line.variant.price) * line.quantity, 0);
   const discount = Math.max(grossTotal - total, 0);
 
@@ -293,8 +261,6 @@ export default function PosView() {
     accent: accentFor(line.product.id),
   }));
 
-  /** Reuses the already-created order if only the payment leg is being retried (e.g. a failed
-   *  cash confirm, or switching from Cash to Bakong on the same sale). */
   const ensureOrder = async (): Promise<OrderResponse> => {
     if (pendingOrder) return pendingOrder;
     const items: OrderItemRequest[] = cart.map((line) => ({
@@ -318,25 +284,16 @@ export default function PosView() {
         body: { currency, amountTendered },
       }).unwrap();
 
-      // The sale-complete dialog shows the change due and offers the invoice.
       setPaymentOpen(false);
       resetCart();
       setCompletedSale(paid);
     } catch (err) {
-      // The order may already exist if only the payment leg failed — the queue will show it
-      // as PENDING so it can be settled there rather than silently lost.
       toast.error(apiErrorMessage(err as never, "Could not complete the sale."));
     } finally {
       confirmingRef.current = false;
     }
   };
 
-  /**
-   * Generates (or regenerates, after expiry) a Bakong QR for this sale — the same call the
-   * customer app makes on its own /payment page, but shown on the shop's own screen for the
-   * customer to scan in person. No deeplink here: opening a banking app would open it on the
-   * till, not the customer's phone.
-   */
   const handleGenerateBakongQr = async () => {
     if (cart.length === 0 || isGeneratingBakongRef.current) return;
     isGeneratingBakongRef.current = true;
@@ -361,8 +318,6 @@ export default function PosView() {
     }
   };
 
-  // `manual` is the Check Payment button, which always gets an answer. The auto-poll stays quiet
-  // unless the check itself breaks, and then reports that once — not on every tick.
   const handleCheckBakongPayment = async (manual = false) => {
     if (!pendingOrder || isCheckingBakongRef.current) return;
     isCheckingBakongRef.current = true;
@@ -375,7 +330,6 @@ export default function PosView() {
         resetCart();
         setCompletedSale(updated);
       } else if (manual) {
-        // Not a failure: the bank has no transfer for this QR yet.
         toast("No payment has arrived yet. Check again once the customer has paid.");
       }
     } catch (err) {
@@ -388,8 +342,6 @@ export default function PosView() {
     }
   };
 
-  // Auto-generate the QR the moment the Bakong tab is opened, same as switching currency —
-  // the customer shouldn't need a separate "Generate" click on top of picking the tab.
   useEffect(() => {
     if (paymentOpen && paymentMethod === "bakong" && !bakongQr && !isGeneratingBakongRef.current) {
       void handleGenerateBakongQr();
@@ -397,16 +349,12 @@ export default function PosView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentOpen, paymentMethod, bakongCurrency]);
 
-  // Countdown to the QR's real expiry, reported as a duration so no timezone reconciliation
-  // is needed.
   useEffect(() => {
     if (paymentMethod !== "bakong" || bakongSecondsLeft === null || bakongSecondsLeft <= 0) return;
     const timer = setTimeout(() => setBakongSecondsLeft((s) => (s ?? 1) - 1), 1000);
     return () => clearTimeout(timer);
   }, [paymentMethod, bakongSecondsLeft]);
 
-  // Polls for the transfer while a live QR is on screen — the customer scans on this same
-  // screen, so there's no "returning from a banking app" focus event to hook into instead.
   useEffect(() => {
     if (paymentMethod !== "bakong" || !bakongQr || (bakongSecondsLeft ?? 0) <= 0) return;
     const interval = setInterval(() => { void handleCheckBakongPayment(); }, BAKONG_POLL_MS);
@@ -502,9 +450,6 @@ export default function PosView() {
                     prices.length > 1 && Math.min(...prices) !== Math.max(...prices)
                       ? `$${Math.min(...prices).toFixed(2)}–$${Math.max(...prices).toFixed(2)}`
                       : `$${(prices[0] ?? 0).toFixed(2)}`;
-                  // A single variant needs no picker — the whole card just adds it, same as a
-                  // plain product used to. More than one means the variant itself must be
-                  // chosen, so the generic +/- control doesn't apply.
                   const onlyVariant = activeVariants.length === 1 ? activeVariants[0] : null;
                   const inCart = cart
                     .filter((line) => line.product.id === product.id)
@@ -590,7 +535,6 @@ export default function PosView() {
             </div>
           </div>
 
-          {/* CreateOrderRequest carries only items and a note — no dining option or table. */}
           <div className="pos_order_selects">
             <FormSelect
               label="Order note"

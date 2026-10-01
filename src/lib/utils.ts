@@ -5,8 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** API enum values are SCREAMING_SNAKE_CASE; this is the one place that turns them into
- * display text — e.g. "PENDING_VERIFICATION" -> "Pending Verification". */
 export function humanise(value: string): string {
   return value
     .toLowerCase()
@@ -15,7 +13,6 @@ export function humanise(value: string): string {
     .join(" ");
 }
 
-/** SugarLevel/IceLevel are drink customisation percentages, clearer as "25%" than "Twenty Five". */
 const LEVEL_PERCENT: Record<string, string> = {
   ZERO: "0%",
   TWENTY_FIVE: "25%",
@@ -28,12 +25,10 @@ export function formatLevel(level: string): string {
   return LEVEL_PERCENT[level] ?? humanise(level);
 }
 
-/** SKUs are a business code, always displayed uppercase regardless of how they were typed. */
 export function formatSku(sku: string): string {
   return sku.toUpperCase();
 }
 
-// Prints a PDF through a hidden iframe so the print dialog opens without leaving the page.
 export function printPdfBlob(blob: Blob) {
   const url = URL.createObjectURL(blob);
   const frame = document.createElement("iframe");
@@ -45,10 +40,8 @@ export function printPdfBlob(blob: Blob) {
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
     } catch {
-      // Print blocked (e.g. some mobile browsers) — let the browser show the PDF instead.
       window.open(url, "_blank");
     }
-    // Long enough for the print dialog to have spooled the document.
     setTimeout(() => {
       frame.remove();
       URL.revokeObjectURL(url);
@@ -58,7 +51,6 @@ export function printPdfBlob(blob: Blob) {
   document.body.appendChild(frame);
 }
 
-// A one-off download of a blob, e.g. an invoice PDF or a CSV export, without leaving the current page.
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -67,11 +59,9 @@ export function downloadBlob(blob: Blob, filename: string) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  // Revoking in the same tick can cancel the download in some browsers.
   setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
-/** Capitalises the first letter of every word, leaving the rest as typed. */
 export function titleCase(value: string): string {
   return value.replace(
     /\S+/g,
@@ -83,8 +73,6 @@ function formatMoney(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
-/// The one place that turns a plain number into money for display, currency-aware. Riel has no
-/// decimals, so it is rounded and shown with the ៛ sign; everything else is dollars.
 export function formatByCurrency(
   value: number | string | null | undefined,
   currency: "USD" | "KHR" | null | undefined,
@@ -95,8 +83,6 @@ export function formatByCurrency(
   return `$${amount.toFixed(2)}`;
 }
 
-/** "5 min ago" / "3 hr ago" / "2 d ago" — for a live queue where how long something has been
- * waiting matters more than the clock time it happened at (a staff call, a pending order). */
 export function timeAgo(value: string): string {
   const then = new Date(value).getTime();
   if (Number.isNaN(then)) return "";
@@ -107,7 +93,6 @@ export function timeAgo(value: string): string {
   return `${Math.floor(hours / 24)} d ago`;
 }
 
-/** A product's price as shown in lists: one price, or a "min–max" range across active variants. */
 export function productPriceLabel(
   variants: { finalPrice: number; status: string }[],
 ): string {

@@ -26,7 +26,6 @@ import { humanise, timeAgo, titleCase } from "@/lib/utils";
 
 const polling = { pollingInterval: 30000, skipPollingIfUnfocused: true };
 
-//alerts for operational issues (staff calls, pending orders, low stock, unread messages)
 const SEEN_KEY = "alerts-seen-count";
 
 function readSeen(): number {
@@ -42,11 +41,9 @@ function writeSeen(value: number) {
   try {
     window.localStorage.setItem(SEEN_KEY, String(value));
   } catch {
-    // Storage blocked — the badge just keeps showing everything.
   }
 }
 
-//it the real time, the unseen count is the total count minus the last-seen count. The last-seen count is stored in localStorage so it persists across tabs and reloads. The unseen count is undefined until the first poll returns a real count, so the badge doesn't flash "0" on first load.
 let seenValue: number | null = null;
 const seenListeners = new Set<() => void>();
 
@@ -75,8 +72,6 @@ function useUnseenCount(count: number | undefined) {
     if (seenValue === null) publishSeen(readSeen(), false);
   }, []);
 
-  // Work that has since been dealt with must not mask the next new alert, so the watermark
-  // follows the count back down.
   useEffect(() => {
     if (count === undefined || seen === null || count >= seen) return;
     publishSeen(count, true);
@@ -141,24 +136,18 @@ export function useOperationalAlerts() {
       : undefined;
   const { unseen, markSeen } = useUnseenCount(count);
 
-  // Every order change (a new delivery order needing a fee, most urgently) reaches this the
-  // instant the API broadcasts it, rather than waiting up to 30s for the next poll.
   useStaffOrderAlerts(
     useCallback(() => {
       if (isAdmin || isBarista) void orders.refetch();
     }, [isAdmin, isBarista, orders]),
   );
 
-  // A customer pressing "call staff" is urgent — they're waiting right now — so this reaches
-  // every open dashboard the instant the API broadcasts it rather than up to 30s later.
   useStaffCallAlerts(
     useCallback(() => {
       if (isAdmin || isBarista) void staffCalls.refetch();
     }, [isAdmin, isBarista, staffCalls]),
   );
 
-  // A stock movement (low-stock badge) or a new customer message reaches this badge instantly
-  // too, instead of only on the next 30s poll.
   useInventoryAlerts(
     useCallback(() => {
       if (isAdmin || isBarista) void stock.refetch();

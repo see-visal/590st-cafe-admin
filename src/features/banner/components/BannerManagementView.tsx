@@ -61,7 +61,6 @@ const BANNER_TABLE_HEADERS = [
 type BannerFormFields = {
   title: string;
   linkUrl: string;
-  // Kept as a string for the numeric input; parsed only on submit.
   sortOrder: string;
   status: Status;
 };
@@ -73,11 +72,6 @@ const EMPTY_FORM: BannerFormFields = {
   status: "ACTIVE",
 };
 
-/**
- * The storefront carousel only follows a link that starts with "/" (a shop page) or "http" (an
- * external site) and sends anything else to /menu — so the same rule is enforced here, where the
- * admin can still fix it, instead of the slide silently going somewhere else.
- */
 function isUsableLink(link: string): boolean {
   return link.startsWith("/") || /^https?:\/\//i.test(link);
 }
@@ -181,7 +175,6 @@ export default function BannerManagementView() {
           id: selected.id,
           body: {
             title,
-            // "" clears a previously saved link; the API treats a missing field as "unchanged".
             linkUrl,
             sortOrder,
             status: form.status,
@@ -329,7 +322,6 @@ export default function BannerManagementView() {
                 </Cell>
                 <Cell>{banner.sortOrder}</Cell>
                 <Cell>
-                  {/* Same click-to-toggle status badge as the account tables. */}
                   <button
                     type="button"
                     onClick={() => handleToggleStatus(banner)}

@@ -43,7 +43,6 @@ import { formatPhoneInput, isValidPhone, PHONE_INVALID_MESSAGE, samePhone } from
 
 const GENDERS: Gender[] = ["MALE", "FEMALE", "OTHER"];
 
-/** Matches the API's ValidationPatterns.STRONG_PASSWORD_REGEX so we fail fast in the browser. */
 const STRONG_PASSWORD =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
@@ -51,18 +50,6 @@ const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
 const EMPTY_PASSWORD_FORM = { current: "", next: "", confirm: "" };
 
-/**
- * The signed-in account's own page: full detail plus the three things staff previously had no
- * way to do for themselves — edit their name/phone/gender, change their avatar, and change
- * their password. All of it goes through `/api/users/me`, which is open to any authenticated
- * account; `/api/admin/admins/{id}` is SUPER_ADMIN-only, so an admin or barista could not
- * maintain their own record before this existed.
- *
- * The super admin has no `User` row behind it — it signs in from SUPER_ADMIN_EMAIL /
- * SUPER_ADMIN_PASSWORD so the shop can never be locked out by a bad database. Its display
- * profile is still its own to maintain, and is stored separately; only the email and password
- * remain configuration, and only those two are disabled here.
- */
 export default function ProfileView() {
   const { data: user, isLoading, isFetching, error, refetch } = useGetCurrentUserQuery();
 
@@ -78,14 +65,9 @@ export default function ProfileView() {
   const [gender, setGender] = useState<string>("");
   const [password, setPassword] = useState(EMPTY_PASSWORD_FORM);
 
-  // The super admin signs in from configuration, so its email and password are the two things
-  // that still cannot be changed here. Its name, phone, gender and avatar are persisted like
-  // anyone else's and are editable.
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const isPasswordConfigDriven = isSuperAdmin;
 
-  // Re-seed the form from the server whenever the profile changes — including right after a
-  // save, so the inputs show exactly what was persisted (a trimmed name, a cleared phone).
   const [seededFrom, setSeededFrom] = useState<typeof user>(undefined);
   if (user && user !== seededFrom) {
     setSeededFrom(user);
@@ -109,8 +91,6 @@ export default function ProfileView() {
       return;
     }
 
-    // Send only what actually changed: the API treats null as "leave alone", and an untouched
-    // phone number should not be re-validated against the Cambodian format on every save.
     const body: UpdateProfileRequest = {};
     if (trimmedName !== user.fullName) body.fullName = trimmedName;
     if (!samePhone(phoneNumber, user.phoneNumber)) {
@@ -175,7 +155,6 @@ export default function ProfileView() {
   };
 
   const handlePickAvatar = async (file: File | null) => {
-    // Clear the input value so re-picking the same file still fires a change event.
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file) return;
 
@@ -313,7 +292,6 @@ export default function ProfileView() {
                     tone={statusTone(user.status)}
                   />
                 </DetailItem>
-                {/* The super admin is a configuration account with no Telegram to link. */}
                 {!isSuperAdmin ? (
                   <DetailItem label="Telegram">
                     <span className="inline-flex items-center gap-1.5">
@@ -466,7 +444,6 @@ export default function ProfileView() {
   );
 }
 
-/** Same grid as the loaded page, so nothing jumps when the profile arrives. */
 function ProfileSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3" role="status" aria-label="Loading your profile">

@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// picker location map
 const LocationMapPicker = dynamic(() => import("./LocationMapPicker"), {
   ssr: false,
   loading: () => (
@@ -23,12 +22,6 @@ const LocationMapPicker = dynamic(() => import("./LocationMapPicker"), {
 
 const PHNOM_PENH = { lat: 11.5621, lng: 104.916 };
 
-/**
- * Staff-facing venue pin picker for the admin dashboard — search, "Locate Me", or drag/click
- * the pin directly, same interaction the customer app offers for a delivery address. Only
- * hands back coordinates on "Use This Location"; the caller decides what to do with them (the
- * event form keeps its own lat/lng inputs as the source of truth, this just fills them in).
- */
 export function LocationPickerModal({
   open,
   onOpenChange,
@@ -51,9 +44,6 @@ export function LocationPickerModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [isLocating, setIsLocating] = useState(false);
 
-  // Re-seed from whatever the form currently holds each time the picker opens, so reopening it
-  // starts from the last confirmed pin rather than wherever it was left mid-search. Done while
-  // rendering the opening frame, so it never flashes the old pin first.
   const [wasOpen, setWasOpen] = useState(false);
   if (open !== wasOpen) {
     setWasOpen(open);

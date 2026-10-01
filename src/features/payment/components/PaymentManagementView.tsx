@@ -103,10 +103,6 @@ function formatDateTime(value: string | null) {
 const summarise = (order: OrderResponse) =>
   order.items.map((i) => `x${i.quantity} ${titleCase(i.productName)}`).join(", ") || "-";
 
-/**
- * The two payment queues the API exposes: cash-on-pickup orders waiting for staff to take
- * the money, and Bakong transfers the customer says they have sent, pending confirmation.
- */
 export default function PaymentManagementView() {
   const { confirm, confirmDialog } = useConfirmDialog();
   const [deliveryFeePage, setDeliveryFeePage] = usePersistentState("payments:deliveryFeePage", 1);
@@ -132,9 +128,6 @@ export default function PaymentManagementView() {
   const { data: deliveryBoardData, refetch: refetchDeliveryBoard } = deliveryBoardQuery;
   const deliveryBoardList = listLoadState(deliveryBoardQuery);
 
-  // A customer pinning a delivery location, or choosing Cash, reaches this the instant the API
-  // broadcasts it, instead of waiting up to `refresh`'s poll interval (or forever, if the staff
-  // member turned live refresh off in Settings) to see it show up as needing attention.
   useStaffOrderAlerts(
     useCallback(() => {
       void refetchDeliveryFee();
@@ -173,8 +166,6 @@ export default function PaymentManagementView() {
     }
   };
 
-  // Cash is always tallied in USD by default; KHR only unlocks once the exchange rate has
-  // loaded, since the till otherwise has no way to convert the USD-denominated total.
   const { data: exchangeRate } = useGetExchangeRateQuery();
   const khrPerUsdRate = exchangeRate ? Number(exchangeRate.khrPerUsdRate) : null;
 
@@ -182,8 +173,6 @@ export default function PaymentManagementView() {
   const [amountTendered, setAmountTendered] = useState("");
   const [currency, setCurrency] = useState<Currency>("USD");
 
-  // What's actually owed, converted into whichever currency is selected — totalAmount itself
-  // is always the USD-equivalent figure, never the KHR one.
   const payableDue = (order: OrderResponse, targetCurrency: Currency): number =>
     targetCurrency === "USD" || !khrPerUsdRate
       ? Number(order.totalAmount)
@@ -197,12 +186,9 @@ export default function PaymentManagementView() {
   const openCashModal = (order: OrderResponse) => {
     setCashOrder(order);
     setCurrency("USD");
-    // Pre-fill with the exact amount — the common case is the customer paying to the cent.
     setAmountTendered(exactAmountFor(order, "USD"));
   };
 
-  // Switching currency mid-entry must reseed the amount too — a USD figure left over after
-  // flipping to KHR would look like a valid tender while being off by ~4000x.
   const handleCashCurrencyChange = (next: Currency) => {
     setCurrency(next);
     if (cashOrder) setAmountTendered(exactAmountFor(cashOrder, next));
@@ -247,11 +233,6 @@ export default function PaymentManagementView() {
     }
   };
 
-  /**
-   * A cash delivery can be dispatched unpaid (the courier collects it on arrival), so this
-   * board offers two different actions per row rather than one that would just fail: collect
-   * the cash first if it's still owed — the API rejects "delivered" until that's settled.
-   */
   const handleMarkDelivered = async (order: OrderResponse) => {
     try {
       await markDelivered(order.id).unwrap();
@@ -266,10 +247,6 @@ export default function PaymentManagementView() {
   const bakongOrders = bakongData?.content ?? [];
   const deliveryBoardOrders = deliveryBoardData?.content ?? [];
 
-  // Separated by payment method, so cash and Bakong each get their own total rather than one
-  // combined figure — the two queues below are already split the same way. totalAmount is the
-  // canonical USD-equivalent figure on every order; bakongAmount is only comparable within its
-  // own bakongCurrency (USD or KHR) and isn't safe to sum across orders issued in different ones.
   const pickupTotal = pickupOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
   const bakongTotal = bakongOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
   const unpaidOnBoard = deliveryBoardOrders.filter(

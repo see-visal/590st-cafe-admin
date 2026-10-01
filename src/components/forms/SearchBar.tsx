@@ -23,7 +23,6 @@ export function SearchBar({
 }: SearchBarProps) {
   const [localValue, setLocalValue] = useState(value);
 
-  // Debounce search calls
   useEffect(() => {
     const timer = setTimeout(() => {
       if (localValue !== value) {
@@ -35,7 +34,6 @@ export function SearchBar({
     return () => clearTimeout(timer);
   }, [localValue, value, onChange, onSearch, debounceMs]);
 
-  // Follow the external value when it changes (e.g. a "clear filters" elsewhere).
   const [lastValue, setLastValue] = useState(value);
   if (value !== lastValue) {
     setLastValue(value);

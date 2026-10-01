@@ -1,5 +1,3 @@
-// A simple mechanism to show a welcome toast once per session, e.g. "Good morning, Alice!" when a staff member first logs in. It uses sessionStorage to track whether the welcome has been shown yet.
-
 const WELCOME_KEY = "welcomePending";
 
 export function markWelcomePending(): void {
@@ -7,11 +5,9 @@ export function markWelcomePending(): void {
   try {
     window.sessionStorage.setItem(WELCOME_KEY, "1");
   } catch {
-    // Storage blocked — nobody is greeted.
   }
 }
 
-/** True once per pending welcome; clears the mark as it reads it. */
 export function consumeWelcomePending(): boolean {
   if (typeof window === "undefined") return false;
   try {
