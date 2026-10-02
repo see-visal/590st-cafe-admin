@@ -1,8 +1,3 @@
-# Run from this folder (Deployment/local):
-#   docker compose --env-file .env.local -f docker-compose.local.yml up --build
-# --env-file makes compose read .env.local for the ${...} build args below (NEXT_PUBLIC_* are
-# baked in at build time, so env_file alone is too late). The :- fallbacks keep the build
-# working even if --env-file is forgotten.
 services:
   admin-web:
     build:
