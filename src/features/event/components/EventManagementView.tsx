@@ -47,6 +47,7 @@ import type { EventResponse, Status } from "@/store/api/types";
 import { titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 
 const EVENT_TABLE_HEADERS = [
   "No",
@@ -119,6 +120,7 @@ export default function EventManagementView() {
   const [size, setSize] = usePageSize();
   const [searchTerm, setSearchTerm] = usePersistentState("events:searchTerm", "");
   const [statusFilter, setStatusFilter] = usePersistentState("events:statusFilter", "");
+  const isFiltering = Boolean(searchTerm.trim() || statusFilter);
 
   const {
     data: eventPage,
@@ -126,7 +128,7 @@ export default function EventManagementView() {
     isFetching,
     error,
     refetch,
-  } = useListEventsQuery({ page, size });
+  } = useListEventsQuery(filteredQueryArgs(page, size, isFiltering));
   const list = listLoadState({ isFetching, currentData, error });
 
   const [createEvent, { isLoading: isCreating }] = useCreateEventMutation();
@@ -143,7 +145,7 @@ export default function EventManagementView() {
 
   const events = useMemo(() => eventPage?.content ?? [], [eventPage]);
 
-  const visibleEvents = useMemo(
+  const matchingEvents = useMemo(
     () =>
       events.filter((event) => {
         const term = searchTerm.trim().toLowerCase();
@@ -153,6 +155,8 @@ export default function EventManagementView() {
       }),
     [events, searchTerm, statusFilter]
   );
+  const view = filteredPage(matchingEvents, eventPage, page, size, isFiltering);
+  const visibleEvents = view.rows;
 
   const runningCount = events.filter((e) => eventWindow(e) === "RUNNING").length;
 
@@ -291,13 +295,13 @@ export default function EventManagementView() {
           label="Title"
           placeholder="Search events"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
         />
         <SelectField
           label="Status"
           placeholder="All statuses"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
           <option value="ACTIVE">Active</option>
           <option value="INACTIVE">Inactive</option>
@@ -318,7 +322,7 @@ export default function EventManagementView() {
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleEvents.length === 0}
-            emptyLabel="No events yet. Use Add Event to create the first one."
+            emptyLabel={isFiltering ? "No events match these filters." : "No events yet. Use Add Event to create the first one."}
             onRetry={refetch}
           />
           {list.showRows &&
@@ -326,7 +330,7 @@ export default function EventManagementView() {
               const win = eventWindow(event);
               return (
                 <Row key={event.id} striped={index % 2 === 1}>
-                  <Cell>{(page - 1) * size + index + 1}</Cell>
+                  <Cell>{view.offset + index + 1}</Cell>
                   <Cell>
                     <Thumbnail src={event.imageUrl ?? undefined} />
                   </Cell>
@@ -382,10 +386,10 @@ export default function EventManagementView() {
             })}
         </SimpleTable>
         <PaginationFooter
-          page={eventPage?.page ?? page}
-          totalPages={eventPage?.totalPages ?? 1}
+          page={view.page}
+          totalPages={view.totalPages}
           size={size}
-          totalElements={eventPage?.totalElements}
+          totalElements={view.totalElements}
           onPageChange={setPage}
           onSizeChange={(next) => {
             setSize(next);

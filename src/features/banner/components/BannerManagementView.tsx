@@ -47,6 +47,7 @@ import type { BannerResponse, Status } from "@/store/api/types";
 import { titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 
 const BANNER_TABLE_HEADERS = [
   "No",
@@ -95,6 +96,7 @@ export default function BannerManagementView() {
   const [size, setSize] = usePageSize();
   const [searchTerm, setSearchTerm] = usePersistentState("banners:searchTerm", "");
   const [statusFilter, setStatusFilter] = usePersistentState("banners:statusFilter", "");
+  const isFiltering = Boolean(searchTerm.trim() || statusFilter);
 
   const {
     data: bannerPage,
@@ -102,7 +104,7 @@ export default function BannerManagementView() {
     isFetching,
     error,
     refetch,
-  } = useListBannersQuery({ page, size });
+  } = useListBannersQuery(filteredQueryArgs(page, size, isFiltering));
   const list = listLoadState({ isFetching, currentData, error });
 
   const [createBanner, { isLoading: isCreating }] = useCreateBannerMutation();
@@ -119,7 +121,7 @@ export default function BannerManagementView() {
 
   const banners = useMemo(() => bannerPage?.content ?? [], [bannerPage]);
 
-  const visibleBanners = useMemo(
+  const matchingBanners = useMemo(
     () =>
       banners.filter((banner) => {
         const term = searchTerm.trim().toLowerCase();
@@ -129,6 +131,8 @@ export default function BannerManagementView() {
       }),
     [banners, searchTerm, statusFilter]
   );
+  const view = filteredPage(matchingBanners, bannerPage, page, size, isFiltering);
+  const visibleBanners = view.rows;
 
   const liveCount = banners.filter((banner) => banner.status === "ACTIVE").length;
   const missingImageCount = banners.filter(
@@ -273,13 +277,13 @@ export default function BannerManagementView() {
           label="Title"
           placeholder="Search banners"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
         />
         <SelectField
           label="Status"
           placeholder="All statuses"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
           <option value="ACTIVE">Active</option>
           <option value="INACTIVE">Inactive</option>
@@ -300,13 +304,13 @@ export default function BannerManagementView() {
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleBanners.length === 0}
-            emptyLabel="No banners yet. Use Add Banner to put the first slide on the homepage."
+            emptyLabel={isFiltering ? "No banners match these filters." : "No banners yet. Use Add Banner to put the first slide on the homepage."}
             onRetry={refetch}
           />
           {list.showRows &&
             visibleBanners.map((banner, index) => (
               <Row key={banner.id} striped={index % 2 === 1}>
-                <Cell>{(page - 1) * size + index + 1}</Cell>
+                <Cell>{view.offset + index + 1}</Cell>
                 <Cell>
                   <Thumbnail src={banner.imageUrl ?? undefined} />
                 </Cell>
@@ -350,10 +354,10 @@ export default function BannerManagementView() {
             ))}
         </SimpleTable>
         <PaginationFooter
-          page={bannerPage?.page ?? page}
-          totalPages={bannerPage?.totalPages ?? 1}
+          page={view.page}
+          totalPages={view.totalPages}
           size={size}
-          totalElements={bannerPage?.totalElements}
+          totalElements={view.totalElements}
           onPageChange={setPage}
           onSizeChange={(next) => {
             setSize(next);
