@@ -69,6 +69,7 @@ const ORDER_ACTIONS: Record<string, { label: string; tone: Tone }> = {
   CASH_SELECTED: { label: "Chose to pay cash", tone: "neutral" },
   BAKONG_QR_GENERATED: { label: "Bakong QR generated", tone: "neutral" },
   DELIVERY_FEE_SET: { label: "Delivery fee set", tone: "info" },
+  ESTIMATE_SET: { label: "Estimated time set", tone: "info" },
   CASH_COLLECTED: { label: "Cash collected", tone: "success" },
   BAKONG_CONFIRMED: { label: "Bakong payment confirmed", tone: "success" },
   PREPARING: { label: "Started preparing", tone: "info" },

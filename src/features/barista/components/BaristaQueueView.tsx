@@ -1,5 +1,6 @@
 "use client";
 import { OrderFulfillmentDetails } from "@/components/common/OrderFulfillmentDetails";
+import { OrderEstimateChip, OrderEstimateEditor } from "@/components/common/OrderEstimateEditor";
 
 import { useCallback, useState, type ReactNode } from "react";
 import toast from "react-hot-toast";
@@ -38,15 +39,14 @@ import {
   useCompleteBaristaOrderMutation,
   useDispatchBaristaOrderMutation,
   useMarkDeliveredBaristaOrderMutation,
-  useAcceptBaristaBakongMutation,
   useCollectBaristaCashMutation,
   useListAllBaristaOrdersQuery,
   usePayOrderCashMutation,
   useSetBaristaOrderDeliveryFeeMutation,
+  useSetBaristaOrderEstimatedTimeMutation,
   useStartPreparingBaristaOrderMutation,
 } from "@/store/api/baristaOrderApi";
 import {
-  useAcceptBakongPaymentMutation,
   useCancelOrderMutation,
   useCollectCashMutation,
   useCompleteOrderMutation,
@@ -55,6 +55,7 @@ import {
   useListOrdersQuery,
   usePayAdminOrderCashMutation,
   useSetOrderDeliveryFeeMutation,
+  useSetOrderEstimatedTimeMutation,
   useStartPreparingOrderMutation,
 } from "@/store/api/orderApi";
 import { useGetExchangeRateQuery } from "@/store/api/reportApi";
@@ -203,6 +204,7 @@ function OrderCard({
         <OrderChip icon={order.paymentMethod === "BAKONG" ? QrCode : Banknote}>
           {order.paymentMethod ? humanise(order.paymentMethod) : "Payment not chosen"}
         </OrderChip>
+        <OrderEstimateChip order={order} />
       </div>
 
       <div className="mt-4 space-y-3">
@@ -385,9 +387,6 @@ export default function BaristaQueueView() {
   const [baristaCollectCash, { isLoading: isCollectingBarista }] = useCollectBaristaCashMutation();
   const [adminPayCash, { isLoading: isPayingAdmin }] = usePayAdminOrderCashMutation();
   const [adminCollectCash, { isLoading: isCollectingAdmin }] = useCollectCashMutation();
-  const [baristaAcceptBakong, { isLoading: isConfirmingBarista }] = useAcceptBaristaBakongMutation();
-  const [adminAcceptBakong, { isLoading: isConfirmingAdmin }] =
-    useAcceptBakongPaymentMutation();
   const [baristaCancel, { isLoading: isCancellingBarista }] =
     useCancelBaristaOrderMutation();
   const [adminCancel, { isLoading: isCancellingAdmin }] = useCancelOrderMutation();
@@ -407,6 +406,9 @@ export default function BaristaQueueView() {
   const [baristaSetDeliveryFee, { isLoading: isSettingFeeBarista }] =
     useSetBaristaOrderDeliveryFeeMutation();
   const [adminSetDeliveryFee, { isLoading: isSettingFeeAdmin }] = useSetOrderDeliveryFeeMutation();
+  const [baristaSetEstimate, { isLoading: isSettingEstimateBarista }] =
+    useSetBaristaOrderEstimatedTimeMutation();
+  const [adminSetEstimate, { isLoading: isSettingEstimateAdmin }] = useSetOrderEstimatedTimeMutation();
   const { printInvoice } = useOrderInvoice();
 
   const { data: currentUser } = useGetCurrentUserQuery();
@@ -414,19 +416,20 @@ export default function BaristaQueueView() {
     order.paymentMethod === "CASH"
       ? isAdmin ? adminCollectCash : baristaCollectCash
       : isAdmin ? adminPayCash : baristaPayCash;
-  const confirmBakong = isAdmin ? adminAcceptBakong : baristaAcceptBakong;
   const canCancel = (order: OrderResponse) =>
     isAdmin || (order.customerId == null && order.handledById === currentUser?.id);
 
   const awaitingPaymentStep = (
     order: OrderResponse
   ):
-    | { kind: "fee" | "bakong" | "prepare" | "cash"; label: string }
+    | { kind: "fee" | "prepare" | "cash"; label: string }
     | { kind: "waiting"; hint: string } => {
     if (order.fulfillmentMethod === "DELIVERY" && order.deliveryFeeSetAt == null) {
       return { kind: "fee", label: "Set Delivery Fee" };
     }
-    if (order.paymentMethod === "BAKONG") return { kind: "bakong", label: "Check Bakong Payment" };
+    if (order.paymentMethod === "BAKONG") {
+      return { kind: "waiting", hint: "Waiting for the customer's QR payment — it confirms automatically." };
+    }
     if (order.paymentMethod === "CASH") {
       return order.customerId != null
         ? { kind: "prepare", label: "Start Preparing" }
@@ -444,12 +447,12 @@ export default function BaristaQueueView() {
   const deliverOrder = isAdmin ? adminDeliver : baristaDeliver;
   const setDeliveryFee = isAdmin ? adminSetDeliveryFee : baristaSetDeliveryFee;
   const isSettingFee = isSettingFeeAdmin || isSettingFeeBarista;
+  const setEstimate = isAdmin ? adminSetEstimate : baristaSetEstimate;
+  const isSettingEstimate = isSettingEstimateAdmin || isSettingEstimateBarista;
 
   const isPaying = isPayingAdmin || isPayingBarista || isCollectingAdmin || isCollectingBarista;
   const isBusy =
     isPaying ||
-    isConfirmingAdmin ||
-    isConfirmingBarista ||
     isCancellingAdmin ||
     isCancellingBarista ||
     isStartingAdmin ||
@@ -536,19 +539,6 @@ export default function BaristaQueueView() {
     }
   };
 
-  const handleConfirmBakong = async (order: OrderResponse) => {
-    try {
-      const updated = await confirmBakong(order.id).unwrap();
-      if (updated.paidAt) {
-        toastPaidWithInvoice("Bakong payment confirmed", updated.id, printInvoice);
-      } else {
-        toast("No payment has arrived for this order yet. Check again once the customer has paid.");
-      }
-    } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not confirm the payment."));
-    }
-  };
-
   const handleCancel = async (order: OrderResponse) => {
     const confirmed = await confirm({
       title: "Cancel order",
@@ -612,6 +602,16 @@ export default function BaristaQueueView() {
     }
   };
 
+  const handleSetEstimate = async (order: OrderResponse, minutes: number) => {
+    try {
+      const updated = await setEstimate({ id: order.id, body: { minutes } }).unwrap();
+      setDetailOrder((current) => (current?.id === updated.id ? updated : current));
+      toast.success(`Estimated time set to ${minutes} min`);
+    } catch (err) {
+      toast.error(apiErrorMessage(err as never, "Could not save the estimated time."));
+    }
+  };
+
   return (
     <PageShell>
       <PageHeader
@@ -667,7 +667,6 @@ export default function BaristaQueueView() {
                 hint={step.kind === "waiting" ? step.hint : undefined}
                 onAction={() => {
                   if (step.kind === "fee") setDetailOrder(order);
-                  else if (step.kind === "bakong") handleConfirmBakong(order);
                   else if (step.kind === "prepare") handleStartPreparing(order);
                   else if (step.kind === "cash") openCashModal(order);
                 }}
@@ -930,6 +929,11 @@ export default function BaristaQueueView() {
               order={detailOrder}
               onSetDeliveryFee={(fee) => handleSetDeliveryFee(detailOrder, fee)}
               isSettingFee={isSettingFee}
+            />
+            <OrderEstimateEditor
+              order={detailOrder}
+              onSave={(minutes) => handleSetEstimate(detailOrder, minutes)}
+              isSaving={isSettingEstimate}
             />
             {detailOrder.note ? (
               <div className="mt-6 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">

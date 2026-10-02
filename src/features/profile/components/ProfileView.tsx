@@ -133,7 +133,7 @@ export default function ProfileView() {
     }
     if (!STRONG_PASSWORD.test(password.next)) {
       toast.error(
-        "New password needs at least 8 characters, with an uppercase, a lowercase, a number and a symbol."
+        "Use 8+ characters with upper, lower, number and symbol."
       );
       return;
     }

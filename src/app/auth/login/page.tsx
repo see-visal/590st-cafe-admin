@@ -413,8 +413,8 @@ export default function AuthPage() {
       >
         <DialogContent className="max-w-md gap-0 rounded-2xl border-none bg-white p-0 text-black shadow-2xl">
           <form onSubmit={handleOtp} className="px-6 py-10 sm:px-10">
-            <div className="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-full bg-gray-200">
-              <ShieldCheck className="h-11 w-11" strokeWidth={1.6} />
+            <div className="mx-auto mb-6 grid h-[4.5rem] w-[4.5rem] place-items-center rounded-full bg-[var(--brand-ink)] text-[var(--brand-lime)] shadow-[0_0_0_6px_#eefccf,0_10px_24px_-10px_rgba(0,0,0,0.45)]">
+              <ShieldCheck className="h-8 w-8" strokeWidth={1.75} aria-hidden="true" />
             </div>
 
             <div className="text-center">

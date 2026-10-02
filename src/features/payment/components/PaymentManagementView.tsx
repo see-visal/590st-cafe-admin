@@ -22,7 +22,6 @@ import {
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import {
-  useAcceptBakongPaymentMutation,
   useCollectCashMutation,
   useListAwaitingBakongConfirmationQuery,
   useListAwaitingDeliveryFeeQuery,
@@ -37,7 +36,6 @@ import { formatByCurrency, titleCase } from "@/lib/utils";
 import { buildCashPaymentSchema, deliveryFeeSchema, firstIssueMessage } from "@/lib/validation";
 import { useDefaultPageSize, useRefreshOptions } from "@/contexts/AdminPreferencesContext";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
-import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
 
 const DELIVERY_FEE_HEADERS = [
@@ -68,7 +66,7 @@ const BAKONG_HEADERS = [
   "Amount",
   "Currency",
   "Ordered At",
-  "Action",
+  "Status",
 ] as const;
 
 const DELIVERY_BOARD_HEADERS = [
@@ -104,7 +102,6 @@ const summarise = (order: OrderResponse) =>
   order.items.map((i) => `x${i.quantity} ${titleCase(i.productName)}`).join(", ") || "-";
 
 export default function PaymentManagementView() {
-  const { confirm, confirmDialog } = useConfirmDialog();
   const [deliveryFeePage, setDeliveryFeePage] = usePersistentState("payments:deliveryFeePage", 1);
   const [pickupPage, setPickupPage] = usePersistentState("payments:pickupPage", 1);
   const [bakongPage, setBakongPage] = usePersistentState("payments:bakongPage", 1);
@@ -138,7 +135,6 @@ export default function PaymentManagementView() {
   );
 
   const [collectCash, { isLoading: isCollecting }] = useCollectCashMutation();
-  const [acceptBakong, { isLoading: isAccepting }] = useAcceptBakongPaymentMutation();
   const [setDeliveryFee, { isLoading: isSettingFee }] = useSetOrderDeliveryFeeMutation();
   const [markDelivered, { isLoading: isMarkingDelivered }] = useMarkDeliveredAdminOrderMutation();
 
@@ -223,16 +219,6 @@ export default function PaymentManagementView() {
     }
   };
 
-  const handleAcceptBakong = async (order: OrderResponse) => {
-    if (!(await confirm({ title: "Confirm payment", description: `Confirm the Bakong payment for #${order.id.slice(0, 8)}?` }))) return;
-    try {
-      await acceptBakong(order.id).unwrap();
-      toast.success("Bakong payment confirmed");
-    } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not confirm the payment."));
-    }
-  };
-
   const handleMarkDelivered = async (order: OrderResponse) => {
     try {
       await markDelivered(order.id).unwrap();
@@ -278,11 +264,12 @@ export default function PaymentManagementView() {
         />
         <StatTile title="Cash Due (this page)" value={money(pickupTotal)} tone="green" />
         <StatTile
-          title="Awaiting Bakong Confirmation"
+          title="Awaiting QR Payment"
           value={String(bakongData?.totalElements ?? 0)}
+          hint="Confirmed automatically once the customer pays"
           tone={(bakongData?.totalElements ?? 0) > 0 ? "orange" : "gray"}
         />
-        <StatTile title="Bakong Due (this page)" value={money(bakongTotal)} tone="green" />
+        <StatTile title="QR Due (this page)" value={money(bakongTotal)} tone="green" />
         <StatTile
           title="Out for Delivery"
           value={String(deliveryBoardData?.totalElements ?? 0)}
@@ -382,8 +369,8 @@ export default function PaymentManagementView() {
       </DataCard>
 
       <DataCard
-        title="Bakong Confirmations"
-        meta={`Waiting: ${bakongData?.totalElements ?? 0}`}
+        title="Bakong QR Payments"
+        meta={`Auto-confirming: ${bakongData?.totalElements ?? 0}`}
       >
         <SimpleTable headers={[...BAKONG_HEADERS]}>
           <TableState
@@ -391,7 +378,7 @@ export default function PaymentManagementView() {
             isLoading={bakongList.isLoading}
             error={bakongList.error}
             isEmpty={bakongOrders.length === 0}
-            emptyLabel="No Bakong payments are waiting for confirmation."
+            emptyLabel="No QR payments are pending."
             onRetry={refetchBakong}
           />
           {bakongList.showRows &&
@@ -414,14 +401,7 @@ export default function PaymentManagementView() {
                 </Cell>
                 <Cell>{formatDateTime(order.createdAt)}</Cell>
                 <Cell>
-                  <button
-                    type="button"
-                    className="btn_primary_yellow text-xs"
-                    onClick={() => handleAcceptBakong(order)}
-                    disabled={isAccepting}
-                  >
-                    Confirm
-                  </button>
+                  <StatusBadge label="Waiting for QR payment" tone="warning" />
                 </Cell>
               </Row>
             ))}
@@ -583,7 +563,6 @@ export default function PaymentManagementView() {
           />
         </ModalGrid>
       </FormModal>
-      {confirmDialog}
     </PageShell>
   );
 }

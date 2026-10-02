@@ -3,6 +3,7 @@
 import React, { ReactNode, Suspense } from "react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "react-hot-toast";
+import { AppToast } from "@/components/common/AppToast";
 import { I18nProvider } from "@/contexts/I18nContext";
 import { StoreProvider } from "@/store/StoreProvider";
 import { FontProvider } from "./font-provider";
@@ -26,44 +27,12 @@ export default function ClientProvider({ children }: ClientProvidersProps) {
             <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
             <Toaster
               position="top-right"
+              gutter={10}
               containerClassName="admin_toaster"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: "var(--surface)",
-                  color: "var(--ink)",
-                  border: "1px solid var(--line)",
-                  borderRadius: "var(--radius-control)",
-                  boxShadow: "0px 8px 24px rgba(32, 33, 36, 0.12)",
-                  padding: "12px 16px",
-                  fontSize: "0.875rem",
-                  fontFamily:
-                    "var(--current-english-font), var(--current-khmer-font), sans-serif",
-                },
-                success: {
-                  iconTheme: {
-                    primary: "var(--success-text)",
-                    secondary: "var(--success-bg)",
-                  },
-                  style: {
-                    background: "var(--success-bg)",
-                    color: "var(--success-text)",
-                    border: "1px solid var(--success-text)",
-                  },
-                },
-                error: {
-                  iconTheme: {
-                    primary: "var(--danger-text)",
-                    secondary: "var(--danger-bg)",
-                  },
-                  style: {
-                    background: "var(--danger-bg)",
-                    color: "var(--danger-text)",
-                    border: "1px solid var(--danger-text)",
-                  },
-                },
-              }}
-            />
+              toastOptions={{ duration: 4000, error: { duration: 6000 } }}
+            >
+              {(t) => <AppToast t={t} />}
+            </Toaster>
           </FontProvider>
         </I18nProvider>
       </ThemeProvider>

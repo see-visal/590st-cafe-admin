@@ -5,6 +5,7 @@ import type {
   CreateOrderRequest,
   Currency,
   DeliveryFeeRequest,
+  EstimatedTimeRequest,
   OrderResponse,
   OrderStatus,
   PageQuery,
@@ -143,22 +144,6 @@ export const baristaOrderApi = baseApi.injectEndpoints({
       ],
     }),
 
-    acceptBaristaBakong: builder.mutation<OrderResponse, UUID>({
-      query: (id) => ({
-        url: `/api/barista/orders/${id}/accept-bakong`,
-        method: "POST",
-      }),
-      transformResponse: unwrap<OrderResponse>,
-      invalidatesTags: (_r, _e, id) => [
-        { type: "Order", id },
-        { type: "OrderHistory", id },
-        "Inventory",
-        "StockMovement",
-        "Product",
-        ...QUEUE_TAGS,
-      ],
-    }),
-
     cancelBaristaOrder: builder.mutation<OrderResponse, UUID>({
       query: (id) => ({
         url: `/api/barista/orders/${id}/cancel`,
@@ -168,6 +153,23 @@ export const baristaOrderApi = baseApi.injectEndpoints({
       invalidatesTags: (_r, _e, id) => [
         { type: "Order", id },
         { type: "Inventory", id: "LIST" },
+        ...QUEUE_TAGS,
+      ],
+    }),
+
+    setBaristaOrderEstimatedTime: builder.mutation<
+      OrderResponse,
+      { id: UUID; body: EstimatedTimeRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/api/barista/orders/${id}/estimated-time`,
+        method: "POST",
+        body,
+      }),
+      transformResponse: unwrap<OrderResponse>,
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Order", id },
+        { type: "OrderHistory", id },
         ...QUEUE_TAGS,
       ],
     }),
@@ -283,12 +285,12 @@ export const {
   useListAllBaristaOrdersQuery,
   useListBaristaDeliveryBoardQuery,
   useSetBaristaOrderDeliveryFeeMutation,
+  useSetBaristaOrderEstimatedTimeMutation,
   useGetBaristaOrderQuery,
   usePayOrderCashMutation,
   useGenerateBakongQrMutation,
   useConfirmBakongPaymentMutation,
   useCollectBaristaCashMutation,
-  useAcceptBaristaBakongMutation,
   useCancelBaristaOrderMutation,
   useStartPreparingBaristaOrderMutation,
   useCompleteBaristaOrderMutation,
