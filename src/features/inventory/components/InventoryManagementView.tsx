@@ -30,6 +30,7 @@ import {
   TableState,
   listLoadState,
   TextField,
+  MoneyField,
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import { usePageSize } from "@/contexts/AdminPreferencesContext";
@@ -387,12 +388,10 @@ export default function Inventory() {
             required
           />
           {movementKind === "STOCK_IN" ? (
-            <FormInput
+            <MoneyField
               label="Unit Cost (USD)"
-              type="number"
-              placeholder="0.00"
               value={unitCost}
-              onChange={(e) => setUnitCost(e.target.value)}
+              onValueChange={setUnitCost}
               required
             />
           ) : (

@@ -6,6 +6,7 @@ import type { OrderResponse } from "@/store/api/types";
 import { titleCase } from "@/lib/utils";
 import { deliveryFeeSchema, firstIssueMessage } from "@/lib/validation";
 import { formatPhone } from "@/lib/phone";
+import { MoneyInput } from "@/components/forms/MoneyInput";
 
 function formatDistance(meters: number): string {
   return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
@@ -59,13 +60,12 @@ export function OrderFulfillmentDetails({
       <div className="mt-2 flex items-center gap-2">
         <label className="flex items-center gap-1">
           <span className="text-gray-500">{order.deliveryFee != null ? "Revise fee" : "Set fee"} (USD)</span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
+          <MoneyInput
             value={feeInput}
-            onChange={(e) => setFeeInput(e.target.value)}
-            className="w-20 rounded border border-gray-300 px-2 py-1 text-xs"
+            onValueChange={setFeeInput}
+            wrapperClassName="w-24"
+            className="w-full rounded border border-gray-300 py-1 pr-2 text-xs"
+            aria-label="Delivery fee in USD"
           />
         </label>
         <button

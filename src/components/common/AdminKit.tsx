@@ -62,6 +62,7 @@ import { formatPhoneInput, PHONE_MAX_LENGTH, PHONE_PLACEHOLDER } from "@/lib/pho
 import { apiErrorMessage } from "@/store/api/baseApi";
 
 import { OperationalAlertsContent, useOperationalAlerts } from "./OperationalAlerts";
+import { MoneyInput, type MoneyInputProps } from "@/components/forms/MoneyInput";
 
 export type FieldOption = {
   label: string;
@@ -1368,6 +1369,30 @@ export function FormInput({
           readOnly && "is_readonly",
           disabled && "is_disabled"
         )}
+      />
+    </label>
+  );
+}
+
+export function MoneyField({
+  label,
+  required = false,
+  readOnly = false,
+  disabled = false,
+  ...props
+}: { label: string } & MoneyInputProps) {
+  return (
+    <label className="form_field">
+      <span className="form_field_label">
+        {label}
+        {required && <span className="form_field_required"> *</span>}
+      </span>
+      <MoneyInput
+        {...props}
+        required={required}
+        readOnly={readOnly}
+        disabled={disabled}
+        className={cn("form_field_control", readOnly && "is_readonly", disabled && "is_disabled")}
       />
     </label>
   );

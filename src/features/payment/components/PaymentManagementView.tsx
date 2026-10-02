@@ -19,6 +19,7 @@ import {
   StatusBadge,
   TableState,
   listLoadState,
+  MoneyField,
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import {
@@ -486,13 +487,10 @@ export default function PaymentManagementView() {
             readOnly
           />
           <FormInput label="Items Subtotal" value={feeOrder ? money(feeOrder.totalAmount) : ""} readOnly />
-          <FormInput
+          <MoneyField
             label="Delivery Fee (USD)"
-            type="number"
-            min="0"
-            placeholder="0.00"
             value={feeInput}
-            onChange={(e) => setFeeInput(e.target.value)}
+            onValueChange={setFeeInput}
             required
           />
           <FormInput
@@ -543,13 +541,11 @@ export default function PaymentManagementView() {
               KHR{!khrPerUsdRate ? " (rate unavailable)" : ""}
             </option>
           </FormSelect>
-          <FormInput
+          <MoneyField
             label="Amount Tendered"
-            type="number"
-            step={currency === "KHR" ? "1" : "0.01"}
-            placeholder={currency === "KHR" ? "0" : "0.00"}
+            currency={currency}
             value={amountTendered}
-            onChange={(e) => setAmountTendered(e.target.value)}
+            onValueChange={setAmountTendered}
             required
           />
           <FormInput

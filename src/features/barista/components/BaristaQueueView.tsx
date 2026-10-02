@@ -32,6 +32,7 @@ import {
   SkeletonBlock,
   StatTile,
   listLoadState,
+  MoneyField,
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import {
@@ -836,13 +837,11 @@ export default function BaristaQueueView() {
               KHR{!khrPerUsdRate ? " (rate unavailable)" : ""}
             </option>
           </FormSelect>
-          <FormInput
+          <MoneyField
             label="Amount Tendered"
-            type="number"
-            step={cashCurrency === "KHR" ? "1" : "0.01"}
-            placeholder={cashCurrency === "KHR" ? "0" : "0.00"}
+            currency={cashCurrency}
             value={amountTendered}
-            onChange={(e) => setAmountTendered(e.target.value)}
+            onValueChange={setAmountTendered}
             required
           />
           <FormInput

@@ -36,6 +36,8 @@ import {
   useAdminPreferences,
 } from "@/contexts/AdminPreferencesContext";
 import { humanise, statusTone } from "@/features/user/components/UserManagementView";
+import { MoneyInput } from "@/components/forms/MoneyInput";
+import { formatAmount } from "@/lib/moneyInput";
 
 const LANGUAGES = [
   { code: "en", label: "English" },
@@ -71,8 +73,8 @@ export default function Settings() {
   const [seededFrom, setSeededFrom] = useState<typeof rate>(undefined);
   if (rate && rate !== seededFrom) {
     setSeededFrom(rate);
-    setKhrPerUsd(String(rate.khrPerUsdRate));
-    setMarketRate(rate.marketRate != null ? String(rate.marketRate) : "");
+    setKhrPerUsd(formatAmount(String(rate.khrPerUsdRate), 0));
+    setMarketRate(rate.marketRate != null ? formatAmount(String(rate.marketRate), 0) : "");
   }
 
   const handleSaveRate = async () => {
@@ -307,11 +309,12 @@ export default function Settings() {
                       <span className="text-sm font-medium text-gray-700">
                         KHR per USD (applied)
                       </span>
-                      <input
-                        type="number"
+                      <MoneyInput
+                        currency="KHR"
                         value={khrPerUsd}
-                        onChange={(e) => setKhrPerUsd(e.target.value)}
-                        className="mt-2 h-10 w-full rounded-md border border-gray-300 px-3 text-sm outline-none"
+                        onValueChange={setKhrPerUsd}
+                        wrapperClassName="mt-2"
+                        className="h-10 w-full rounded-md border border-gray-300 pr-3 text-sm outline-none"
                         placeholder="4100"
                       />
                     </label>
@@ -319,11 +322,12 @@ export default function Settings() {
                       <span className="text-sm font-medium text-gray-700">
                         Market rate (reference only)
                       </span>
-                      <input
-                        type="number"
+                      <MoneyInput
+                        currency="KHR"
                         value={marketRate}
-                        onChange={(e) => setMarketRate(e.target.value)}
-                        className="mt-2 h-10 w-full rounded-md border border-gray-300 px-3 text-sm outline-none"
+                        onValueChange={setMarketRate}
+                        wrapperClassName="mt-2"
+                        className="h-10 w-full rounded-md border border-gray-300 pr-3 text-sm outline-none"
                         placeholder="4050"
                       />
                     </label>

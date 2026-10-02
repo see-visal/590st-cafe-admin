@@ -34,6 +34,7 @@ import {
   listLoadState,
   TextField,
   Thumbnail,
+  MoneyField,
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import { usePageSize } from "@/contexts/AdminPreferencesContext";
@@ -560,12 +561,10 @@ export default function Products() {
             </FormSelect>
           ) : null}
           {!selected ? (
-            <FormInput
+            <MoneyField
               label="Starting Price (USD)"
-              type="number"
-              placeholder="0.00"
               value={formFields.variantPrice}
-              onChange={(e) => setFormFields({ ...formFields, variantPrice: e.target.value })}
+              onValueChange={(variantPrice) => setFormFields({ ...formFields, variantPrice })}
               required
             />
           ) : null}
