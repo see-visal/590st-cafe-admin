@@ -63,6 +63,7 @@ import { apiErrorMessage } from "@/store/api/baseApi";
 
 import { OperationalAlertsContent, useOperationalAlerts } from "./OperationalAlerts";
 import { MoneyInput, type MoneyInputProps } from "@/components/forms/MoneyInput";
+import { DATE_PICKER_TYPES, DatePickerInput, type DatePickerType } from "@/components/forms/DatePickerInput";
 
 export type FieldOption = {
   label: string;
@@ -222,6 +223,11 @@ export function FilterPanel({
   );
 }
 
+// The date picker hands back a plain string; wrap it so callers can keep reading e.target.value.
+function pickerChangeEvent(value: string) {
+  return { target: { value }, currentTarget: { value } } as React.ChangeEvent<HTMLInputElement>;
+}
+
 export function TextField({
   label,
   placeholder = "Placeholder",
@@ -238,13 +244,22 @@ export function TextField({
   return (
     <label className="form_field">
       <span className="form_field_label">{label}</span>
-      <input
-        type={type}
-        value={value || ""}
-        onChange={onChange}
-        className="form_field_control"
-        placeholder={placeholder}
-      />
+      {DATE_PICKER_TYPES.has(type) ? (
+        <DatePickerInput
+          type={type as DatePickerType}
+          value={value}
+          onChange={(next) => onChange?.(pickerChangeEvent(next))}
+          aria-label={label}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value || ""}
+          onChange={onChange}
+          className="form_field_control"
+          placeholder={placeholder}
+        />
+      )}
     </label>
   );
 }
@@ -1349,27 +1364,42 @@ export function FormInput({
         {label}
         {required && <span className="form_field_required"> *</span>}
       </span>
-      <input
-        type={type}
-        value={value ?? ""}
-        onChange={onChange}
-        placeholder={placeholder}
-        required={required}
-        readOnly={readOnly}
-        disabled={disabled}
-        maxLength={maxLength}
-        min={min}
-        max={max}
-        step={step}
-        inputMode={inputMode}
-        autoComplete={autoComplete}
-        className={cn(
-          "form_field_control",
-          active && "is_active",
-          readOnly && "is_readonly",
-          disabled && "is_disabled"
-        )}
-      />
+      {DATE_PICKER_TYPES.has(type) ? (
+        <DatePickerInput
+          type={type as DatePickerType}
+          value={value}
+          onChange={(next) => onChange?.(pickerChangeEvent(next))}
+          min={min}
+          max={max}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          disabled={disabled}
+          aria-label={label}
+          className={cn(active && "is_active")}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value ?? ""}
+          onChange={onChange}
+          placeholder={placeholder}
+          required={required}
+          readOnly={readOnly}
+          disabled={disabled}
+          maxLength={maxLength}
+          min={min}
+          max={max}
+          step={step}
+          inputMode={inputMode}
+          autoComplete={autoComplete}
+          className={cn(
+            "form_field_control",
+            active && "is_active",
+            readOnly && "is_readonly",
+            disabled && "is_disabled"
+          )}
+        />
+      )}
     </label>
   );
 }

@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { AdminTopActions, FormModal, FormInput, FormSelect } from "@/components/common/AdminKit";
+import { DatePickerInput } from "@/components/forms/DatePickerInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import { useListBaristasQuery } from "@/store/api/userApi";
@@ -124,9 +125,9 @@ export default function AttendanceView() {
         </Select>
       </label>
       <label className="form_field"><span className="form_field_label">From</span>
-        <input type="date" value={from} onChange={(event) => { setFrom(event.target.value); setPage(1); }} className="form_field_control" /></label>
+        <DatePickerInput type="date" value={from} max={to || undefined} onChange={(next) => { setFrom(next); setPage(1); }} aria-label="From" /></label>
       <label className="form_field"><span className="form_field_label">To</span>
-        <input type="date" value={to} onChange={(event) => { setTo(event.target.value); setPage(1); }} className="form_field_control" /></label>
+        <DatePickerInput type="date" value={to} min={from || undefined} onChange={(next) => { setTo(next); setPage(1); }} aria-label="To" /></label>
       <button type="button" className="btn_primary_yellow h-9 whitespace-nowrap" onClick={() => openForm()}>Add missed shift</button>
     </div>}
     {records.error && <div role="alert" className="my-3 text-red-600"><p>{apiErrorMessage(records.error as never, "Could not load attendance.")}</p>

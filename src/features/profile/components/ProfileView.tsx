@@ -66,7 +66,6 @@ export default function ProfileView() {
   const [password, setPassword] = useState(EMPTY_PASSWORD_FORM);
 
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  const isPasswordConfigDriven = isSuperAdmin;
 
   const [seededFrom, setSeededFrom] = useState<typeof user>(undefined);
   if (user && user !== seededFrom) {
@@ -223,64 +222,67 @@ export default function ProfileView() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="space-y-6 lg:col-span-1">
-          <DataCard title="Photo" meta="Shown beside your name across the dashboard.">
-            <div className="flex flex-col items-center gap-4 p-2 pb-4">
-              <div className="relative h-28 w-28 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
-                {user.avatarUrl ? (
-                  <Image
-                    src={user.avatarUrl}
-                    alt={user.fullName}
-                    fill
-                    sizes="112px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center text-3xl font-semibold text-gray-400">
-                    {user.fullName.slice(0, 1).toUpperCase()}
-                  </span>
-                )}
-                {avatarBusy ? (
-                  <span className="absolute inset-0 grid place-items-center bg-white/70">
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
-                  </span>
-                ) : null}
-              </div>
+          {/* Super admin is a system account, so it has no personal photo. */}
+          {!isSuperAdmin ? (
+            <DataCard title="Photo" meta="Shown beside your name across the dashboard.">
+              <div className="flex flex-col items-center gap-4 p-2 pb-4">
+                <div className="relative h-28 w-28 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+                  {user.avatarUrl ? (
+                    <Image
+                      src={user.avatarUrl}
+                      alt={user.fullName}
+                      fill
+                      sizes="112px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-3xl font-semibold text-gray-400">
+                      {user.fullName.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  {avatarBusy ? (
+                    <span className="absolute inset-0 grid place-items-center bg-white/70">
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+                    </span>
+                  ) : null}
+                </div>
 
-              <p className="text-center text-xs text-gray-400">
-                JPG or PNG, up to 5&nbsp;MB.
-              </p>
+                <p className="text-center text-xs text-gray-400">
+                  JPG or PNG, up to 5&nbsp;MB.
+                </p>
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(e) => handlePickAvatar(e.target.files?.[0] ?? null)}
-              />
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  className="btn_primary_black"
-                  disabled={avatarBusy}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload />
-                  {user.avatarUrl ? "Replace" : "Upload"}
-                </button>
-                {user.avatarUrl ? (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => handlePickAvatar(e.target.files?.[0] ?? null)}
+                />
+                <div className="flex flex-wrap items-center justify-center gap-2">
                   <button
                     type="button"
-                    className="btn_outline_black"
+                    className="btn_primary_black"
                     disabled={avatarBusy}
-                    onClick={handleRemoveAvatar}
+                    onClick={() => fileInputRef.current?.click()}
                   >
-                    <Trash2 />
-                    Remove
+                    <Upload />
+                    {user.avatarUrl ? "Replace" : "Upload"}
                   </button>
-                ) : null}
+                  {user.avatarUrl ? (
+                    <button
+                      type="button"
+                      className="btn_outline_black"
+                      disabled={avatarBusy}
+                      onClick={handleRemoveAvatar}
+                    >
+                      <Trash2 />
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          </DataCard>
+            </DataCard>
+          ) : null}
 
           <DataCard title="Account" meta={isSuperAdmin ? undefined : "Managed by a super admin."}>
             <div className="admin_modal_form_wrap p-2">
@@ -375,68 +377,72 @@ export default function ProfileView() {
 
           <DataCard
             title="Password"
-            meta="Changing it signs your other devices out."
+            meta={isSuperAdmin ? undefined : "Changing it signs your other devices out."}
           >
-            <div className="space-y-6 p-2">
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <FormInput
-                  label="Current Password"
-                  type="password"
-                  value={password.current}
-                  onChange={(e) =>
-                    setPassword((prev) => ({ ...prev, current: e.target.value }))
-                  }
-                  placeholder="••••••••"
-                  required
-                  readOnly={isPasswordConfigDriven}
-                />
-                <div className="hidden md:block" aria-hidden />
-                <FormInput
-                  label="New Password"
-                  type="password"
-                  value={password.next}
-                  onChange={(e) => setPassword((prev) => ({ ...prev, next: e.target.value }))}
-                  placeholder="••••••••"
-                  required
-                  readOnly={isPasswordConfigDriven}
-                />
-                <FormInput
-                  label="Confirm New Password"
-                  type="password"
-                  value={password.confirm}
-                  onChange={(e) =>
-                    setPassword((prev) => ({ ...prev, confirm: e.target.value }))
-                  }
-                  placeholder="••••••••"
-                  required
-                  readOnly={isPasswordConfigDriven}
-                />
-              </div>
-
-              <p className="flex items-start gap-2 text-xs text-gray-400">
-                <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                At least 8 characters, including an uppercase letter, a lowercase letter, a number
-                and a symbol.
+            {isSuperAdmin ? (
+              <p className="flex items-start gap-2 p-2 pb-4 text-xs text-gray-400">
+                <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                The super admin password is set in the server configuration and can&apos;t be
+                changed from the dashboard.
               </p>
+            ) : (
+              <div className="space-y-6 p-2">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <FormInput
+                    label="Current Password"
+                    type="password"
+                    value={password.current}
+                    onChange={(e) =>
+                      setPassword((prev) => ({ ...prev, current: e.target.value }))
+                    }
+                    placeholder="••••••••"
+                    required
+                  />
+                  <div className="hidden md:block" aria-hidden />
+                  <FormInput
+                    label="New Password"
+                    type="password"
+                    value={password.next}
+                    onChange={(e) => setPassword((prev) => ({ ...prev, next: e.target.value }))}
+                    placeholder="••••••••"
+                    required
+                  />
+                  <FormInput
+                    label="Confirm New Password"
+                    type="password"
+                    value={password.confirm}
+                    onChange={(e) =>
+                      setPassword((prev) => ({ ...prev, confirm: e.target.value }))
+                    }
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
 
-              <div className="flex justify-end border-t border-gray-100 pt-6">
-                <button
-                  type="button"
-                  className="btn_primary_black"
-                  onClick={handleChangePassword}
-                  disabled={
-                    isPasswordConfigDriven ||
-                    isChangingPassword ||
-                    !password.current ||
-                    !password.next ||
-                    !password.confirm
-                  }
-                >
-                  {isChangingPassword ? <Loader2 className="animate-spin" /> : <KeyRound />}
-                  {isChangingPassword ? "Changing..." : "Change Password"}
-                </button>
+                <p className="flex items-start gap-2 text-xs text-gray-400">
+                  <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  At least 8 characters, including an uppercase letter, a lowercase letter, a number
+                  and a symbol.
+                </p>
+
+                <div className="flex justify-end border-t border-gray-100 pt-6">
+                  <button
+                    type="button"
+                    className="btn_primary_black"
+                    onClick={handleChangePassword}
+                    disabled={
+                      isChangingPassword ||
+                      !password.current ||
+                      !password.next ||
+                      !password.confirm
+                    }
+                  >
+                    {isChangingPassword ? <Loader2 className="animate-spin" /> : <KeyRound />}
+                    {isChangingPassword ? "Changing..." : "Change Password"}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </DataCard>
         </section>
       </div>
