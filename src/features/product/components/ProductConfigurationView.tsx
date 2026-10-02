@@ -4,7 +4,9 @@ import { useCallback, useState, type ChangeEvent, type FormEvent } from "react";
 import toast from "react-hot-toast";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
-import { AdminTopActions, DataCard, FormInput, FormSelect, Thumbnail } from "@/components/common/AdminKit";
+import { AdminTopActions, DataCard, FormInput, FormSelect, MoneyField, Thumbnail } from "@/components/common/AdminKit";
+import { MoneyInput } from "@/components/forms/MoneyInput";
+import { formatAmount } from "@/lib/moneyInput";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import {
   useAttachProductExtraMutation, useClearProductDiscountMutation, useCreateVariantMutation,
@@ -28,7 +30,7 @@ const VARIANT_LABELS: VariantLabel[] = ["MEDIUM", "LARGE", "PIECE"];
 
 function DiscountForm({ product }: { product: ProductResponse }) {
   const [type, setType] = useState<DiscountType>(product.discountType ?? "PERCENTAGE");
-  const [value, setValue] = useState(String(product.discountValue ?? ""));
+  const [value, setValue] = useState(formatAmount(String(product.discountValue ?? ""), 2));
   const [start, setStart] = useState(product.discountStartAt?.slice(0, 16) ?? "");
   const [end, setEnd] = useState(product.discountEndAt?.slice(0, 16) ?? "");
   const [save, saveState] = useSetProductDiscountMutation();
@@ -58,7 +60,7 @@ function DiscountForm({ product }: { product: ProductResponse }) {
       <FormSelect label="Discount type" value={type} onChange={(event) => setType(event.target.value as DiscountType)}>
         {Object.entries(discountTypes).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </FormSelect>
-      <FormInput label={type === "PERCENTAGE" ? "Percentage off" : "USD off"} type="number" min="0.01" step="0.01" max={type === "PERCENTAGE" ? 100 : undefined} required value={value} onChange={(event) => setValue(event.target.value)} />
+      <MoneyField label={type === "PERCENTAGE" ? "Percentage off" : "USD off"} symbol={type === "PERCENTAGE" ? "%" : "$"} required value={value} onValueChange={setValue} />
       <FormInput label="Starts at (optional)" type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} />
       <FormInput label="Ends at (optional)" type="datetime-local" value={end} onChange={(event) => setEnd(event.target.value)} />
     </div>
@@ -70,7 +72,7 @@ function DiscountForm({ product }: { product: ProductResponse }) {
 function VariantForm({ productId, variant, takenLabels }: { productId: string; variant?: ProductVariantResponse; takenLabels: VariantLabel[] }) {
   const { confirm, confirmDialog } = useConfirmDialog();
   const [name, setName] = useState<VariantLabel>(variant?.name ?? VARIANT_LABELS.find((l) => !takenLabels.includes(l)) ?? "MEDIUM");
-  const [price, setPrice] = useState(String(variant?.price ?? ""));
+  const [price, setPrice] = useState(formatAmount(String(variant?.price ?? ""), 2));
   const [sortOrder, setSortOrder] = useState(String(variant?.sortOrder ?? 0));
   const [create, createState] = useCreateVariantMutation();
   const [update, updateState] = useUpdateVariantMutation();
@@ -106,7 +108,7 @@ function VariantForm({ productId, variant, takenLabels }: { productId: string; v
       <FormSelect label="Variant" value={name} onChange={(event) => setName(event.target.value as VariantLabel)} disabled={Boolean(variant)}>
         {VARIANT_LABELS.map((label) => <option key={label} value={label}>{humanise(label)}</option>)}
       </FormSelect>
-      <label className="text-sm">Price (USD)<input className={inputClass} required type="number" min="0" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} /></label>
+      <label className="text-sm">Price (USD)<MoneyInput wrapperClassName="mt-1" className={inputClass} required value={price} onValueChange={setPrice} /></label>
       <label className="text-sm">Display order<input className={inputClass} required type="number" step="1" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} /></label>
     </div>
     <div className="flex flex-wrap gap-3"><button className="btn_primary_black" disabled={busy}>{busy ? "Saving..." : variant ? "Save variant" : "Add variant"}</button>
@@ -120,7 +122,7 @@ function VariantForm({ productId, variant, takenLabels }: { productId: string; v
 function ExtraCatalogForm({ extra }: { extra?: ExtraResponse }) {
   const { confirm, confirmDialog } = useConfirmDialog();
   const [name, setName] = useState(extra?.name ?? "");
-  const [price, setPrice] = useState(String(extra?.price ?? ""));
+  const [price, setPrice] = useState(formatAmount(String(extra?.price ?? ""), 2));
   const [tracked, setTracked] = useState(extra?.quantityOnHand != null);
   const [quantityOnHand, setQuantityOnHand] = useState(String(extra?.quantityOnHand ?? ""));
   const [create, createState] = useCreateExtraMutation();
@@ -166,7 +168,7 @@ function ExtraCatalogForm({ extra }: { extra?: ExtraResponse }) {
     <h3 className="font-semibold">{extra ? titleCase(extra.name) : "Add an extra"}</h3>
     <div className="grid gap-3 md:grid-cols-3">
       <label className="text-sm">Name<input className={inputClass} required value={name} onChange={(event) => setName(event.target.value)} /></label>
-      <label className="text-sm">Price (USD)<input className={inputClass} required type="number" min="0" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} /></label>
+      <label className="text-sm">Price (USD)<MoneyInput wrapperClassName="mt-1" className={inputClass} required value={price} onValueChange={setPrice} /></label>
       <label className="text-sm">
         <span className="mt-1 flex items-center gap-2">
           <input type="checkbox" checked={tracked} onChange={(event) => setTracked(event.target.checked)} /> Track stock
