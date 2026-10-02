@@ -82,7 +82,7 @@ function trackServerStatus(error: FetchBaseQueryError | undefined): void {
     if (!serverDown) {
       serverDown = true;
       toast.error(
-        "The system is unavailable right now. We'll keep retrying — your data will load once it's back.",
+        "System unavailable — retrying automatically.",
         {
           id: SERVER_STATUS_TOAST_ID,
           duration: Infinity,
