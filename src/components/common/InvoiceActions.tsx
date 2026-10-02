@@ -110,17 +110,17 @@ export function toastPaidWithInvoice(
 ) {
   toast.success(
     (t) => (
-      <span className="flex flex-wrap items-center gap-3">
-        <span>{message}</span>
+      <span className="flex flex-col items-start">
+        <span className="app_toast_text">{message}</span>
         <button
           type="button"
           onClick={() => {
             toast.dismiss(t.id);
             printInvoice(orderId);
           }}
-          className="inline-flex items-center gap-1.5 rounded-md border border-gray-900 px-2.5 py-1 text-xs font-semibold text-gray-900 hover:bg-gray-100"
+          className="app_toast_action"
         >
-          <Printer className="h-3.5 w-3.5" /> Print invoice
+          <Printer aria-hidden="true" /> Print invoice
         </button>
       </span>
     ),

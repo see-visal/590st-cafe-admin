@@ -88,8 +88,12 @@ export type OrderAuditAction =
   | "BAKONG_CONFIRMED"
   | "CANCELLED"
   | "DELIVERY_FEE_SET"
+  | "ESTIMATE_SET"
   | "CASH_SELECTED"
   | "BAKONG_QR_GENERATED"
+  | "LOCATION_PINNED"
+  | "STAFF_CALLED"
+  | "STAFF_CALL_ANSWERED"
   | "PREPARING"
   | "OUT_FOR_DELIVERY"
   | "DELIVERED"
@@ -477,6 +481,7 @@ export interface OrderResponse {
   deliveryLongitude: Numeric | null;
   deliveryFee: Numeric | null;
   deliveryFeeSetAt: string | null;
+  estimatedReadyAt: string | null;
   distanceMeters: Numeric | null;
 }
 
@@ -486,11 +491,22 @@ export interface OrderUpdateMessage {
   sentAt: string;
 }
 
+export type StaffCallReason =
+  | "PAYMENT_HELP"
+  | "CHANGE_ORDER"
+  | "ORDER_DELAY"
+  | "WRONG_OR_MISSING_ITEM"
+  | "NAPKINS_UTENSILS"
+  | "DELIVERY_HELP"
+  | "OTHER";
+
 export interface StaffCallResponse {
   orderId: UUID;
   customerName: string | null;
   orderStatus: OrderStatus;
   fulfillmentMethod: FulfillmentMethod | null;
+  reason: StaffCallReason;
+  note: string | null;
   calledAt: string;
   nextCallAllowedAt: string | null;
 }
@@ -501,6 +517,8 @@ export interface StaffCallMessage {
   customerName: string | null;
   orderStatus: OrderStatus;
   fulfillmentMethod: FulfillmentMethod | null;
+  reason: StaffCallReason;
+  note: string | null;
   calledAt: string;
   answeredByName: string | null;
   sentAt: string;
@@ -555,6 +573,10 @@ export interface CashPaymentRequest {
 
 export interface DeliveryFeeRequest {
   fee: Numeric;
+}
+
+export interface EstimatedTimeRequest {
+  minutes: number;
 }
 
 export interface BakongQrResponse {
