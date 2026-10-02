@@ -71,7 +71,7 @@ export const authApi = baseApi.injectEndpoints({
       AuthTokenResponse,
       TelegramWidgetAuthRequest & { remember?: boolean }
     >({
-      query: ({ remember: _remember, ...body }) => ({
+      query: ({ remember, ...body }) => ({
         url: "/api/auth/login/telegram",
         method: "POST",
         body,
