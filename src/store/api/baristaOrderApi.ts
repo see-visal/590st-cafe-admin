@@ -269,11 +269,13 @@ export const baristaOrderApi = baseApi.injectEndpoints({
       providesTags: [{ type: "StaffCall", id: "LIST" }],
     }),
 
-    answerBaristaStaffCall: builder.mutation<void, UUID>({
-      query: (id) => ({
+    answerBaristaStaffCall: builder.mutation<StaffCallResponse, { id: UUID; reply?: string }>({
+      query: ({ id, reply }) => ({
         url: `/api/barista/orders/${id}/staff-call/answer`,
         method: "POST",
+        body: { reply },
       }),
+      transformResponse: unwrap<StaffCallResponse>,
       invalidatesTags: [{ type: "StaffCall", id: "LIST" }],
     }),
   }),

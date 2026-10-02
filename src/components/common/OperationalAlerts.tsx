@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { ConciergeBell, PackageMinus, PhoneCall, ShoppingBag, MessageSquareText } from "lucide-react";
@@ -24,8 +24,14 @@ import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { useFeedbackAlerts } from "@/hooks/useFeedbackAlerts";
 import { humanise, timeAgo, titleCase } from "@/lib/utils";
 import { notify } from "@/components/common/AppToast";
-import { staffCallReasonLabel } from "@/lib/staffCall";
-import { lowStockNotice, newMessageNotice, orderNotice, staffCallNotice } from "@/lib/liveNotifications";
+import { Input } from "@/components/ui/input";
+import {
+  STAFF_CALL_REPLY_LIMIT,
+  staffCallQuickReplies,
+  staffCallReasonLabel,
+} from "@/lib/staffCall";
+import type { StaffCallResponse } from "@/store/api/types";
+import { lowStockNotice, newMessageNotice, orderNotice, staffCallNotice, staffCallToastId } from "@/lib/liveNotifications";
 
 const polling = { pollingInterval: 30000, skipPollingIfUnfocused: true };
 
@@ -159,6 +165,7 @@ export function useOperationalAlerts() {
       (message) => {
         if (!isAdmin && !isBarista) return;
         void staffCalls.refetch();
+        if (message.type === "ANSWERED") toast.dismiss(staffCallToastId(message.orderId));
         const notice = staffCallNotice(message, "/notifications");
         if (notice) notify({ ...notice, icon: <ConciergeBell /> });
       },
@@ -196,13 +203,16 @@ export function useOperationalAlerts() {
   }, [lowStockTotal]);
 
   const answerStaffCall = useCallback(
-    async (orderId: string) => {
+    async (orderId: string, reply?: string): Promise<boolean> => {
       try {
-        await answerStaffCallMutation(orderId).unwrap();
+        await answerStaffCallMutation({ id: orderId, reply: reply?.trim() || undefined }).unwrap();
+        toast.success(reply?.trim() ? "Reply sent to the customer." : "Customer notified that you're on the way.");
+        return true;
       } catch (err) {
         toast.error(
           apiErrorMessage(err as never, "Could not answer the call."),
         );
+        return false;
       }
     },
     [answerStaffCallMutation],
@@ -273,44 +283,12 @@ export function OperationalAlertsContent({
         </h3>
         {alerts.staffCalls.data?.length ? (
           alerts.staffCalls.data.map((call) => (
-            <div
+            <StaffCallItem
               key={call.orderId}
-              className="mt-2 flex items-center justify-between gap-3 rounded border border-amber-200 bg-amber-50 p-3"
-            >
-              <div className="min-w-0">
-                <span className="flex items-center gap-2">
-                  <span className="font-mono">
-                    #{call.orderId.slice(0, 8).toUpperCase()}
-                  </span>
-                  <span className="text-xs text-amber-800">
-                    {timeAgo(call.calledAt)}
-                  </span>
-                </span>
-                <span className="mt-1 inline-block rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
-                  {staffCallReasonLabel(call.reason)}
-                </span>
-                {call.note && (
-                  <span className="mt-1 block break-words text-xs italic text-amber-900">
-                    &ldquo;{call.note}&rdquo;
-                  </span>
-                )}
-                <span className="block truncate">
-                  {call.customerName ? titleCase(call.customerName) : "Walk-in"}{" "}
-                  · {humanise(call.orderStatus)}
-                  {call.fulfillmentMethod
-                    ? ` · ${humanise(call.fulfillmentMethod)}`
-                    : ""}
-                </span>
-              </div>
-              <button
-                type="button"
-                className="shrink-0 rounded bg-black px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                disabled={alerts.isAnsweringStaffCall}
-                onClick={() => alerts.answerStaffCall(call.orderId)}
-              >
-                Answer
-              </button>
-            </div>
+              call={call}
+              disabled={alerts.isAnsweringStaffCall}
+              onAnswer={alerts.answerStaffCall}
+            />
           ))
         ) : (
           <p className="mt-2 text-muted-foreground">No open staff calls.</p>
@@ -375,6 +353,121 @@ export function OperationalAlertsContent({
           View stock alerts
         </Link>
       </section>
+    </div>
+  );
+}
+
+function StaffCallItem({
+  call,
+  disabled,
+  onAnswer,
+}: {
+  call: StaffCallResponse;
+  disabled: boolean;
+  onAnswer: (orderId: string, reply?: string) => Promise<boolean>;
+}) {
+  const [replying, setReplying] = useState(false);
+  const [reply, setReply] = useState("");
+
+  const send = async (text?: string) => {
+    const sent = await onAnswer(call.orderId, text);
+    if (sent) {
+      setReplying(false);
+      setReply("");
+    }
+  };
+
+  return (
+    <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <span className="flex items-center gap-2">
+            <span className="font-mono">
+              #{call.orderId.slice(0, 8).toUpperCase()}
+            </span>
+            <span className="text-xs text-amber-800">
+              {timeAgo(call.calledAt)}
+            </span>
+          </span>
+          <span className="mt-1 inline-block rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
+            {staffCallReasonLabel(call.reason)}
+          </span>
+          {call.note && (
+            <span className="mt-1 block break-words text-xs italic text-amber-900">
+              &ldquo;{call.note}&rdquo;
+            </span>
+          )}
+          <span className="block truncate">
+            {call.customerName ? titleCase(call.customerName) : "Walk-in"}{" "}
+            · {humanise(call.orderStatus)}
+            {call.fulfillmentMethod
+              ? ` · ${humanise(call.fulfillmentMethod)}`
+              : ""}
+          </span>
+        </div>
+        {!replying && (
+          <button
+            type="button"
+            className="shrink-0 rounded bg-black px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+            disabled={disabled}
+            onClick={() => setReplying(true)}
+          >
+            Respond
+          </button>
+        )}
+      </div>
+      {replying && (
+        <form
+          className="mt-3 space-y-2 border-t border-amber-200 pt-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void send(reply);
+          }}
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {staffCallQuickReplies(call.reason).map((text) => (
+              <button
+                key={text}
+                type="button"
+                disabled={disabled}
+                onClick={() => void send(text)}
+                className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-xs text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+          <Input
+            aria-label="Reply to customer"
+            value={reply}
+            maxLength={STAFF_CALL_REPLY_LIMIT}
+            onChange={(event) => setReply(event.target.value)}
+            placeholder="Or type a reply to the customer…"
+            disabled={disabled}
+            className="bg-white"
+          />
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              className="rounded px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:underline"
+              disabled={disabled}
+              onClick={() => {
+                setReplying(false);
+                setReply("");
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded bg-black px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+              disabled={disabled}
+            >
+              {reply.trim() ? "Send reply" : "Answer without message"}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
