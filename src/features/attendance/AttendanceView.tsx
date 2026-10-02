@@ -81,8 +81,8 @@ export default function AttendanceView() {
   const save = async () => {
     if (!form.baristaId || !form.checkInAt) { toast.error("Choose a staff member and check-in time."); return; }
     const now = toLocalInput(new Date());
-    if (form.checkInAt > now) { toast.error("Check-in cannot be in the future — that shift has not started yet."); return; }
-    if (form.checkOutAt && form.checkOutAt > now) { toast.error("Check-out cannot be in the future — leave it empty if the shift is still running."); return; }
+    if (form.checkInAt > now) { toast.error("Check-in can't be in the future."); return; }
+    if (form.checkOutAt && form.checkOutAt > now) { toast.error("Check-out can't be in the future — leave it empty if still on shift."); return; }
     if (form.checkOutAt && form.checkOutAt <= form.checkInAt) { toast.error("Check-out must be after check-in."); return; }
     if (editing?.checkOutAt && !form.checkOutAt) { toast.error("A completed shift must keep a check-out time."); return; }
     const body = { checkInAt: form.checkInAt, checkOutAt: form.checkOutAt || undefined, note: form.note };

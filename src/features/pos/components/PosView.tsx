@@ -118,7 +118,6 @@ export default function PosView() {
   const [bakongSecondsLeft, setBakongSecondsLeft] = useState<number | null>(null);
   const [bakongFailure, setBakongFailure] = useState<string | null>(null);
   const [isGeneratingBakong, setIsGeneratingBakong] = useState(false);
-  const [isCheckingBakong, setIsCheckingBakong] = useState(false);
   const isGeneratingBakongRef = useRef(false);
   const bakongCheckErrorRef = useRef<string | null>(null);
   const isCheckingBakongRef = useRef(false);
@@ -176,7 +175,7 @@ export default function PosView() {
 
   const addToCart = (product: ProductResponse, variant: ProductVariantResponse) => {
     if (pendingOrder || confirmingRef.current) {
-      toast.error("Finish or cancel the current payment before changing the order.");
+      toast.error("Finish or cancel the payment before editing the order.");
       return;
     }
     const quantity = cart.filter((line) => line.product.id === product.id).reduce((sum, line) => sum + line.quantity, 0);
@@ -318,10 +317,9 @@ export default function PosView() {
     }
   };
 
-  const handleCheckBakongPayment = async (manual = false) => {
+  const handleCheckBakongPayment = async () => {
     if (!pendingOrder || isCheckingBakongRef.current) return;
     isCheckingBakongRef.current = true;
-    setIsCheckingBakong(true);
     try {
       const updated = await confirmBakongPayment(pendingOrder.id).unwrap();
       bakongCheckErrorRef.current = null;
@@ -329,16 +327,13 @@ export default function PosView() {
         setPaymentOpen(false);
         resetCart();
         setCompletedSale(updated);
-      } else if (manual) {
-        toast("No payment has arrived yet. Check again once the customer has paid.");
       }
     } catch (err) {
       const message = apiErrorMessage(err as never, "Could not check the payment.");
-      if (manual || bakongCheckErrorRef.current !== message) toast.error(message);
+      if (bakongCheckErrorRef.current !== message) toast.error(message);
       bakongCheckErrorRef.current = message;
     } finally {
       isCheckingBakongRef.current = false;
-      setIsCheckingBakong(false);
     }
   };
 
@@ -665,9 +660,7 @@ export default function PosView() {
           amount: bakongQr?.amount ?? null,
           isGenerating: isGeneratingBakong,
           secondsLeft: bakongSecondsLeft,
-          isChecking: isCheckingBakong,
           failure: bakongFailure,
-          onCheckPayment: () => { void handleCheckBakongPayment(true); },
           onRetry: () => { void handleGenerateBakongQr(); },
         }}
       />

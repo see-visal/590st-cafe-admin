@@ -31,9 +31,7 @@ export type PosBakongState = {
   amount: number | null;
   isGenerating: boolean;
   secondsLeft: number | null;
-  isChecking: boolean;
   failure: string | null;
-  onCheckPayment: () => void;
   onRetry: () => void;
 };
 
@@ -324,14 +322,10 @@ export function PosPaymentModal({
 
                   <div className="flex gap-2">
                     {bakong.qrDataUrl && (bakong.secondsLeft ?? 0) > 0 ? (
-                      <button
-                        type="button"
-                        className="btn_primary_yellow flex-1 text-xs"
-                        disabled={bakong.isChecking}
-                        onClick={bakong.onCheckPayment}
-                      >
-                        {bakong.isChecking ? "Checking..." : "Check Payment"}
-                      </button>
+                      <p className="pos_payment_bakong_status" role="status" aria-live="polite">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                        Waiting for payment — confirms automatically
+                      </p>
                     ) : (
                       <button
                         type="button"

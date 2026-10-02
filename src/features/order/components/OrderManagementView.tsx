@@ -1,5 +1,6 @@
 "use client";
 import { OrderFulfillmentDetails } from "@/components/common/OrderFulfillmentDetails";
+import { OrderEstimateEditor } from "@/components/common/OrderEstimateEditor";
 
 import { useCallback, useMemo } from "react";
 import Link from "next/link";
@@ -36,6 +37,7 @@ import {
   useListOrdersQuery,
   useMarkDeliveredAdminOrderMutation,
   useSetOrderDeliveryFeeMutation,
+  useSetOrderEstimatedTimeMutation,
   useStartPreparingOrderMutation,
 } from "@/store/api/orderApi";
 import type { OrderResponse, OrderStatus } from "@/store/api/types";
@@ -100,7 +102,7 @@ function describeNextStep(order: OrderResponse): NextStep {
       return { kind: "blocked", message: "Waiting for the delivery fee to be set before this can start." };
     }
     if (order.status === "PENDING" && order.paymentMethod === "BAKONG") {
-      return { kind: "blocked", message: "Waiting for the Bakong transfer to be confirmed before this can start." };
+      return { kind: "blocked", message: "Waiting for the customer's QR payment — it confirms automatically, then this can start." };
     }
     if (order.status === "PENDING" && !order.paymentMethod) {
       return { kind: "blocked", message: "Waiting for the customer to choose how to pay." };
@@ -152,6 +154,7 @@ export default function Orders() {
 
   const [cancelOrder, { isLoading: isCancelling }] = useCancelOrderMutation();
   const [setDeliveryFee, { isLoading: isSettingFee }] = useSetOrderDeliveryFeeMutation();
+  const [setEstimate, { isLoading: isSettingEstimate }] = useSetOrderEstimatedTimeMutation();
   const [startPreparing, { isLoading: isStartingPreparing }] = useStartPreparingOrderMutation();
   const [completeOrder, { isLoading: isCompleting }] = useCompleteOrderMutation();
   const [dispatchOrder, { isLoading: isDispatching }] = useDispatchAdminOrderMutation();
@@ -192,6 +195,15 @@ export default function Orders() {
       toast.success("Delivery fee saved");
     } catch (err) {
       toast.error(apiErrorMessage(err as never, "Could not save the delivery fee."));
+    }
+  };
+
+  const handleSetEstimate = async (order: OrderResponse, minutes: number) => {
+    try {
+      await setEstimate({ id: order.id, body: { minutes } }).unwrap();
+      toast.success(`Estimated time set to ${minutes} min`);
+    } catch (err) {
+      toast.error(apiErrorMessage(err as never, "Could not save the estimated time."));
     }
   };
 
@@ -358,6 +370,11 @@ export default function Orders() {
                 />
               </DetailItem>
             </DetailGrid>
+            <OrderEstimateEditor
+              order={selected}
+              onSave={(minutes) => handleSetEstimate(selected, minutes)}
+              isSaving={isSettingEstimate}
+            />
 
             <InvoiceActions order={selected} className="mt-4" />
 

@@ -1,0 +1,147 @@
+"use client";
+
+import { useState } from "react";
+import toast from "react-hot-toast";
+import { Timer } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  ESTIMATE_MAX_MINUTES,
+  ESTIMATE_QUICK_MINUTES,
+  getOrderEstimate,
+  type OrderEstimate,
+} from "@/lib/estimate";
+import { useNow } from "@/hooks/useNow";
+import type { OrderResponse } from "@/store/api/types";
+
+type EstimateOrder = Pick<OrderResponse, "status" | "estimatedReadyAt">;
+
+const REFRESH_MS = 30_000;
+
+function describeEstimate(estimate: OrderEstimate): string {
+  switch (estimate.state) {
+    case "counting":
+      return `~${estimate.minutesLeft} min left · ready by ${estimate.clock}`;
+    case "due":
+      return `Overdue · was due at ${estimate.clock}`;
+    case "none":
+      return "Not set — the customer sees “The shop will confirm the time shortly”.";
+    case "finished":
+      return "";
+  }
+}
+
+export function OrderEstimateChip({ order }: { order: EstimateOrder }) {
+  const now = useNow(REFRESH_MS);
+  const estimate = getOrderEstimate(order, now);
+  if (estimate.state !== "counting" && estimate.state !== "due") return null;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold",
+        estimate.state === "due" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+      )}
+      title={`Ready by ${estimate.clock}`}
+    >
+      <Timer className="h-3 w-3" aria-hidden="true" />
+      {estimate.state === "due" ? "Overdue" : `~${estimate.minutesLeft} min`}
+    </span>
+  );
+}
+
+export function OrderEstimateEditor({
+  order,
+  onSave,
+  isSaving = false,
+}: {
+  order: EstimateOrder;
+  onSave: (minutes: number) => void;
+  isSaving?: boolean;
+}) {
+  const now = useNow(REFRESH_MS);
+  const [custom, setCustom] = useState("");
+  const estimate = getOrderEstimate(order, now);
+  if (estimate.state === "finished") return null;
+
+  const submitCustom = () => {
+    const minutes = Number(custom);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > ESTIMATE_MAX_MINUTES) {
+      toast.error(`Enter whole minutes between 1 and ${ESTIMATE_MAX_MINUTES}.`);
+      return;
+    }
+    onSave(minutes);
+    setCustom("");
+  };
+
+  return (
+    <section className="mt-4 rounded-xl border border-gray-200 bg-white p-3.5" aria-label="Estimated time">
+      <div className="flex items-start gap-2.5">
+        <span
+          className={cn(
+            "grid h-8 w-8 shrink-0 place-items-center rounded-full",
+            estimate.state === "due"
+              ? "bg-red-50 text-red-600"
+              : estimate.state === "counting"
+                ? "bg-emerald-50 text-emerald-600"
+                : "bg-gray-100 text-gray-500"
+          )}
+        >
+          <Timer className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-gray-900">Estimated time</p>
+          <p
+            className={cn(
+              "text-xs",
+              estimate.state === "due" ? "font-medium text-red-600" : "text-gray-500"
+            )}
+          >
+            {describeEstimate(estimate)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {ESTIMATE_QUICK_MINUTES.map((minutes) => (
+          <button
+            key={minutes}
+            type="button"
+            onClick={() => onSave(minutes)}
+            disabled={isSaving}
+            className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 transition hover:border-gray-900 hover:text-gray-900 disabled:opacity-50"
+          >
+            {minutes} min
+          </button>
+        ))}
+        <div className="flex items-center gap-1.5">
+          <input
+            type="number"
+            min="1"
+            max={ESTIMATE_MAX_MINUTES}
+            step="1"
+            inputMode="numeric"
+            placeholder="Custom"
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submitCustom();
+              }
+            }}
+            className="h-7 w-20 rounded-full border border-gray-300 px-3 text-xs outline-none focus:border-gray-900"
+            aria-label="Custom estimated minutes"
+          />
+          <button
+            type="button"
+            onClick={submitCustom}
+            disabled={isSaving || !custom.trim()}
+            className="btn_primary_black h-7 rounded-full px-3 text-xs font-medium disabled:opacity-50"
+          >
+            {isSaving ? "Saving..." : "Set"}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}

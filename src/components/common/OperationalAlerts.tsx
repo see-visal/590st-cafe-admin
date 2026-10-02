@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { PhoneCall } from "lucide-react";
+import { ConciergeBell, PackageMinus, PhoneCall, ShoppingBag, MessageSquareText } from "lucide-react";
 import { useListLowStockQuery } from "@/store/api/inventoryApi";
 import {
   useAnswerStaffCallMutation,
@@ -23,6 +23,9 @@ import { useStaffCallAlerts } from "@/hooks/useStaffCallAlerts";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { useFeedbackAlerts } from "@/hooks/useFeedbackAlerts";
 import { humanise, timeAgo, titleCase } from "@/lib/utils";
+import { notify } from "@/components/common/AppToast";
+import { staffCallReasonLabel } from "@/lib/staffCall";
+import { lowStockNotice, newMessageNotice, orderNotice, staffCallNotice } from "@/lib/liveNotifications";
 
 const polling = { pollingInterval: 30000, skipPollingIfUnfocused: true };
 
@@ -137,15 +140,30 @@ export function useOperationalAlerts() {
   const { unseen, markSeen } = useUnseenCount(count);
 
   useStaffOrderAlerts(
-    useCallback(() => {
-      if (isAdmin || isBarista) void orders.refetch();
-    }, [isAdmin, isBarista, orders]),
+    useCallback(
+      (message) => {
+        if (!isAdmin && !isBarista) return;
+        void orders.refetch();
+        const notice = orderNotice(message, {
+          orders: isBarista ? "/barista-queue" : "/orders",
+          deliveryFee: isBarista ? "/barista-queue" : "/payments",
+        });
+        if (notice) notify({ ...notice, icon: <ShoppingBag /> });
+      },
+      [isAdmin, isBarista, orders],
+    ),
   );
 
   useStaffCallAlerts(
-    useCallback(() => {
-      if (isAdmin || isBarista) void staffCalls.refetch();
-    }, [isAdmin, isBarista, staffCalls]),
+    useCallback(
+      (message) => {
+        if (!isAdmin && !isBarista) return;
+        void staffCalls.refetch();
+        const notice = staffCallNotice(message, "/notifications");
+        if (notice) notify({ ...notice, icon: <ConciergeBell /> });
+      },
+      [isAdmin, isBarista, staffCalls],
+    ),
   );
 
   useInventoryAlerts(
@@ -154,10 +172,28 @@ export function useOperationalAlerts() {
     }, [isAdmin, isBarista, stock]),
   );
   useFeedbackAlerts(
-    useCallback(() => {
-      if (isAdmin) void messages.refetch();
-    }, [isAdmin, messages]),
+    useCallback(
+      (message) => {
+        if (!isAdmin) return;
+        void messages.refetch();
+        if (message.change === "CREATED") {
+          notify({ ...newMessageNotice(message.id, "/notifications"), icon: <MessageSquareText /> });
+        }
+      },
+      [isAdmin, messages],
+    ),
   );
+
+  const lowStockTotal = stock.data?.totalElements;
+  const previousLowStock = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (lowStockTotal === undefined) return;
+    const previous = previousLowStock.current;
+    previousLowStock.current = lowStockTotal;
+    if (previous !== undefined && lowStockTotal > previous) {
+      notify({ ...lowStockNotice(lowStockTotal, "/stock-alerts"), icon: <PackageMinus /> });
+    }
+  }, [lowStockTotal]);
 
   const answerStaffCall = useCallback(
     async (orderId: string) => {
@@ -250,6 +286,14 @@ export function OperationalAlertsContent({
                     {timeAgo(call.calledAt)}
                   </span>
                 </span>
+                <span className="mt-1 inline-block rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                  {staffCallReasonLabel(call.reason)}
+                </span>
+                {call.note && (
+                  <span className="mt-1 block break-words text-xs italic text-amber-900">
+                    &ldquo;{call.note}&rdquo;
+                  </span>
+                )}
                 <span className="block truncate">
                   {call.customerName ? titleCase(call.customerName) : "Walk-in"}{" "}
                   · {humanise(call.orderStatus)}

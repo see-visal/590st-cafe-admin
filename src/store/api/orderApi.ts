@@ -5,6 +5,7 @@ import type {
   CreateOrderRequest,
   Currency,
   DeliveryFeeRequest,
+  EstimatedTimeRequest,
   OrderAuditLogResponse,
   OrderResponse,
   OrderStatus,
@@ -163,22 +164,6 @@ export const orderApi = baseApi.injectEndpoints({
       ],
     }),
 
-    acceptBakongPayment: builder.mutation<OrderResponse, UUID>({
-      query: (id) => ({
-        url: `/api/admin/orders/${id}/accept-bakong`,
-        method: "POST",
-      }),
-      transformResponse: unwrap<OrderResponse>,
-      invalidatesTags: (_r, _e, id) => [
-        { type: "Order", id },
-        { type: "OrderHistory", id },
-        "Inventory",
-        "StockMovement",
-        "Product",
-        ...ORDER_QUEUE_TAGS,
-      ],
-    }),
-
     cancelOrder: builder.mutation<OrderResponse, UUID>({
       query: (id) => ({
         url: `/api/admin/orders/${id}/cancel`,
@@ -203,6 +188,23 @@ export const orderApi = baseApi.injectEndpoints({
       }),
       transformResponse: unwrap<PageResponse<OrderResponse>>,
       providesTags: [{ type: "Order", id: "AWAITING_DELIVERY_FEE" }],
+    }),
+
+    setOrderEstimatedTime: builder.mutation<
+      OrderResponse,
+      { id: UUID; body: EstimatedTimeRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/api/admin/orders/${id}/estimated-time`,
+        method: "POST",
+        body,
+      }),
+      transformResponse: unwrap<OrderResponse>,
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Order", id },
+        { type: "OrderHistory", id },
+        ...ORDER_QUEUE_TAGS,
+      ],
     }),
 
     setOrderDeliveryFee: builder.mutation<
@@ -323,8 +325,8 @@ export const {
   useListAwaitingDeliveryFeeQuery,
   useListDeliveryBoardQuery,
   useSetOrderDeliveryFeeMutation,
+  useSetOrderEstimatedTimeMutation,
   useCollectCashMutation,
-  useAcceptBakongPaymentMutation,
   useCancelOrderMutation,
   useStartPreparingOrderMutation,
   useCompleteOrderMutation,
