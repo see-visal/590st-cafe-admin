@@ -38,6 +38,7 @@ import { humanise, titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { formatPhone, formatPhoneInput, isValidPhone, PHONE_INVALID_MESSAGE } from "@/lib/phone";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 
 export { humanise };
 
@@ -86,6 +87,7 @@ export default function UserManagementView({
   const refresh = useRefreshOptions();
   const [searchTerm, setSearchTerm] = usePersistentState(`users-${role ?? "all"}:searchTerm`, "");
   const [statusFilter, setStatusFilter] = usePersistentState(`users-${role ?? "all"}:statusFilter`, "");
+  const isFiltering = Boolean(searchTerm.trim() || statusFilter);
   const [roleFilter, setRoleFilter] = usePersistentState<string>(`users-${role ?? "all"}:roleFilter`, role ?? "");
 
   const effectiveRole = (role ?? roleFilter) || undefined;
@@ -97,8 +99,7 @@ export default function UserManagementView({
     error,
     refetch,
   } = useListUsersQuery({
-    page,
-    size,
+    ...filteredQueryArgs(page, size, isFiltering),
     ...(effectiveRole ? { role: effectiveRole as Role } : {}),
   }, refresh);
   const list = listLoadState({ isFetching, currentData, error });
@@ -118,7 +119,7 @@ export default function UserManagementView({
 
   const users = useMemo(() => userPage?.content ?? [], [userPage]);
 
-  const visibleUsers = useMemo(
+  const matchingUsers = useMemo(
     () =>
       users.filter((user) => {
         const term = searchTerm.trim().toLowerCase();
@@ -131,6 +132,8 @@ export default function UserManagementView({
       }),
     [users, searchTerm, statusFilter]
   );
+  const view = filteredPage(matchingUsers, userPage, page, size, isFiltering);
+  const visibleUsers = view.rows;
 
   const activeCount = users.filter((u) => u.status === "ACTIVE").length;
 
@@ -201,7 +204,7 @@ export default function UserManagementView({
           label="Name or Email"
           placeholder="Search accounts"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
         />
         {role ? null : (
           <SelectField
@@ -222,7 +225,7 @@ export default function UserManagementView({
           label="Status"
           placeholder="All statuses"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
           {USER_STATUSES.map((status) => (
             <option key={status} value={status}>
@@ -240,13 +243,13 @@ export default function UserManagementView({
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleUsers.length === 0}
-            emptyLabel={emptyLabel}
+            emptyLabel={isFiltering ? "No accounts match these filters." : emptyLabel}
             onRetry={refetch}
           />
           {list.showRows &&
             visibleUsers.map((user, index) => (
               <Row key={user.id} striped={index % 2 === 1}>
-                <Cell>{(page - 1) * size + index + 1}</Cell>
+                <Cell>{view.offset + index + 1}</Cell>
                 <Cell>
                   <Thumbnail src={user.avatarUrl ?? undefined} />
                 </Cell>
@@ -287,10 +290,10 @@ export default function UserManagementView({
             ))}
         </SimpleTable>
         <PaginationFooter
-          page={userPage?.page ?? page}
-          totalPages={userPage?.totalPages ?? 1}
+          page={view.page}
+          totalPages={view.totalPages}
           size={size}
-          totalElements={userPage?.totalElements}
+          totalElements={view.totalElements}
           onPageChange={setPage}
           onSizeChange={(next) => {
             setSize(next);

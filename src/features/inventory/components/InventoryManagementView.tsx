@@ -47,6 +47,7 @@ import type { InventoryResponse, StockStrategy } from "@/store/api/types";
 import { downloadBlob, humanise, titleCase } from "@/lib/utils";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 import { DatePickerInput } from "@/components/forms/DatePickerInput";
 
 const INVENTORY_TABLE_HEADERS = [
@@ -90,6 +91,7 @@ export default function Inventory() {
   const [size, setSize] = usePageSize();
   const [searchTerm, setSearchTerm] = usePersistentState("inventory:searchTerm", "");
   const [levelFilter, setLevelFilter] = usePersistentState("inventory:levelFilter", "");
+  const isFiltering = Boolean(searchTerm.trim() || levelFilter);
   const [expenseMonth, setExpenseMonth] = usePersistentState("inventory:expenseMonth", () => new Date().toISOString().slice(0, 7));
 
   const {
@@ -98,7 +100,7 @@ export default function Inventory() {
     isFetching,
     error,
     refetch,
-  } = useListInventoryQuery({ page, size });
+  } = useListInventoryQuery(filteredQueryArgs(page, size, isFiltering));
   const list = listLoadState({ isFetching, currentData, error });
 
   useInventoryAlerts(useCallback(() => { void refetch(); }, [refetch]));
@@ -142,7 +144,7 @@ export default function Inventory() {
     [productPage]
   );
 
-  const visibleInventory = useMemo(
+  const matchingInventory = useMemo(
     () =>
       inventory.filter((item) => {
         const term = searchTerm.trim().toLowerCase();
@@ -152,6 +154,8 @@ export default function Inventory() {
       }),
     [inventory, searchTerm, levelFilter]
   );
+  const view = filteredPage(matchingInventory, inventoryPage, page, size, isFiltering);
+  const visibleInventory = view.rows;
 
   const lowCount = inventory.filter((i) => stockLevel(i) === "LOW").length;
   const outCount = inventory.filter((i) => stockLevel(i) === "OUT").length;
@@ -254,13 +258,13 @@ export default function Inventory() {
           label="Product Name"
           placeholder="Search products"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
         />
         <SelectField
           label="Stock Level"
           placeholder="All levels"
           value={levelFilter}
-          onChange={(e) => setLevelFilter(e.target.value)}
+          onChange={(e) => { setLevelFilter(e.target.value); setPage(1); }}
         >
           <option value="OK">In Stock</option>
           <option value="LOW">Low Stock</option>
@@ -311,7 +315,7 @@ export default function Inventory() {
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleInventory.length === 0}
-            emptyLabel="No inventory records. Products get a stock row when they are created."
+            emptyLabel={isFiltering ? "No stock records match these filters." : "No inventory records. Products get a stock row when they are created."}
             onRetry={refetch}
           />
           {list.showRows &&
@@ -319,7 +323,7 @@ export default function Inventory() {
               const level = stockLevel(item);
               return (
                 <Row key={item.productId} striped={index % 2 === 1}>
-                  <Cell>{(page - 1) * size + index + 1}</Cell>
+                  <Cell>{view.offset + index + 1}</Cell>
                   <Cell className="font-semibold">{titleCase(item.productName)}</Cell>
                   <Cell>{Number(item.quantityOnHand).toLocaleString()}</Cell>
                   <Cell>{humanise(item.unit)}</Cell>
@@ -339,10 +343,10 @@ export default function Inventory() {
             })}
         </SimpleTable>
         <PaginationFooter
-          page={inventoryPage?.page ?? page}
-          totalPages={inventoryPage?.totalPages ?? 1}
+          page={view.page}
+          totalPages={view.totalPages}
           size={size}
-          totalElements={inventoryPage?.totalElements}
+          totalElements={view.totalElements}
           onPageChange={setPage}
           onSizeChange={(next) => {
             setSize(next);

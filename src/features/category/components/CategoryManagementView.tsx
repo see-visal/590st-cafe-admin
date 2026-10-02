@@ -44,6 +44,7 @@ import { humanise, titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 
 const CATEGORY_GROUPS: CategoryGroup[] = ["FRESH_DRINK", "BEVERAGE", "SNACK"];
 
@@ -96,6 +97,7 @@ export default function Categories() {
   const [size, setSize] = usePageSize();
   const [searchTerm, setSearchTerm] = usePersistentState("categories:searchTerm", "");
   const [filterStatus, setFilterStatus] = usePersistentState("categories:filterStatus", "");
+  const isFiltering = Boolean(searchTerm.trim() || filterStatus);
 
   const {
     data: categoryPage,
@@ -103,7 +105,7 @@ export default function Categories() {
     isFetching,
     error,
     refetch,
-  } = useListCategoriesQuery({ page, size });
+  } = useListCategoriesQuery(filteredQueryArgs(page, size, isFiltering));
   const list = listLoadState({ isFetching, currentData, error });
 
   const { data: productPage, refetch: refetchProducts } = useListProductsQuery({ page: 1, size: 500 });
@@ -134,7 +136,7 @@ export default function Categories() {
     return counts;
   }, [productPage]);
 
-  const visibleCategories = useMemo(
+  const matchingCategories = useMemo(
     () =>
       categories.filter((category) => {
         const matchesSearch = category.name
@@ -145,6 +147,8 @@ export default function Categories() {
       }),
     [categories, searchTerm, filterStatus]
   );
+  const view = filteredPage(matchingCategories, categoryPage, page, size, isFiltering);
+  const visibleCategories = view.rows;
 
   const activeCount = categories.filter((c) => c.status === "ACTIVE").length;
 
@@ -245,13 +249,13 @@ export default function Categories() {
           label="Category Name"
           placeholder="Search by name"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
         />
         <SelectField
           label="Status"
           placeholder="All statuses"
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
+          onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
         >
           <option value="ACTIVE">Active</option>
           <option value="INACTIVE">Inactive</option>
@@ -272,13 +276,13 @@ export default function Categories() {
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleCategories.length === 0}
-            emptyLabel={isAdmin ? "No categories yet. Use Register to add the first one." : "No categories found."}
+            emptyLabel={isFiltering ? "No categories match these filters." : isAdmin ? "No categories yet. Use Register to add the first one." : "No categories found."}
             onRetry={refetch}
           />
           {list.showRows &&
             visibleCategories.map((category, index) => (
               <Row key={category.id} striped={index % 2 === 1}>
-                <Cell>{(page - 1) * size + index + 1}</Cell>
+                <Cell>{view.offset + index + 1}</Cell>
                 <Cell className="font-semibold">{titleCase(category.name)}</Cell>
                 <Cell>{category.description || "-"}</Cell>
                 <Cell>{productCountByCategory.get(category.id) ?? 0}</Cell>
@@ -302,10 +306,10 @@ export default function Categories() {
             ))}
         </SimpleTable>
         <PaginationFooter
-          page={categoryPage?.page ?? page}
-          totalPages={categoryPage?.totalPages ?? 1}
+          page={view.page}
+          totalPages={view.totalPages}
           size={size}
-          totalElements={categoryPage?.totalElements}
+          totalElements={view.totalElements}
           onPageChange={setPage}
           onSizeChange={(next) => {
             setSize(next);
