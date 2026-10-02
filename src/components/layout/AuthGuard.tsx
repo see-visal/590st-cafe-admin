@@ -39,8 +39,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (mounted && !checked) router.replace(loginUrl);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, checked, router, pathname]);
+  }, [mounted, checked, router, loginUrl]);
 
   useEffect(() => {
     if (
@@ -55,8 +54,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
       clearTokens();
       router.replace(loginUrl);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasAccount, status]);
+  }, [hasAccount, status, router, loginUrl]);
 
   useEffect(() => {
     if (hasAccount || !serverUnreachable || profile.isFetching) return;

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import QRCode from "qrcode";
-import { Loader2, Minus, Plus, Search, ShoppingBag, X } from "lucide-react";
+import { Minus, Plus, Search, ShoppingBag, X } from "lucide-react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { AdminTopActions, ErrorState, FormSelect, SkeletonBlock, listLoadState } from "@/components/common/AdminKit";
