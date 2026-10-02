@@ -19,6 +19,7 @@ import {
   StatusBadge,
   TableState,
   listLoadState,
+  MoneyField,
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import {
@@ -54,6 +55,7 @@ const PICKUP_HEADERS = [
   "Customer",
   "Items",
   "Amount Due",
+  "Status",
   "Ordered At",
   "Action",
 ] as const;
@@ -260,6 +262,7 @@ export default function PaymentManagementView() {
         <StatTile
           title="Awaiting Cash Pickup"
           value={String(pickupData?.totalElements ?? 0)}
+          hint="Unpaid cash orders, including ones being prepared"
           tone={(pickupData?.totalElements ?? 0) > 0 ? "orange" : "gray"}
         />
         <StatTile title="Cash Due (this page)" value={money(pickupTotal)} tone="green" />
@@ -334,7 +337,7 @@ export default function PaymentManagementView() {
             isLoading={pickupList.isLoading}
             error={pickupList.error}
             isEmpty={pickupOrders.length === 0}
-            emptyLabel="No orders are waiting for cash collection."
+            emptyLabel="No unpaid cash orders."
             onRetry={refetchPickup}
           />
           {pickupList.showRows &&
@@ -345,6 +348,12 @@ export default function PaymentManagementView() {
                 <Cell>{order.customerName ? titleCase(order.customerName) : "Walk-in"}</Cell>
                 <Cell className="max-w-[16rem] truncate">{summarise(order)}</Cell>
                 <Cell className="font-semibold">{money(order.totalAmount)}</Cell>
+                <Cell>
+                  <StatusBadge
+                    label={order.status === "PREPARING" ? "Preparing" : "Waiting"}
+                    tone={order.status === "PREPARING" ? "info" : "warning"}
+                  />
+                </Cell>
                 <Cell>{formatDateTime(order.createdAt)}</Cell>
                 <Cell>
                   <button
@@ -486,13 +495,10 @@ export default function PaymentManagementView() {
             readOnly
           />
           <FormInput label="Items Subtotal" value={feeOrder ? money(feeOrder.totalAmount) : ""} readOnly />
-          <FormInput
+          <MoneyField
             label="Delivery Fee (USD)"
-            type="number"
-            min="0"
-            placeholder="0.00"
             value={feeInput}
-            onChange={(e) => setFeeInput(e.target.value)}
+            onValueChange={setFeeInput}
             required
           />
           <FormInput
@@ -543,13 +549,11 @@ export default function PaymentManagementView() {
               KHR{!khrPerUsdRate ? " (rate unavailable)" : ""}
             </option>
           </FormSelect>
-          <FormInput
+          <MoneyField
             label="Amount Tendered"
-            type="number"
-            step={currency === "KHR" ? "1" : "0.01"}
-            placeholder={currency === "KHR" ? "0" : "0.00"}
+            currency={currency}
             value={amountTendered}
-            onChange={(e) => setAmountTendered(e.target.value)}
+            onValueChange={setAmountTendered}
             required
           />
           <FormInput
