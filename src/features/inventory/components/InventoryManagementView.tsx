@@ -47,6 +47,7 @@ import type { InventoryResponse, StockStrategy } from "@/store/api/types";
 import { downloadBlob, humanise, titleCase } from "@/lib/utils";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { DatePickerInput } from "@/components/forms/DatePickerInput";
 
 const INVENTORY_TABLE_HEADERS = [
   "No",
@@ -276,13 +277,12 @@ export default function Inventory() {
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
                 <label className="form_field w-auto">
-                  <input
+                  <DatePickerInput
                     type="month"
                     value={expenseMonth}
-                    onChange={(e) => setExpenseMonth(e.target.value)}
-                    className="form_field_control"
+                    onChange={setExpenseMonth}
+                    className="min-w-[160px]"
                     aria-label="Stock expense report month"
-                    title="Month to export"
                   />
                 </label>
                 <button
