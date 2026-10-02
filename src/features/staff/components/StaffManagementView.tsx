@@ -57,6 +57,7 @@ import type { Gender, TelegramLinkCodeResponse, UserResponse, UserStatus } from 
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { formatPhone, formatPhoneInput, isValidPhone, PHONE_INVALID_MESSAGE } from "@/lib/phone";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 
 const STAFF_TABLE_HEADERS = [
   "No",
@@ -101,13 +102,14 @@ export default function Staff() {
   const [size, setSize] = usePageSize();
   const [searchTerm, setSearchTerm] = usePersistentState("staff:searchTerm", "");
   const [statusFilter, setStatusFilter] = usePersistentState("staff:statusFilter", "");
+  const isFiltering = Boolean(searchTerm.trim() || statusFilter);
 
   const adminQuery = useListAdminsQuery(
-    { page, size },
+    filteredQueryArgs(page, size, isFiltering),
     { skip: !canManageAdmins || kind !== "ADMIN" }
   );
   const baristaQuery = useListBaristasQuery(
-    { page, size },
+    filteredQueryArgs(page, size, isFiltering),
     { skip: !isAdmin || kind !== "BARISTA" }
   );
   const active = kind === "ADMIN" ? adminQuery : baristaQuery;
@@ -156,7 +158,7 @@ export default function Staff() {
 
   const staff = useMemo(() => active.data?.content ?? [], [active.data]);
 
-  const visibleStaff = useMemo(
+  const matchingStaff = useMemo(
     () =>
       staff.filter((member) => {
         const term = searchTerm.trim().toLowerCase();
@@ -169,6 +171,8 @@ export default function Staff() {
       }),
     [staff, searchTerm, statusFilter]
   );
+  const view = filteredPage(matchingStaff, active.data, page, size, isFiltering);
+  const visibleStaff = view.rows;
 
   const activeCount = staff.filter((s) => s.status === "ACTIVE").length;
 
@@ -363,13 +367,13 @@ export default function Staff() {
           label="Name or Email"
           placeholder="Search staff"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
         />
         <SelectField
           label="Status"
           placeholder="All statuses"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
           <option value="ACTIVE">Active</option>
           <option value="PENDING_VERIFICATION">Pending Verification</option>
@@ -396,13 +400,13 @@ export default function Staff() {
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleStaff.length === 0}
-            emptyLabel={`No ${kind === "ADMIN" ? "admins" : "baristas"} yet.`}
+            emptyLabel={isFiltering ? "No staff match these filters." : `No ${kind === "ADMIN" ? "admins" : "baristas"} yet.`}
             onRetry={active.refetch}
           />
           {list.showRows &&
             visibleStaff.map((member, index) => (
               <Row key={member.id} striped={index % 2 === 1}>
-                <Cell>{(page - 1) * size + index + 1}</Cell>
+                <Cell>{view.offset + index + 1}</Cell>
                 <Cell>
                   <StaffIdentityCell name={member.fullName} email={member.email} avatarUrl={member.avatarUrl} />
                 </Cell>
@@ -431,10 +435,10 @@ export default function Staff() {
             ))}
         </SimpleTable>
         <PaginationFooter
-          page={active.data?.page ?? page}
-          totalPages={active.data?.totalPages ?? 1}
+          page={view.page}
+          totalPages={view.totalPages}
           size={size}
-          totalElements={active.data?.totalElements}
+          totalElements={view.totalElements}
           onPageChange={setPage}
           onSizeChange={(next) => {
             setSize(next);
