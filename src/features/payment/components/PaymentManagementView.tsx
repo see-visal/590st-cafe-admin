@@ -55,6 +55,7 @@ const PICKUP_HEADERS = [
   "Customer",
   "Items",
   "Amount Due",
+  "Status",
   "Ordered At",
   "Action",
 ] as const;
@@ -261,6 +262,7 @@ export default function PaymentManagementView() {
         <StatTile
           title="Awaiting Cash Pickup"
           value={String(pickupData?.totalElements ?? 0)}
+          hint="Unpaid cash orders, including ones being prepared"
           tone={(pickupData?.totalElements ?? 0) > 0 ? "orange" : "gray"}
         />
         <StatTile title="Cash Due (this page)" value={money(pickupTotal)} tone="green" />
@@ -335,7 +337,7 @@ export default function PaymentManagementView() {
             isLoading={pickupList.isLoading}
             error={pickupList.error}
             isEmpty={pickupOrders.length === 0}
-            emptyLabel="No orders are waiting for cash collection."
+            emptyLabel="No unpaid cash orders."
             onRetry={refetchPickup}
           />
           {pickupList.showRows &&
@@ -346,6 +348,12 @@ export default function PaymentManagementView() {
                 <Cell>{order.customerName ? titleCase(order.customerName) : "Walk-in"}</Cell>
                 <Cell className="max-w-[16rem] truncate">{summarise(order)}</Cell>
                 <Cell className="font-semibold">{money(order.totalAmount)}</Cell>
+                <Cell>
+                  <StatusBadge
+                    label={order.status === "PREPARING" ? "Preparing" : "Waiting"}
+                    tone={order.status === "PREPARING" ? "info" : "warning"}
+                  />
+                </Cell>
                 <Cell>{formatDateTime(order.createdAt)}</Cell>
                 <Cell>
                   <button
