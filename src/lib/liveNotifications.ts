@@ -54,16 +54,18 @@ export function orderNotice(
   }
 }
 
+export const staffCallToastId = (orderId: string) => `staff-call-${orderId}`;
+
 export function staffCallNotice(message: StaffCallMessage, href: string): Notice | null {
   if (message.type !== "CALLED") return null;
   const reason = staffCallReasonLabel(message.reason);
   return {
-    id: `staff-call-${message.orderId}-${message.sentAt}`,
+    id: staffCallToastId(message.orderId),
     tone: "urgent",
     title: `${customerOf(message.customerName)} is calling staff`,
     description: message.note ? `${reason} — “${message.note}”` : `${reason} · ${shortId(message.orderId)}`,
     href,
-    actionLabel: "Answer",
+    actionLabel: "Respond",
     duration: 12000,
   };
 }

@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { parseShopDateTime } from "@/lib/estimate";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -84,7 +85,7 @@ export function formatByCurrency(
 }
 
 export function timeAgo(value: string): string {
-  const then = new Date(value).getTime();
+  const then = parseShopDateTime(value).getTime();
   if (Number.isNaN(then)) return "";
   const minutes = Math.max(0, Math.round((Date.now() - then) / 60000));
   if (minutes < 60) return `${minutes} min ago`;

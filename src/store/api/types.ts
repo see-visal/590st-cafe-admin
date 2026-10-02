@@ -500,14 +500,24 @@ export type StaffCallReason =
   | "DELIVERY_HELP"
   | "OTHER";
 
+export type StaffCallStatus = "OPEN" | "ANSWERED";
+
+export interface AnswerStaffCallRequest {
+  reply?: string;
+}
+
 export interface StaffCallResponse {
   orderId: UUID;
   customerName: string | null;
   orderStatus: OrderStatus;
   fulfillmentMethod: FulfillmentMethod | null;
+  status: StaffCallStatus;
   reason: StaffCallReason;
   note: string | null;
   calledAt: string;
+  answeredByName: string | null;
+  reply: string | null;
+  answeredAt: string | null;
   nextCallAllowedAt: string | null;
 }
 
@@ -521,6 +531,7 @@ export interface StaffCallMessage {
   note: string | null;
   calledAt: string;
   answeredByName: string | null;
+  reply: string | null;
   sentAt: string;
 }
 
