@@ -302,11 +302,13 @@ export const orderApi = baseApi.injectEndpoints({
       providesTags: [{ type: "StaffCall", id: "LIST" }],
     }),
 
-    answerStaffCall: builder.mutation<void, UUID>({
-      query: (id) => ({
+    answerStaffCall: builder.mutation<StaffCallResponse, { id: UUID; reply?: string }>({
+      query: ({ id, reply }) => ({
         url: `/api/admin/orders/${id}/staff-call/answer`,
         method: "POST",
+        body: { reply },
       }),
+      transformResponse: unwrap<StaffCallResponse>,
       invalidatesTags: [{ type: "StaffCall", id: "LIST" }],
     }),
   }),
