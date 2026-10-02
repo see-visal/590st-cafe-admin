@@ -54,6 +54,7 @@ import { formatSku, humanise, productPriceLabel, titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 
 const PRODUCT_TABLE_HEADERS = [
   "No",
@@ -111,6 +112,7 @@ export default function Products() {
   const [categoryFilter, setCategoryFilter] = usePersistentState("products:categoryFilter", "");
   const [statusFilter, setStatusFilter] = usePersistentState("products:statusFilter", "");
 
+  const isFiltering = Boolean(searchTerm.trim() || statusFilter);
   const {
     data: productPage,
     currentData,
@@ -118,8 +120,7 @@ export default function Products() {
     error,
     refetch,
   } = useListProductsQuery({
-    page,
-    size,
+    ...filteredQueryArgs(page, size, isFiltering),
     ...(categoryFilter ? { categoryId: categoryFilter } : {}),
   });
   const list = listLoadState({ isFetching, currentData, error });
@@ -154,7 +155,7 @@ export default function Products() {
 
   const products = useMemo(() => productPage?.content ?? [], [productPage]);
 
-  const visibleProducts = useMemo(
+  const matchingProducts = useMemo(
     () =>
       products.filter((product) => {
         const term = searchTerm.trim().toLowerCase();
@@ -167,6 +168,8 @@ export default function Products() {
       }),
     [products, searchTerm, statusFilter]
   );
+  const view = filteredPage(matchingProducts, productPage, page, size, isFiltering);
+  const visibleProducts = view.rows;
 
   const lowStockCount = products.filter(
     (p) => Number(p.quantityOnHand) <= Number(p.reorderLevel)
@@ -337,7 +340,10 @@ export default function Products() {
           label="Name or SKU"
           placeholder="Search products"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setPage(1);
+          }}
         />
         <SelectField
           label="Category"
@@ -358,7 +364,10 @@ export default function Products() {
           label="Status"
           placeholder="All statuses"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
         >
           <option value="ACTIVE">Active</option>
           <option value="INACTIVE">Inactive</option>
@@ -389,7 +398,8 @@ export default function Products() {
             error={list.error}
             isEmpty={visibleProducts.length === 0}
             emptyLabel={
-              !isAdmin ? "No products found." : hasNoCategories
+              isFiltering ? "No products match these filters."
+              : !isAdmin ? "No products found." : hasNoCategories
                 ? "No products yet — and no categories to file one under. Create a category first, then Register a product."
                 : "No products yet. Use Register to add the first one."
             }
@@ -398,7 +408,7 @@ export default function Products() {
           {list.showRows &&
             visibleProducts.map((product, index) => (
               <Row key={product.id} striped={index % 2 === 1}>
-                <Cell>{(page - 1) * size + index + 1}</Cell>
+                <Cell>{view.offset + index + 1}</Cell>
                 <Cell>
                   <Thumbnail src={product.imageUrl ?? undefined} />
                 </Cell>
@@ -438,10 +448,10 @@ export default function Products() {
             ))}
         </SimpleTable>
         <PaginationFooter
-          page={productPage?.page ?? page}
-          totalPages={productPage?.totalPages ?? 1}
+          page={view.page}
+          totalPages={view.totalPages}
           size={size}
-          totalElements={productPage?.totalElements}
+          totalElements={view.totalElements}
           onPageChange={setPage}
           onSizeChange={(next) => {
             setSize(next);

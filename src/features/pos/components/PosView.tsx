@@ -125,7 +125,7 @@ export default function PosView() {
   const { data: categoryPage, refetch: refetchCategories } = useListCategoriesQuery({ page: 1, size: 100 });
   const productsQuery = useListProductsQuery({
     page: 1,
-    size: 200,
+    size: 500,
     ...(activeCategory !== "All" ? { categoryId: activeCategory } : {}),
   });
   const { data: productPage, refetch } = productsQuery;
