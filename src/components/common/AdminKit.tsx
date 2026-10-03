@@ -634,9 +634,12 @@ export function SimpleTable({
   headers: string[];
   children: ReactNode;
 }) {
+  // Keep row actions reachable when the table scrolls sideways on phones and tablets.
+  const lastHeader = headers[headers.length - 1]?.toLowerCase();
+  const stickyAction = lastHeader === "action" || lastHeader === "actions";
   return (
     <div className="data_table_wrap">
-      <table className="data_table">
+      <table className={cn("data_table", stickyAction && "has_sticky_action")}>
         <thead>
           <tr>
             {headers.map((header) => (

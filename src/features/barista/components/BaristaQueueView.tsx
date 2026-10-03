@@ -5,6 +5,7 @@ import { OrderEstimateChip, OrderEstimateEditor } from "@/components/common/Orde
 import { useCallback, useState, type ReactNode } from "react";
 import toast from "react-hot-toast";
 import {
+  Armchair,
   Banknote,
   Bike,
   ChefHat,
@@ -64,7 +65,7 @@ import { useCurrentRole } from "@/store/api/useCurrentRole";
 import { useGetCurrentUserQuery } from "@/store/api/authApi";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import type { Currency, OrderResponse, OrderStatus } from "@/store/api/types";
-import { cn, formatByCurrency, formatLevel, humanise, timeAgo, titleCase } from "@/lib/utils";
+import { cn, formatByCurrency, formatLevel, fulfillmentLabel, humanise, timeAgo, titleCase } from "@/lib/utils";
 import { InvoiceActions, PrintInvoiceIconButton, toastPaidWithInvoice } from "@/components/common/InvoiceActions";
 import { useOrderInvoice } from "@/hooks/useOrderInvoice";
 import { buildCashPaymentSchema, firstIssueMessage } from "@/lib/validation";
@@ -198,8 +199,8 @@ function OrderCard({
       <div className="mt-3 flex flex-wrap gap-1.5">
         <OrderChip icon={order.customerId ? Globe : Store}>{order.customerId ? "Online" : "Walk-in"}</OrderChip>
         {order.fulfillmentMethod ? (
-          <OrderChip icon={order.fulfillmentMethod === "DELIVERY" ? Bike : ShoppingBag}>
-            {humanise(order.fulfillmentMethod)}
+          <OrderChip icon={order.fulfillmentMethod === "DELIVERY" ? Bike : order.fulfillmentMethod === "DINE_IN" ? Armchair : ShoppingBag}>
+            {fulfillmentLabel(order)}
           </OrderChip>
         ) : null}
         <OrderChip icon={order.paymentMethod === "BAKONG" ? QrCode : Banknote}>
