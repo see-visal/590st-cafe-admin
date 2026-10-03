@@ -4,6 +4,7 @@ import type {
   OrderResponse,
   PageQuery,
   PageResponse,
+  TableActivityResponse,
   TableResponse,
   TableStatus,
   UpdateTableRequest,
@@ -23,6 +24,22 @@ export const tableApi = baseApi.injectEndpoints({
               { type: "Table" as const, id: "LIST" },
             ]
           : [{ type: "Table" as const, id: "LIST" }],
+    }),
+
+    // Barista view: every table with its open orders and staff calls in one request.
+    listBaristaTables: builder.query<TableActivityResponse[], void>({
+      query: () => "/api/barista/tables",
+      transformResponse: unwrap<TableActivityResponse[]>,
+      providesTags: [{ type: "Table", id: "LIST" }, { type: "Order", id: "LIST" }],
+    }),
+
+    updateBaristaTableStatus: builder.mutation<TableResponse, { id: UUID; body: UpdateTableStatusRequest }>({
+      query: ({ id, body }) => ({ url: `/api/barista/tables/${id}/status`, method: "PATCH", body }),
+      transformResponse: unwrap<TableResponse>,
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Table", id },
+        { type: "Table", id: "LIST" },
+      ],
     }),
 
     // Public list (no admin role needed), so baristas can pick a table in POS.
@@ -81,6 +98,8 @@ export const {
   useListTablesQuery,
   useGetMenuLinkQuery,
   useListPublicTablesQuery,
+  useListBaristaTablesQuery,
+  useUpdateBaristaTableStatusMutation,
   useListTableOrdersQuery,
   useCreateTableMutation,
   useUpdateTableMutation,
