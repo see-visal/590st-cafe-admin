@@ -22,7 +22,7 @@ import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { useStaffCallAlerts } from "@/hooks/useStaffCallAlerts";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { useFeedbackAlerts } from "@/hooks/useFeedbackAlerts";
-import { humanise, timeAgo, titleCase } from "@/lib/utils";
+import { fulfillmentLabel, humanise, timeAgo, titleCase } from "@/lib/utils";
 import { notify } from "@/components/common/AppToast";
 import { Input } from "@/components/ui/input";
 import {
@@ -401,7 +401,7 @@ function StaffCallItem({
             {call.customerName ? titleCase(call.customerName) : "Walk-in"}{" "}
             · {humanise(call.orderStatus)}
             {call.fulfillmentMethod
-              ? ` · ${humanise(call.fulfillmentMethod)}`
+              ? ` · ${fulfillmentLabel(call)}`
               : ""}
           </span>
         </div>

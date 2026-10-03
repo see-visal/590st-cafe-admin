@@ -31,6 +31,7 @@ import {
 import { useListCategoriesQuery } from "@/store/api/categoryApi";
 import { useListProductsQuery } from "@/store/api/productApi";
 import { useGetExchangeRateQuery } from "@/store/api/reportApi";
+import { useListPublicTablesQuery } from "@/store/api/tableApi";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import type { Currency, OrderItemRequest, OrderResponse, ProductResponse, ProductVariantResponse } from "@/store/api/types";
 import { cn, humanise, titleCase } from "@/lib/utils";
@@ -106,6 +107,9 @@ export default function PosView() {
   const [paymentMethod, setPaymentMethod] = useState<PosPaymentMethod>("cash");
   const [cart, setCart] = usePersistentState<CartLine[]>("pos:cart", []);
   const [note, setNote] = usePersistentState("pos:note", "");
+  const [tableNumber, setTableNumber] = usePersistentState("pos:tableNumber", "");
+  const isDineIn = note === "Dine in";
+  const { data: tables } = useListPublicTablesQuery(undefined, { skip: !isDineIn });
   const [pendingOrder, setPendingOrder] = usePersistentState<OrderResponse | null>("pos:pendingOrder", null);
   const confirmingRef = useRef(false);
   const [completedSale, setCompletedSale] = usePersistentState<OrderResponse | null>("pos:completedSale", null);
@@ -229,6 +233,7 @@ export default function PosView() {
     setPendingOrder(null);
     setCart([]);
     setNote("");
+    setTableNumber("");
     setPaymentMethod("cash");
     setCashCurrency("USD");
     resetBakongState();
@@ -267,7 +272,11 @@ export default function PosView() {
       quantity: line.quantity,
       variantId: line.variant.id,
     }));
-    const order = await createOrder({ items, note: note.trim() || undefined }).unwrap();
+    const order = await createOrder({
+      items,
+      note: note.trim() || undefined,
+      tableNumber: isDineIn && tableNumber ? tableNumber : undefined,
+    }).unwrap();
     setPendingOrder(order);
     return order;
   };
@@ -518,7 +527,7 @@ export default function PosView() {
           </div>
         </section>
 
-        <aside className="pos_order_panel" aria-label="Order summary">
+        <aside id="pos-order-panel" className="pos_order_panel" aria-label="Order summary">
           <div className="pos_order_header">
             <div>
               <h2>Order Summary</h2>
@@ -541,6 +550,20 @@ export default function PosView() {
               <option value="Takeaway">Takeaway</option>
               <option value="Delivery">Delivery</option>
             </FormSelect>
+            {isDineIn ? (
+              <FormSelect
+                label="Table"
+                value={tableNumber}
+                onChange={(event) => { if (!pendingOrder && !confirmingRef.current) setTableNumber(event.target.value); }}
+                placeholder="No table"
+              >
+                {(tables ?? []).map((table) => (
+                  <option key={table.id} value={table.tableNumber}>
+                    Table {table.tableNumber}
+                  </option>
+                ))}
+              </FormSelect>
+            ) : null}
           </div>
 
           <div className="pos_cart_list">
@@ -628,6 +651,18 @@ export default function PosView() {
         </aside>
       </div>
 
+      {/* Phones and iPad portrait: the summary sits below the products, so keep the order one tap away. */}
+      {itemCount > 0 ? (
+        <button
+          type="button"
+          className="pos_mobile_order_bar"
+          onClick={() => document.getElementById("pos-order-panel")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        >
+          <span className="pos_mobile_order_count">{itemCount}</span>
+          <span>View order</span>
+          <b>${total.toFixed(2)}</b>
+        </button>
+      ) : null}
       <PosPaymentModal
         open={paymentOpen}
         onOpenChange={(open) => {

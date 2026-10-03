@@ -50,7 +50,7 @@ export type OrderStatus =
   | "DELIVERED"
   | "CANCELLED";
 export type PaymentMethod = "CASH" | "BAKONG";
-export type FulfillmentMethod = "PICKUP" | "DELIVERY";
+export type FulfillmentMethod = "PICKUP" | "DELIVERY" | "DINE_IN";
 export type DiscountType = "PERCENTAGE" | "FIXED";
 export type Currency = "USD" | "KHR";
 export type StockMovementType = "STOCK_IN" | "STOCK_OUT";
@@ -460,6 +460,7 @@ export interface OrderResponse {
   items: OrderItemResponse[];
   totalAmount: Numeric;
   fulfillmentMethod: FulfillmentMethod | null;
+  tableNumber: string | null;
   deliveryAddress: string | null;
   contactName: string | null;
   contactPhone: string | null;
@@ -511,6 +512,7 @@ export interface StaffCallResponse {
   customerName: string | null;
   orderStatus: OrderStatus;
   fulfillmentMethod: FulfillmentMethod | null;
+  tableNumber: string | null;
   status: StaffCallStatus;
   reason: StaffCallReason;
   note: string | null;
@@ -527,6 +529,7 @@ export interface StaffCallMessage {
   customerName: string | null;
   orderStatus: OrderStatus;
   fulfillmentMethod: FulfillmentMethod | null;
+  tableNumber: string | null;
   reason: StaffCallReason;
   note: string | null;
   calledAt: string;
@@ -540,7 +543,8 @@ export type WatchedResource =
   | "CATEGORY"
   | "EXTRA"
   | "INVENTORY"
-  | "FEEDBACK";
+  | "FEEDBACK"
+  | "TABLE";
 
 export type ResourceChangeType = "CREATED" | "UPDATED" | "DELETED";
 
@@ -574,6 +578,7 @@ export interface OrderItemRequest {
 export interface CreateOrderRequest {
   items: OrderItemRequest[];
   note?: string;
+  tableNumber?: string;
 }
 
 export interface CashPaymentRequest {
@@ -707,4 +712,36 @@ export interface BakongExchangeRateResponse {
 export interface UpdateBakongExchangeRateRequest {
   khrPerUsdRate: Numeric;
   marketRate?: Numeric;
+}
+
+export type TableStatus = "AVAILABLE" | "OCCUPIED" | "RESERVED";
+export type TableSize = "SMALL" | "MEDIUM" | "LARGE";
+
+export interface TableResponse {
+  id: UUID;
+  tableNumber: string;
+  size: TableSize;
+  capacity: number;
+  guestCount: number;
+  status: TableStatus;
+  scanUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTableRequest {
+  tableNumber: string;
+  size: TableSize;
+  capacity?: number;
+}
+
+export interface UpdateTableRequest {
+  tableNumber?: string;
+  size?: TableSize;
+  capacity?: number;
+}
+
+export interface UpdateTableStatusRequest {
+  status: TableStatus;
+  guestCount?: number;
 }
