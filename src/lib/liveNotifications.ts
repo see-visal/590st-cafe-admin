@@ -1,6 +1,6 @@
 import type { NotifyOptions } from "@/components/common/AppToast";
 import { staffCallReasonLabel } from "@/lib/staffCall";
-import { titleCase } from "@/lib/utils";
+import { fulfillmentLabel, titleCase } from "@/lib/utils";
 import type { OrderResponse, OrderUpdateMessage, StaffCallMessage } from "@/store/api/types";
 
 type Notice = Omit<NotifyOptions, "icon">;
@@ -11,7 +11,10 @@ const money = (value: number | string) => `$${Number(value).toFixed(2)}`;
 
 function orderSummary(order: OrderResponse): string {
   const count = order.items.reduce((sum, item) => sum + item.quantity, 0);
-  const method = order.fulfillmentMethod === "DELIVERY" ? " · Delivery" : "";
+  const method =
+    order.fulfillmentMethod === "DELIVERY" ? " · Delivery"
+    : order.fulfillmentMethod === "DINE_IN" ? ` · ${fulfillmentLabel(order)}`
+    : "";
   return `${shortId(order.id)} · ${count} item${count === 1 ? "" : "s"} · ${money(order.totalAmount)}${method}`;
 }
 

@@ -41,7 +41,7 @@ import {
   useStartPreparingOrderMutation,
 } from "@/store/api/orderApi";
 import type { OrderResponse, OrderStatus } from "@/store/api/types";
-import { formatByCurrency, formatLevel, humanise, titleCase } from "@/lib/utils";
+import { formatByCurrency, formatLevel, fulfillmentLabel, humanise, titleCase } from "@/lib/utils";
 import { InvoiceActions } from "@/components/common/InvoiceActions";
 import { useOrderInvoice } from "@/hooks/useOrderInvoice";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
@@ -52,6 +52,7 @@ const ORDER_TABLE_HEADERS = [
   "No",
   "Order ID",
   "Customer",
+  "Type",
   "Handled By",
   "Items",
   "Total",
@@ -286,6 +287,9 @@ export default function Orders() {
                 <Cell>{(page - 1) * size + index + 1}</Cell>
                 <Cell className="font-mono text-xs">#{order.id.slice(0, 8)}</Cell>
                 <Cell>{order.customerName ? titleCase(order.customerName) : "Walk-in"}</Cell>
+                <Cell className={order.fulfillmentMethod === "DINE_IN" ? "whitespace-nowrap font-semibold" : "whitespace-nowrap"}>
+                  {fulfillmentLabel(order) || "-"}
+                </Cell>
                 <Cell>{order.handledByName ? titleCase(order.handledByName) : "-"}</Cell>
                 <Cell className="max-w-[16rem] truncate">{summariseItems(order)}</Cell>
                 <Cell className="font-semibold">{money(order.totalAmount)}</Cell>

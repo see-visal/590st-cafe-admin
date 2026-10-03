@@ -14,6 +14,12 @@ export function humanise(value: string): string {
     .join(" ");
 }
 
+// "Table 02" for dine-in, otherwise "Pickup" / "Delivery".
+export function fulfillmentLabel(order: { fulfillmentMethod: string | null; tableNumber?: string | null }): string {
+  if (order.fulfillmentMethod === "DINE_IN") return order.tableNumber ? `Table ${order.tableNumber}` : "Dine-in";
+  return order.fulfillmentMethod ? humanise(order.fulfillmentMethod) : "";
+}
+
 const LEVEL_PERCENT: Record<string, string> = {
   ZERO: "0%",
   TWENTY_FIVE: "25%",
