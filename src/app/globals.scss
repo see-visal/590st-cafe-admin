@@ -3357,10 +3357,6 @@ body {
   background-color: var(--surface);
   box-shadow: 0px 10px 24px rgba(32, 33, 36, 0.05);
 }
-.pos_product_media {
-  position: relative;
-  flex-shrink: 0;
-}
 .pos_product_art {
   position: relative;
   display: grid;
@@ -3418,17 +3414,25 @@ body {
     }
   }
 }
-.pos_discount_badge {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  padding: 5px 9px;
+.pos_discount_row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  s {
+    color: var(--ink-subtle);
+  }
+}
+.pos_discount_tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
   border-radius: 9999px;
-  background-color: var(--brand-lime);
-  color: var(--brand-ink);
-  font-size: 0.6875rem;
+  background-color: #ecfccb;
+  color: #3f6212;
   font-weight: 700;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 .pos_product_content {
   display: flex;
@@ -4699,6 +4703,45 @@ body {
   font-variant-numeric: tabular-nums;
   @media (min-width: 640px) {
     font-size: 2rem;
+  }
+}
+.table_tile_call {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  background-color: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6);
+  animation: table_call_pulse 1.6s ease-in-out infinite;
+  svg { width: 14px; height: 14px; }
+}
+@keyframes table_call_pulse {
+  50% { transform: scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .table_tile_call { animation: none; }
+}
+.table_call_list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background-color: #fef2f2;
+    font-size: 0.8125rem;
+    color: var(--ink);
+    svg { width: 16px; height: 16px; color: #dc2626; flex-shrink: 0; }
+    small { margin-left: auto; color: var(--ink-muted); white-space: nowrap; }
   }
 }
 .table_tile_meta {
