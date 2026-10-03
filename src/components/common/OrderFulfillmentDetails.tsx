@@ -3,7 +3,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import type { OrderResponse } from "@/store/api/types";
-import { titleCase } from "@/lib/utils";
+import { fulfillmentLabel, titleCase } from "@/lib/utils";
 import { deliveryFeeSchema, firstIssueMessage } from "@/lib/validation";
 import { formatPhone } from "@/lib/phone";
 import { MoneyInput } from "@/components/forms/MoneyInput";
@@ -36,7 +36,7 @@ export function OrderFulfillmentDetails({
   };
 
   return <div className="my-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
-    <p className="font-semibold">{isDelivery ? "Delivery" : "Pickup"}
+    <p className="font-semibold">{fulfillmentLabel(order) || "Pickup"}
       {order.contactName ? ` · ${titleCase(order.contactName)}` : ""}</p>
     {order.contactPhone && <p className="mt-1 tabular-nums">Phone: {formatPhone(order.contactPhone)}</p>}
     {order.deliveryAddress && <p className="mt-1 whitespace-pre-wrap">{order.deliveryAddress}</p>}

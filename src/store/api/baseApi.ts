@@ -177,6 +177,7 @@ export const baseApi = createApi({
   refetchOnReconnect: true,
   refetchOnMountOrArgChange: 30,
   tagTypes: [
+    "Table",
     "Attendance",
     "ContactMessage",
     "Auth",
