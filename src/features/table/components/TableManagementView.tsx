@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import toast from "react-hot-toast";
-import { Copy, Download, Loader2, Minus, Pencil, Plus, Printer, QrCode, Trash2, Users, X } from "lucide-react";
+import { BellRing, Copy, Download, Loader2, Minus, Pencil, Plus, Printer, QrCode, Trash2, Users, X } from "lucide-react";
 
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -22,6 +22,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { orderCode, useOrderInvoice } from "@/hooks/useOrderInvoice";
 import { useRealtimeTopic } from "@/hooks/useRealtimeTopic";
+import { useStaffCallAlerts } from "@/hooks/useStaffCallAlerts";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import { apiErrorMessage } from "@/store/api/baseApi";
@@ -30,12 +31,14 @@ import {
   useGetMenuLinkQuery,
   useDeleteTableMutation,
   useListTableOrdersQuery,
+  useListBaristaTablesQuery,
   useListTablesQuery,
+  useUpdateBaristaTableStatusMutation,
   useUpdateTableMutation,
   useUpdateTableStatusMutation,
 } from "@/store/api/tableApi";
-import type { OrderResponse, OrderStatus, TableResponse, TableSize, TableStatus } from "@/store/api/types";
-import { cn, humanise, titleCase } from "@/lib/utils";
+import type { OrderResponse, OrderStatus, TableActivityResponse, TableResponse, TableSize, TableStatus } from "@/store/api/types";
+import { cn, humanise, timeAgo, titleCase } from "@/lib/utils";
 
 const STATUS_LABEL: Record<TableStatus, string> = {
   AVAILABLE: "Available",
@@ -63,10 +66,20 @@ type TableForm = { tableNumber: string; size: TableSize; capacity: string };
 const EMPTY_FORM: TableForm = { tableNumber: "", size: "SMALL", capacity: "" };
 
 export default function TableManagementView() {
-  const { isAdmin } = useCurrentRole();
+  const { isAdmin, isBarista } = useCurrentRole();
   const { confirm, confirmDialog } = useConfirmDialog();
-  const { data, isLoading, isFetching, error, refetch } = useListTablesQuery({ page: 1, size: 500 });
-  const tables = useMemo(() => data?.content ?? [], [data]);
+  // Admins use the admin table API; baristas get the same floor (plus open orders and staff calls) from theirs.
+  const adminTables = useListTablesQuery({ page: 1, size: 500 }, { skip: !isAdmin });
+  const baristaTables = useListBaristaTablesQuery(undefined, { skip: !isBarista });
+  const { isLoading, isFetching, error, refetch } = isBarista ? baristaTables : adminTables;
+  const tables = useMemo(
+    () => (isBarista ? (baristaTables.data ?? []).map((activity) => activity.table) : adminTables.data?.content ?? []),
+    [isBarista, baristaTables.data, adminTables.data]
+  );
+  const activityById = useMemo(
+    () => new Map((baristaTables.data ?? []).map((activity) => [activity.table.id, activity])),
+    [baristaTables.data]
+  );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = tables.find((table) => table.id === selectedId) ?? null;
@@ -77,7 +90,7 @@ export default function TableManagementView() {
   const [editing, setEditing] = useState<TableResponse | null>(null);
   const [form, setForm] = useState<TableForm>(EMPTY_FORM);
   const [qrTarget, setQrTarget] = useState<QrTarget | null>(null);
-  const { data: menuLink } = useGetMenuLinkQuery();
+  const { data: menuLink } = useGetMenuLinkQuery(undefined, { skip: !isAdmin });
 
   const showMenuQr = () => {
     if (!menuLink) return;
@@ -103,7 +116,11 @@ export default function TableManagementView() {
   const [updateTable, { isLoading: isUpdating }] = useUpdateTableMutation();
   const [deleteTable] = useDeleteTableMutation();
 
-  useRealtimeTopic("/topic/tables", useCallback(() => { void refetch(); }, [refetch]));
+  const refreshFloor = useCallback(() => { void refetch(); }, [refetch]);
+  useRealtimeTopic("/topic/tables", refreshFloor);
+  // Baristas also see open orders and staff calls on the floor, so refresh when either changes.
+  useStaffCallAlerts(useCallback(() => { if (isBarista) refreshFloor(); }, [isBarista, refreshFloor]));
+  useStaffOrderAlerts(useCallback(() => { if (isBarista) refreshFloor(); }, [isBarista, refreshFloor]));
 
   const counts = useMemo(() => {
     const result: Record<TableStatus, number> = { AVAILABLE: 0, OCCUPIED: 0, RESERVED: 0 };
@@ -169,7 +186,10 @@ export default function TableManagementView() {
   const detail = selected ? (
     <TableDetail
       table={selected}
+      activity={activityById.get(selected.id)}
+      onActivityChange={refetch}
       isAdmin={isAdmin}
+      isBarista={isBarista}
       onShowQr={() => showTableQr(selected)}
       onEdit={() => openForm(selected)}
       onDelete={() => removeTable(selected)}
@@ -192,13 +212,19 @@ export default function TableManagementView() {
       <div className="table_layout">
         <DataCard
           title="QR Table Management"
-          meta="Customers scan the menu QR (or a table QR) and enter their table number at checkout. Tables turn occupied when they order."
+          meta={
+            isAdmin
+              ? "Customers scan the menu QR (or a table QR) and enter their table number at checkout. Tables turn occupied when they order."
+              : "Tap a table to see its orders. Clear it once the guests have left."
+          }
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className="btn_outline_black" onClick={showMenuQr} disabled={!menuLink}>
-                <QrCode />
-                Menu QR
-              </button>
+              {isAdmin ? (
+                <button type="button" className="btn_outline_black" onClick={showMenuQr} disabled={!menuLink}>
+                  <QrCode />
+                  Menu QR
+                </button>
+              ) : null}
               {isAdmin ? (
                 <button type="button" className="btn_primary_black" onClick={() => openForm()}>
                   <Plus />
@@ -245,6 +271,11 @@ export default function TableManagementView() {
                   className={cn("table_tile", `is_${table.status.toLowerCase()}`, table.id === selectedId && "is_selected")}
                 >
                   <span className="table_tile_number">{table.tableNumber}</span>
+                  {(activityById.get(table.id)?.openStaffCallCount ?? 0) > 0 ? (
+                    <span className="table_tile_call" aria-label="Customer is calling staff">
+                      <BellRing />
+                    </span>
+                  ) : null}
                   <span className="table_tile_meta">
                     <Users />
                     {table.status === "OCCUPIED" ? `${table.guestCount}/${table.capacity}` : table.capacity}
@@ -309,19 +340,35 @@ export default function TableManagementView() {
 
 function TableDetail({
   table,
+  activity,
+  onActivityChange,
   isAdmin,
+  isBarista,
   onShowQr,
   onEdit,
   onDelete,
 }: {
   table: TableResponse;
+  activity?: TableActivityResponse;
+  onActivityChange: () => void;
   isAdmin: boolean;
+  isBarista: boolean;
   onShowQr: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const { data: orders, isLoading, error, refetch, isFetching } = useListTableOrdersQuery(table.id);
-  const [updateStatus, { isLoading: isSaving }] = useUpdateTableStatusMutation();
+  // Baristas already have this table's orders from the floor request; admins fetch them per table.
+  const adminOrders = useListTableOrdersQuery(table.id, { skip: isBarista });
+  const orders = isBarista ? activity?.activeOrders : adminOrders.data;
+  const isLoading = isBarista ? !activity : adminOrders.isLoading;
+  const error = isBarista ? undefined : adminOrders.error;
+  const isFetching = adminOrders.isFetching;
+  const refetch = isBarista ? onActivityChange : adminOrders.refetch;
+  const [updateAdminStatus, { isLoading: isSavingAdmin }] = useUpdateTableStatusMutation();
+  const [updateBaristaStatus, { isLoading: isSavingBarista }] = useUpdateBaristaTableStatusMutation();
+  const updateStatus = isBarista ? updateBaristaStatus : updateAdminStatus;
+  const isSaving = isSavingAdmin || isSavingBarista;
+  const openCalls = activity?.openStaffCalls ?? [];
   const { printInvoice, isBusy } = useOrderInvoice();
   const guests = Math.max(table.guestCount, 1);
 
@@ -394,6 +441,24 @@ function TableDetail({
           </div>
         ) : null}
       </div>
+
+      {openCalls.length > 0 ? (
+        <div className="table_detail_section">
+          <span className="table_detail_label">Calling staff</span>
+          <ul className="table_call_list">
+            {openCalls.map((call) => (
+              <li key={`${call.orderId}-${call.calledAt}`}>
+                <BellRing aria-hidden />
+                <span>
+                  <b>{humanise(call.reason)}</b>
+                  {call.note ? ` · ${call.note}` : ""}
+                </span>
+                <small>{timeAgo(call.calledAt)}</small>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="table_detail_section">
         <span className="table_detail_label">Customer orders</span>

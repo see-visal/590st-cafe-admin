@@ -741,6 +741,14 @@ export interface UpdateTableRequest {
   capacity?: number;
 }
 
+export interface TableActivityResponse {
+  table: TableResponse;
+  activeOrderCount: number;
+  openStaffCallCount: number;
+  activeOrders: OrderResponse[];
+  openStaffCalls: StaffCallResponse[];
+}
+
 export interface UpdateTableStatusRequest {
   status: TableStatus;
   guestCount?: number;

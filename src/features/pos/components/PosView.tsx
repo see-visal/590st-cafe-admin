@@ -53,27 +53,6 @@ function accentFor(id: string): string {
   return `hsl(${hash}, 45%, 35%)`;
 }
 
-function ProductArtwork({
-  accent,
-  imageUrl,
-  compact = false,
-}: {
-  accent: string;
-  imageUrl?: string | null;
-  compact?: boolean;
-}) {
-  return (
-    <div
-      className={cn("pos_product_artwork", compact && "is_compact")}
-      style={
-        imageUrl
-          ? { backgroundImage: `url(${imageUrl})`, backgroundSize: "cover" }
-          : { background: accent }
-      }
-    />
-  );
-}
-
 function QuantityControl({
   quantity,
   variant,
@@ -442,10 +421,11 @@ export default function PosView() {
               <div className="pos_product_grid">
                 {visibleProducts.map((product) => {
                   const outOfStock = Number(product.quantityOnHand) <= 0;
-                  const discountPercent =
-                    product.discountActive && product.discountType === "PERCENTAGE"
-                      ? Number(product.discountValue)
-                      : null;
+                  const discountLabel = !product.discountActive || product.discountValue == null
+                    ? null
+                    : product.discountType === "PERCENTAGE"
+                      ? `${Number(product.discountValue)}% off`
+                      : `$${Number(product.discountValue).toFixed(2)} off`;
                   const activeVariants = [...product.variants]
                     .filter((v) => v.status === "ACTIVE")
                     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
@@ -464,15 +444,6 @@ export default function PosView() {
                       key={product.id}
                       className={cn("pos_product_card", outOfStock && "opacity-50")}
                     >
-                      <div className="pos_product_media">
-                        <ProductArtwork
-                          accent={accentFor(product.id)}
-                          imageUrl={product.imageUrl}
-                        />
-                        {discountPercent ? (
-                          <span className="pos_discount_badge">{discountPercent}% Off</span>
-                        ) : null}
-                      </div>
                       <div className="pos_product_content">
                         <div className="pos_product_details">
                           <div className="pos_product_title_row">
@@ -483,6 +454,14 @@ export default function PosView() {
                             <span>In stock: {Number(product.quantityOnHand)}</span>
                             <span>{humanise(product.stockUnit)}</span>
                           </div>
+                          {discountLabel ? (
+                            <div className="pos_discount_row">
+                              <span className="pos_discount_tag">{discountLabel}</span>
+                              {onlyVariant && Number(onlyVariant.price) > Number(onlyVariant.finalPrice) ? (
+                                <s>${Number(onlyVariant.price).toFixed(2)}</s>
+                              ) : null}
+                            </div>
+                          ) : null}
                           {!onlyVariant ? (
                             <div className="mt-2 flex flex-wrap gap-1">
                               {activeVariants.map((variant) => (
@@ -574,11 +553,6 @@ export default function PosView() {
             ) : (
               cart.map((line) => (
                 <article key={line.key} className="pos_cart_item">
-                  <ProductArtwork
-                    accent={accentFor(line.product.id)}
-                    imageUrl={line.product.imageUrl}
-                    compact
-                  />
                   <div className="pos_cart_item_content">
                     <h3>
                       {titleCase(line.product.name)} ({humanise(line.variant.name)})
