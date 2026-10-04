@@ -251,7 +251,7 @@ export default function UserManagementView({
               <Row key={user.id} striped={index % 2 === 1}>
                 <Cell>{view.offset + index + 1}</Cell>
                 <Cell>
-                  <Thumbnail src={user.avatarUrl ?? undefined} />
+                  <Thumbnail src={user.avatarUrl} kind="person" />
                 </Cell>
                 <Cell className="font-semibold">{titleCase(user.fullName)}</Cell>
                 <Cell>{user.email}</Cell>

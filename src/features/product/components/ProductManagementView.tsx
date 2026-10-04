@@ -410,7 +410,7 @@ export default function Products() {
               <Row key={product.id} striped={index % 2 === 1}>
                 <Cell>{view.offset + index + 1}</Cell>
                 <Cell>
-                  <Thumbnail src={product.imageUrl ?? undefined} />
+                  <Thumbnail src={product.imageUrl} kind="product" />
                 </Cell>
                 <Cell className="font-semibold">{titleCase(product.name)}</Cell>
                 <Cell>{formatSku(product.sku)}</Cell>
@@ -699,7 +699,7 @@ export default function Products() {
               <DetailItem label="Description">{selected.description || "-"}</DetailItem>
               <div className="detail_item">
                 <p className="detail_item_label">Image :</p>
-                <DetailImage src={selected.imageUrl ?? undefined} alt={selected.name} />
+                <DetailImage src={selected.imageUrl ?? undefined} alt={selected.name} kind="product" />
               </div>
             </DetailGrid>
           </div>
