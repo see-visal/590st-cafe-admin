@@ -86,6 +86,7 @@ export type OrderAuditAction =
   | "CREATED"
   | "CASH_COLLECTED"
   | "BAKONG_CONFIRMED"
+  | "BAKONG_BY_RECEIPT"
   | "CANCELLED"
   | "DELIVERY_FEE_SET"
   | "ESTIMATE_SET"
