@@ -285,16 +285,16 @@ export default function Orders() {
             orders.map((order, index) => (
               <Row key={order.id} striped={index % 2 === 1}>
                 <Cell>{(page - 1) * size + index + 1}</Cell>
-                <Cell className="font-mono text-xs">#{order.id.slice(0, 8)}</Cell>
+                <Cell className="whitespace-nowrap font-mono text-xs">#{order.id.slice(0, 8)}</Cell>
                 <Cell>{order.customerName ? titleCase(order.customerName) : "Walk-in"}</Cell>
                 <Cell className={order.fulfillmentMethod === "DINE_IN" ? "whitespace-nowrap font-semibold" : "whitespace-nowrap"}>
                   {fulfillmentLabel(order) || "-"}
                 </Cell>
                 <Cell>{order.handledByName ? titleCase(order.handledByName) : "-"}</Cell>
-                <Cell className="max-w-[16rem] truncate">{summariseItems(order)}</Cell>
-                <Cell className="font-semibold">{money(order.totalAmount)}</Cell>
-                <Cell>{order.paymentMethod ? humanise(order.paymentMethod) : "-"}</Cell>
-                <Cell>{formatDateTime(order.createdAt)}</Cell>
+                <Cell className="max-w-[14rem] truncate">{summariseItems(order)}</Cell>
+                <Cell className="whitespace-nowrap font-semibold">{money(order.totalAmount)}</Cell>
+                <Cell className="whitespace-nowrap">{order.paymentMethod ? humanise(order.paymentMethod) : "-"}</Cell>
+                <Cell className="whitespace-nowrap">{formatDateTime(order.createdAt)}</Cell>
                 <Cell>
                   <div className="flex flex-col items-start gap-1">
                     <StatusBadge label={humanise(order.status)} tone={statusTone(order.status)} />
@@ -311,6 +311,7 @@ export default function Orders() {
                     onDelete={
                       order.status === "PENDING" ? () => handleCancel(order) : undefined
                     }
+                    deleteLabel="Cancel order"
                     isLoading={isCancelling}
                   />
                 </Cell>
