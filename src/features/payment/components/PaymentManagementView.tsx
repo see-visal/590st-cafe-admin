@@ -23,6 +23,7 @@ import {
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import {
+  useAcceptBakongFromReceiptMutation,
   useCollectCashMutation,
   useListAwaitingBakongConfirmationQuery,
   useListAwaitingDeliveryFeeQuery,
@@ -34,6 +35,7 @@ import {
 import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import {
+  useAcceptBaristaBakongFromReceiptMutation,
   useCollectBaristaCashMutation,
   useListBaristaAwaitingBakongConfirmationQuery,
   useListBaristaAwaitingDeliveryFeeQuery,
@@ -79,6 +81,7 @@ const BAKONG_HEADERS = [
   "Currency",
   "Ordered At",
   "Status",
+  "Action",
 ] as const;
 
 const DELIVERY_BOARD_HEADERS = [
@@ -171,6 +174,28 @@ export default function PaymentManagementView() {
   const isCollecting = adminCollectState.isLoading || baristaCollectState.isLoading;
   const isSettingFee = adminFeeState.isLoading || baristaFeeState.isLoading;
   const isMarkingDelivered = adminDeliveredState.isLoading || baristaDeliveredState.isLoading;
+  const [adminAcceptReceipt, adminReceiptState] = useAcceptBakongFromReceiptMutation();
+  const [baristaAcceptReceipt, baristaReceiptState] = useAcceptBaristaBakongFromReceiptMutation();
+  const acceptFromReceipt = isBarista ? baristaAcceptReceipt : adminAcceptReceipt;
+  const isAcceptingReceipt = adminReceiptState.isLoading || baristaReceiptState.isLoading;
+
+  const [receiptOrder, setReceiptOrder] = useState<OrderResponse | null>(null);
+
+  const bakongDue = (order: OrderResponse) =>
+    order.bakongAmount != null
+      ? formatByCurrency(order.bakongAmount, order.bakongCurrency ?? "USD")
+      : money(order.totalAmount);
+
+  const handleAcceptFromReceipt = async () => {
+    if (!receiptOrder) return;
+    try {
+      await acceptFromReceipt(receiptOrder.id).unwrap();
+      toast.success("QR payment confirmed — the order is ready to prepare.");
+      setReceiptOrder(null);
+    } catch (err) {
+      toast.error(apiErrorMessage(err as never, "Could not confirm the payment."));
+    }
+  };
 
   const [feeOrder, setFeeOrder] = useState<OrderResponse | null>(null);
   const [feeInput, setFeeInput] = useState("");
@@ -428,11 +453,7 @@ export default function PaymentManagementView() {
                 <Cell className="font-mono text-xs">#{order.id.slice(0, 8)}</Cell>
                 <Cell>{order.customerName ? titleCase(order.customerName) : "Walk-in"}</Cell>
                 <Cell className="max-w-[16rem] truncate">{summarise(order)}</Cell>
-                <Cell className="font-semibold">
-                  {order.bakongAmount != null
-                    ? Number(order.bakongAmount).toLocaleString()
-                    : money(order.totalAmount)}
-                </Cell>
+                <Cell className="font-semibold">{bakongDue(order)}</Cell>
                 <Cell>
                   <StatusBadge
                     label={order.bakongCurrency ?? "USD"}
@@ -442,6 +463,16 @@ export default function PaymentManagementView() {
                 <Cell>{formatDateTime(order.createdAt)}</Cell>
                 <Cell>
                   <StatusBadge label="Waiting for QR payment" tone="warning" />
+                </Cell>
+                <Cell>
+                  <button
+                    type="button"
+                    className="btn_primary_yellow text-xs"
+                    onClick={() => setReceiptOrder(order)}
+                    disabled={isAcceptingReceipt}
+                  >
+                    Confirm from receipt
+                  </button>
                 </Cell>
               </Row>
             ))}
@@ -596,6 +627,33 @@ export default function PaymentManagementView() {
             }
             readOnly
           />
+        </ModalGrid>
+      </FormModal>
+
+      <FormModal
+        open={receiptOrder !== null}
+        onOpenChange={(open) => {
+          if (!open) setReceiptOrder(null);
+        }}
+        title="Confirm QR Payment from Receipt"
+        submitLabel="Mark as Paid"
+        onSubmit={handleAcceptFromReceipt}
+        isLoading={isAcceptingReceipt}
+      >
+        <p className="mb-4 text-sm text-gray-600">
+          Use this only when automatic confirmation is paused. Check the customer&apos;s bank receipt (or your
+          Bakong account) shows this exact amount paid to 590st Cafe before you mark it paid. Your name is
+          recorded in the order history.
+        </p>
+        <ModalGrid>
+          <FormInput label="Order" value={receiptOrder ? `#${receiptOrder.id.slice(0, 8)}` : ""} readOnly />
+          <FormInput
+            label="Customer"
+            value={receiptOrder?.customerName ? titleCase(receiptOrder.customerName) : "Walk-in"}
+            readOnly
+          />
+          <FormInput label="Amount Paid" value={receiptOrder ? bakongDue(receiptOrder) : ""} readOnly />
+          <FormInput label="Ordered At" value={receiptOrder ? formatDateTime(receiptOrder.createdAt) : ""} readOnly />
         </ModalGrid>
       </FormModal>
     </PageShell>
