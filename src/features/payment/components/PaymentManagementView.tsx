@@ -31,7 +31,17 @@ import {
   useMarkDeliveredAdminOrderMutation,
   useSetOrderDeliveryFeeMutation,
 } from "@/store/api/orderApi";
-import { useGetExchangeRateQuery } from "@/store/api/reportApi";
+import { useExchangeRate } from "@/hooks/useExchangeRate";
+import { useCurrentRole } from "@/store/api/useCurrentRole";
+import {
+  useCollectBaristaCashMutation,
+  useListBaristaAwaitingBakongConfirmationQuery,
+  useListBaristaAwaitingDeliveryFeeQuery,
+  useListBaristaAwaitingPickupQuery,
+  useListBaristaDeliveryBoardQuery,
+  useMarkDeliveredBaristaOrderMutation,
+  useSetBaristaOrderDeliveryFeeMutation,
+} from "@/store/api/baristaOrderApi";
 import type { Currency, OrderResponse } from "@/store/api/types";
 import { formatByCurrency, titleCase } from "@/lib/utils";
 import { buildCashPaymentSchema, deliveryFeeSchema, firstIssueMessage } from "@/lib/validation";
@@ -111,19 +121,32 @@ export default function PaymentManagementView() {
   const size = useDefaultPageSize();
   const refresh = useRefreshOptions();
 
-  const deliveryFeeQuery = useListAwaitingDeliveryFeeQuery({ page: deliveryFeePage, size }, refresh);
+  // Baristas handle payments too: same screen, served from the barista API.
+  const { isAdmin, isBarista } = useCurrentRole();
+  const asAdmin = { ...refresh, skip: !isAdmin };
+  const asBarista = { ...refresh, skip: !isBarista };
+
+  const adminDeliveryFee = useListAwaitingDeliveryFeeQuery({ page: deliveryFeePage, size }, asAdmin);
+  const baristaDeliveryFee = useListBaristaAwaitingDeliveryFeeQuery({ page: deliveryFeePage, size }, asBarista);
+  const deliveryFeeQuery = isBarista ? baristaDeliveryFee : adminDeliveryFee;
   const { data: deliveryFeeData, refetch: refetchDeliveryFee } = deliveryFeeQuery;
   const deliveryFeeList = listLoadState(deliveryFeeQuery);
 
-  const pickupQuery = useListAwaitingPickupQuery({ page: pickupPage, size }, refresh);
+  const adminPickup = useListAwaitingPickupQuery({ page: pickupPage, size }, asAdmin);
+  const baristaPickup = useListBaristaAwaitingPickupQuery({ page: pickupPage, size }, asBarista);
+  const pickupQuery = isBarista ? baristaPickup : adminPickup;
   const { data: pickupData, refetch: refetchPickup } = pickupQuery;
   const pickupList = listLoadState(pickupQuery);
 
-  const bakongQuery = useListAwaitingBakongConfirmationQuery({ page: bakongPage, size }, refresh);
+  const adminBakong = useListAwaitingBakongConfirmationQuery({ page: bakongPage, size }, asAdmin);
+  const baristaBakong = useListBaristaAwaitingBakongConfirmationQuery({ page: bakongPage, size }, asBarista);
+  const bakongQuery = isBarista ? baristaBakong : adminBakong;
   const { data: bakongData, refetch: refetchBakong } = bakongQuery;
   const bakongList = listLoadState(bakongQuery);
 
-  const deliveryBoardQuery = useListDeliveryBoardQuery({ page: deliveryBoardPage, size }, refresh);
+  const adminDeliveryBoard = useListDeliveryBoardQuery({ page: deliveryBoardPage, size }, asAdmin);
+  const baristaDeliveryBoard = useListBaristaDeliveryBoardQuery({ page: deliveryBoardPage, size }, asBarista);
+  const deliveryBoardQuery = isBarista ? baristaDeliveryBoard : adminDeliveryBoard;
   const { data: deliveryBoardData, refetch: refetchDeliveryBoard } = deliveryBoardQuery;
   const deliveryBoardList = listLoadState(deliveryBoardQuery);
 
@@ -136,9 +159,18 @@ export default function PaymentManagementView() {
     }, [refetchDeliveryFee, refetchPickup, refetchBakong, refetchDeliveryBoard])
   );
 
-  const [collectCash, { isLoading: isCollecting }] = useCollectCashMutation();
-  const [setDeliveryFee, { isLoading: isSettingFee }] = useSetOrderDeliveryFeeMutation();
-  const [markDelivered, { isLoading: isMarkingDelivered }] = useMarkDeliveredAdminOrderMutation();
+  const [adminCollectCash, adminCollectState] = useCollectCashMutation();
+  const [baristaCollectCash, baristaCollectState] = useCollectBaristaCashMutation();
+  const [adminSetFee, adminFeeState] = useSetOrderDeliveryFeeMutation();
+  const [baristaSetFee, baristaFeeState] = useSetBaristaOrderDeliveryFeeMutation();
+  const [adminMarkDelivered, adminDeliveredState] = useMarkDeliveredAdminOrderMutation();
+  const [baristaMarkDelivered, baristaDeliveredState] = useMarkDeliveredBaristaOrderMutation();
+  const collectCash = isBarista ? baristaCollectCash : adminCollectCash;
+  const setDeliveryFee = isBarista ? baristaSetFee : adminSetFee;
+  const markDelivered = isBarista ? baristaMarkDelivered : adminMarkDelivered;
+  const isCollecting = adminCollectState.isLoading || baristaCollectState.isLoading;
+  const isSettingFee = adminFeeState.isLoading || baristaFeeState.isLoading;
+  const isMarkingDelivered = adminDeliveredState.isLoading || baristaDeliveredState.isLoading;
 
   const [feeOrder, setFeeOrder] = useState<OrderResponse | null>(null);
   const [feeInput, setFeeInput] = useState("");
@@ -164,8 +196,7 @@ export default function PaymentManagementView() {
     }
   };
 
-  const { data: exchangeRate } = useGetExchangeRateQuery();
-  const khrPerUsdRate = exchangeRate ? Number(exchangeRate.khrPerUsdRate) : null;
+  const { khrPerUsdRate } = useExchangeRate();
 
   const [cashOrder, setCashOrder] = useState<OrderResponse | null>(null);
   const [amountTendered, setAmountTendered] = useState("");

@@ -30,7 +30,7 @@ import {
 } from "@/store/api/orderApi";
 import { useListCategoriesQuery } from "@/store/api/categoryApi";
 import { useListProductsQuery } from "@/store/api/productApi";
-import { useGetExchangeRateQuery } from "@/store/api/reportApi";
+import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { useListPublicTablesQuery } from "@/store/api/tableApi";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import type { Currency, OrderItemRequest, OrderResponse, ProductResponse, ProductVariantResponse } from "@/store/api/types";
@@ -94,7 +94,7 @@ export default function PosView() {
   const [completedSale, setCompletedSale] = usePersistentState<OrderResponse | null>("pos:completedSale", null);
 
   const [cashCurrency, setCashCurrency] = useState<Currency>("USD");
-  const { data: exchangeRate } = useGetExchangeRateQuery(undefined, { skip: !isAdmin });
+  const { exchangeRate } = useExchangeRate();
 
   const [bakongCurrency, setBakongCurrency] = useState<Currency>("USD");
   const [bakongQr, setBakongQr] = useState<{ dataUrl: string; amount: number } | null>(null);

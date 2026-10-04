@@ -10,6 +10,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { MapFocus } from "./LocationMapPicker";
+import {
+  isShortMapsLink,
+  locateMe,
+  parseCoordinates,
+  reverseGeocode,
+  searchPlaces,
+  type LatLng,
+  type PlaceResult,
+} from "@/lib/geoSearch";
+import { cn } from "@/lib/utils";
 
 const LocationMapPicker = dynamic(() => import("./LocationMapPicker"), {
   ssr: false,
@@ -21,6 +32,9 @@ const LocationMapPicker = dynamic(() => import("./LocationMapPicker"), {
 });
 
 const PHNOM_PENH = { lat: 11.5621, lng: 104.916 };
+const PLACE_ZOOM = 17;
+
+type Notice = { tone: "info" | "error"; text: string } | null;
 
 export function LocationPickerModal({
   open,
@@ -35,81 +49,105 @@ export function LocationPickerModal({
   initialLng: number | null;
   onConfirm: (lat: number, lng: number) => void;
 }) {
-  const [coords, setCoords] = useState(
-    initialLat != null && initialLng != null
-      ? { lat: initialLat, lng: initialLng }
-      : PHNOM_PENH,
-  );
+  const startAt = () =>
+    initialLat != null && initialLng != null ? { lat: initialLat, lng: initialLng } : PHNOM_PENH;
+  const [coords, setCoords] = useState<LatLng>(startAt);
+  const [focus, setFocus] = useState<MapFocus | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
   const [address, setAddress] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [results, setResults] = useState<PlaceResult[]>([]);
+  const [notice, setNotice] = useState<Notice>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
   const [wasOpen, setWasOpen] = useState(false);
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
-      setCoords(
-        initialLat != null && initialLng != null
-          ? { lat: initialLat, lng: initialLng }
-          : PHNOM_PENH,
-      );
+      setCoords(startAt());
+      setFocus(null);
+      setAccuracy(null);
       setAddress("");
       setSearchQuery("");
+      setResults([]);
+      setNotice(null);
     }
   }
 
-  const reverseGeocode = async (lat: number, lng: number) => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-      );
-      const data = await res.json();
-      setAddress(
-        data?.display_name
-          ? data.display_name.split(",").slice(0, 4).join(", ")
-          : "",
-      );
-    } catch {
-      setAddress("");
-    }
+  const placePin = (point: LatLng, options: { fly?: boolean; label?: string } = {}) => {
+    setCoords(point);
+    if (options.fly) setFocus({ ...point, zoom: PLACE_ZOOM, key: Date.now() });
+    if (options.label) setAddress(options.label);
+    else void reverseGeocode(point).then(setAddress);
   };
 
   const handlePick = (lat: number, lng: number) => {
-    setCoords({ lat, lng });
-    void reverseGeocode(lat, lng);
+    setAccuracy(null);
+    setResults([]);
+    placePin({ lat, lng });
   };
 
-  const handleLocateMe = () => {
-    if (!navigator.geolocation) {
-      return;
-    }
+  const handleLocateMe = async () => {
     setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        handlePick(position.coords.latitude, position.coords.longitude);
-        setIsLocating(false);
-      },
-      () => setIsLocating(false),
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
+    setNotice(null);
+    setResults([]);
+    try {
+      const position = await locateMe();
+      setAccuracy(position.accuracy);
+      placePin(position, { fly: true });
+      setNotice({ tone: "info", text: `Pinned your current location (accurate to about ${Math.round(position.accuracy)} m).` });
+    } catch (err) {
+      setNotice({ tone: "error", text: (err as Error).message });
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  const choosePlace = (place: PlaceResult) => {
+    setResults([]);
+    setAccuracy(null);
+    setNotice(null);
+    placePin(place, { fly: true, label: [place.name, place.detail].filter(Boolean).join(", ") });
   };
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    setIsLocating(true);
+    const query = searchQuery.trim();
+    if (!query) return;
+    setNotice(null);
+    setResults([]);
+
+    const pasted = parseCoordinates(query);
+    if (pasted) {
+      setAccuracy(null);
+      placePin(pasted, { fly: true });
+      return;
+    }
+    if (isShortMapsLink(query)) {
+      setNotice({
+        tone: "error",
+        text: "Short Google Maps links can't be read here. Open the link, then copy the full address-bar link or the coordinates (e.g. 11.5621, 104.916).",
+      });
+      return;
+    }
+
+    setIsSearching(true);
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(
-          searchQuery + ", Cambodia",
-        )}`,
-      );
-      const data = await res.json();
-      const first = Array.isArray(data) ? data[0] : null;
-      if (first) {
-        handlePick(parseFloat(first.lat), parseFloat(first.lon));
+      const found = await searchPlaces(query, coords);
+      if (found.length === 0) {
+        setNotice({
+          tone: "error",
+          text: `No places found for "${query}". Try a street, area or landmark — or paste a Google Maps link or coordinates.`,
+        });
+      } else if (found.length === 1) {
+        choosePlace(found[0]);
+      } else {
+        setResults(found);
       }
+    } catch {
+      setNotice({ tone: "error", text: "Search isn't reachable right now. Drag the pin or tap the map instead." });
     } finally {
-      setIsLocating(false);
+      setIsSearching(false);
     }
   };
 
@@ -126,39 +164,75 @@ export function LocationPickerModal({
         </DialogHeader>
 
         <div className="admin_modal_body space-y-3">
-          <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-            <div className="relative flex-1">
+          <form
+            className="flex flex-wrap items-center gap-2 sm:flex-nowrap"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleSearch();
+            }}
+          >
+            <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
               <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
-                type="text"
+                type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                placeholder="Search street, landmark, or area..."
-                className="w-full rounded-full border border-gray-200 bg-white py-2 pr-3 pl-9 text-xs outline-none focus:border-[#befe35] sm:text-sm"
+                placeholder="Street, landmark, area, or paste a Google Maps link"
+                aria-label="Search for a place"
+                enterKeyHint="search"
+                className="h-10 w-full rounded-full border border-gray-200 bg-white pr-3 pl-9 text-sm outline-none focus:border-[#7ec900] focus:ring-2 focus:ring-[#befe35]/40"
               />
             </div>
             <button
-              type="button"
-              onClick={handleSearch}
-              className="rounded-full border-none bg-gray-800 px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-gray-900"
+              type="submit"
+              disabled={isSearching || !searchQuery.trim()}
+              className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-black disabled:opacity-50 sm:flex-none"
             >
+              {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Search
             </button>
             <button
               type="button"
               onClick={handleLocateMe}
               disabled={isLocating}
-              className="flex items-center gap-1.5 rounded-full border-none bg-black px-3 py-2 text-xs font-semibold text-[#befe35] shadow-xs transition-all hover:bg-gray-900 disabled:opacity-50"
+              className="flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-black px-4 text-sm font-semibold text-[#befe35] transition-colors hover:bg-gray-900 disabled:opacity-50 sm:flex-none"
             >
-              {isLocating ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Navigation className="h-3.5 w-3.5" />
-              )}
-              <span>Locate Me</span>
+              {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+              Use my location
             </button>
-          </div>
+          </form>
+
+          {results.length > 0 ? (
+            <ul className="max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white" aria-label="Search results">
+              {results.map((place) => (
+                <li key={place.id} className="border-b border-gray-100 last:border-0">
+                  <button
+                    type="button"
+                    onClick={() => choosePlace(place)}
+                    className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50"
+                  >
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-gray-900">{place.name}</span>
+                      {place.detail ? <span className="block truncate text-xs text-gray-500">{place.detail}</span> : null}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {notice ? (
+            <p
+              role={notice.tone === "error" ? "alert" : "status"}
+              className={cn(
+                "rounded-lg px-3 py-2 text-xs",
+                notice.tone === "error" ? "bg-red-50 text-red-700" : "bg-lime-50 text-lime-800"
+              )}
+            >
+              {notice.text}
+            </p>
+          ) : null}
 
           <div className="relative h-72 w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100 sm:h-80">
             {open && (
@@ -166,20 +240,22 @@ export function LocationPickerModal({
                 lat={coords.lat}
                 lng={coords.lng}
                 onPick={handlePick}
+                focus={focus}
+                accuracy={accuracy}
               />
             )}
             <div className="pointer-events-none absolute top-3 left-3 z-[1000] flex items-center gap-1.5 rounded-full border border-white bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-800 shadow-md backdrop-blur-md">
               <Compass className="h-4 w-4 text-black" />
-              <span>
+              <span className="tabular-nums">
                 {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
               </span>
             </div>
           </div>
 
           <p className="text-xs text-gray-500">
-            Drag the pin, tap anywhere on the map, or search above.
+            Drag the pin or tap the map to fine-tune. Scroll or pinch to zoom.
             {address ? (
-              <span className="block text-gray-700">{address}</span>
+              <span className="mt-1 block text-gray-700">{address}</span>
             ) : null}
           </p>
         </div>

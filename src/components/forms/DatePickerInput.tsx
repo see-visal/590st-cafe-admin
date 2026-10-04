@@ -19,7 +19,7 @@ const VALUE_FORMAT = {
 const DISPLAY_FORMAT = {
   date: "dd MMM yyyy",
   "datetime-local": "dd MMM yyyy, h:mm a",
-  month: "MMMM yyyy",
+  month: "MMM yyyy",
 } as const;
 
 const PLACEHOLDER = {
