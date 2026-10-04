@@ -177,7 +177,7 @@ function ExtraCatalogForm({ extra }: { extra?: ExtraResponse }) {
       </label>
     </div>
     <div className="flex items-center gap-3">
-      <Thumbnail src={extra?.imageUrl ?? undefined} />
+      <Thumbnail src={extra?.imageUrl} kind="product" />
       {extra ? (
         <div className="flex flex-wrap items-center gap-2">
           <label className="btn_outline_black cursor-pointer text-xs">
@@ -221,7 +221,7 @@ function ProductExtraRow({ productId, productExtra }: { productId: string; produ
 
   return <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
     <div className="flex items-center gap-3">
-      <Thumbnail src={productExtra.imageUrl ?? undefined} />
+      <Thumbnail src={productExtra.imageUrl} kind="product" />
       <div>
         <p className="font-semibold">{titleCase(productExtra.name)} — ${Number(productExtra.price).toFixed(2)}</p>
         <p className="text-xs text-muted-foreground">{productExtra.status === "ACTIVE" ? "Offered" : "Hidden"} on this product</p>
