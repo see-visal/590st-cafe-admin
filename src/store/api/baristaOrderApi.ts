@@ -124,6 +124,23 @@ export const baristaOrderApi = baseApi.injectEndpoints({
       ],
     }),
 
+    // Staff saw the bank receipt — marks paid without asking Bakong (e.g. its daily check limit is reached).
+    acceptBaristaBakongFromReceipt: builder.mutation<OrderResponse, UUID>({
+      query: (id) => ({
+        url: `/api/barista/orders/${id}/accept-bakong/receipt`,
+        method: "POST",
+      }),
+      transformResponse: unwrap<OrderResponse>,
+      invalidatesTags: (_r, _e, id) => [
+        { type: "Order", id },
+        { type: "OrderHistory", id },
+        "Inventory",
+        "StockMovement",
+        "Product",
+        ...QUEUE_TAGS,
+      ],
+    }),
+
     collectBaristaCash: builder.mutation<
       OrderResponse,
       { id: UUID; body: CashPaymentRequest }
@@ -324,6 +341,7 @@ export const {
   useListBaristaDeliveryBoardQuery,
   useListBaristaAwaitingPickupQuery,
   useListBaristaAwaitingBakongConfirmationQuery,
+  useAcceptBaristaBakongFromReceiptMutation,
   useListBaristaAwaitingDeliveryFeeQuery,
   useSetBaristaOrderDeliveryFeeMutation,
   useSetBaristaOrderEstimatedTimeMutation,

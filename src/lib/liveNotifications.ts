@@ -38,6 +38,7 @@ export function orderNotice(
         actionLabel: "Set fee",
       };
     case "BAKONG_CONFIRMED":
+    case "BAKONG_BY_RECEIPT":
       return {
         id,
         tone: "success",
