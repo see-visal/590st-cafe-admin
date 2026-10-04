@@ -87,23 +87,6 @@ export const orderApi = baseApi.injectEndpoints({
       ],
     }),
 
-    // Staff saw the bank receipt — marks paid without asking Bakong (e.g. its daily check limit is reached).
-    acceptBakongFromReceipt: builder.mutation<OrderResponse, UUID>({
-      query: (id) => ({
-        url: `/api/admin/orders/${id}/accept-bakong/receipt`,
-        method: "POST",
-      }),
-      transformResponse: unwrap<OrderResponse>,
-      invalidatesTags: (_r, _e, id) => [
-        { type: "Order", id },
-        { type: "OrderHistory", id },
-        "Inventory",
-        "StockMovement",
-        "Product",
-        ...ORDER_QUEUE_TAGS,
-      ],
-    }),
-
     listOrders: builder.query<
       PageResponse<OrderResponse>,
       OrderListQuery | void
@@ -341,7 +324,6 @@ export const {
   useGetOrderHistoryQuery,
   useListAwaitingPickupQuery,
   useListAwaitingBakongConfirmationQuery,
-  useAcceptBakongFromReceiptMutation,
   useListAwaitingDeliveryFeeQuery,
   useListDeliveryBoardQuery,
   useSetOrderDeliveryFeeMutation,
