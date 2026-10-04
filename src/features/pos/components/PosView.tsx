@@ -20,6 +20,7 @@ import {
   useCancelBaristaOrderMutation,
   useGenerateBakongQrMutation as useGenerateBaristaBakongQrMutation,
   useConfirmBakongPaymentMutation as useConfirmBaristaBakongPaymentMutation,
+  useGetBaristaOrderQuery,
 } from "@/store/api/baristaOrderApi";
 import {
   useCreateAdminOrderMutation,
@@ -27,6 +28,7 @@ import {
   useCancelOrderMutation,
   useGenerateAdminBakongQrMutation,
   useConfirmAdminBakongPaymentMutation,
+  useGetOrderQuery,
 } from "@/store/api/orderApi";
 import { useListCategoriesQuery } from "@/store/api/categoryApi";
 import { useListProductsQuery } from "@/store/api/productApi";
@@ -37,6 +39,7 @@ import type { Currency, OrderItemRequest, OrderResponse, ProductResponse, Produc
 import { cn, humanise, titleCase } from "@/lib/utils";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 
 const BAKONG_POLL_MS = 4000;
 
@@ -217,12 +220,54 @@ export default function PosView() {
     setCashCurrency("USD");
     resetBakongState();
   };
+  // The pending order is remembered across reloads, so it can go stale: it may have been paid, or cancelled
+  // from another screen or because its QR expired. Re-read it from the server and live updates.
+  const adminPendingQuery = useGetOrderQuery(pendingOrder?.id ?? "", {
+    skip: !pendingOrder || !isAdmin,
+    refetchOnMountOrArgChange: true,
+  });
+  const baristaPendingQuery = useGetBaristaOrderQuery(pendingOrder?.id ?? "", {
+    skip: !pendingOrder || isAdmin,
+    refetchOnMountOrArgChange: true,
+  });
+  const latestPendingOrder = isAdmin ? adminPendingQuery.data : baristaPendingQuery.data;
+
+  const settlePendingOrder = (latest: OrderResponse) => {
+    if (!pendingOrder || latest.id !== pendingOrder.id || latest.status === "PENDING") return;
+    setPaymentOpen(false);
+    if (latest.paidAt) {
+      resetCart();
+      setCompletedSale(latest);
+      return;
+    }
+    // Cancelled elsewhere: forget the order but keep the cart, so the sale can be rung up again.
+    setPendingOrder(null);
+    resetBakongState();
+    toast(`Order #${latest.id.slice(0, 8)} was cancelled. The cart is kept — take payment again to start a new order.`);
+  };
+
+  useEffect(() => {
+    if (!latestPendingOrder) return;
+    const timer = setTimeout(() => settlePendingOrder(latestPendingOrder), 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latestPendingOrder]);
+
+  useStaffOrderAlerts((message) => settlePendingOrder(message.order));
+
   const clearCart = async () => {
     if (confirmingRef.current || isCancelling) return;
     try {
-      if (pendingOrder) await cancelOrder(pendingOrder.id).unwrap();
+      if (pendingOrder?.status === "PENDING" || (pendingOrder && latestPendingOrder?.status === "PENDING")) {
+        await cancelOrder(pendingOrder.id).unwrap();
+      }
       resetCart();
     } catch (error) {
+      const refreshed = isAdmin ? await adminPendingQuery.refetch() : await baristaPendingQuery.refetch();
+      if (refreshed.data && refreshed.data.status !== "PENDING") {
+        resetCart();
+        return;
+      }
       toast.error(apiErrorMessage(error as never, "Could not cancel the pending order. Check its payment status."));
     }
   };
