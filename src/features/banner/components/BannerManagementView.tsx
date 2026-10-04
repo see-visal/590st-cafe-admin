@@ -312,7 +312,7 @@ export default function BannerManagementView() {
               <Row key={banner.id} striped={index % 2 === 1}>
                 <Cell>{view.offset + index + 1}</Cell>
                 <Cell>
-                  <Thumbnail src={banner.imageUrl ?? undefined} />
+                  <Thumbnail src={banner.imageUrl} kind="picture" />
                 </Cell>
                 <Cell className="font-semibold">{titleCase(banner.title)}</Cell>
                 <Cell>

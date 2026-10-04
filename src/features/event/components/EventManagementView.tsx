@@ -332,7 +332,7 @@ export default function EventManagementView() {
                 <Row key={event.id} striped={index % 2 === 1}>
                   <Cell>{view.offset + index + 1}</Cell>
                   <Cell>
-                    <Thumbnail src={event.imageUrl ?? undefined} />
+                    <Thumbnail src={event.imageUrl} kind="picture" />
                   </Cell>
                   <Cell className="font-semibold">{titleCase(event.title)}</Cell>
                   <Cell>

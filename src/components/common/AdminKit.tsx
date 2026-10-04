@@ -8,6 +8,9 @@ import { type DateRange } from "react-day-picker";
 import {
   Bell,
   CalendarDays,
+  Coffee,
+  ImageIcon,
+  UserRound,
   Check,
   CheckCheck,
   Clock,
@@ -716,10 +719,25 @@ export function CheckBox({
   );
 }
 
-export function Thumbnail({ src = "/profile/placeholder.svg" }: { src?: string }) {
+/** What an image shows, so a missing one gets a fitting placeholder icon. */
+export type ImageKind = "product" | "person" | "picture";
+
+const PLACEHOLDER_ICONS = { product: Coffee, person: UserRound, picture: ImageIcon } as const;
+
+export function Thumbnail({ src, kind }: { src?: string | null; kind: ImageKind }) {
+  const Placeholder = PLACEHOLDER_ICONS[kind];
   return (
-    <span className="relative block h-6 w-8 overflow-hidden rounded bg-gray-200">
-      <Image src={src} alt="" fill sizes="32px" className="object-cover" />
+    <span
+      className={cn(
+        "relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg",
+        src ? "bg-gray-100" : "bg-[#f6f1f3] text-[#c9a3b4]"
+      )}
+    >
+      {src ? (
+        <Image src={src} alt="" fill sizes="40px" className="object-cover" />
+      ) : (
+        <Placeholder className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+      )}
     </span>
   );
 }
@@ -1346,15 +1364,20 @@ export function DetailItem({
 export function DetailImage({
   src,
   alt = "",
+  kind = "picture",
 }: {
   src?: string;
   alt?: string;
+  kind?: ImageKind;
 }) {
+  const Placeholder = PLACEHOLDER_ICONS[kind];
   return (
     <div className={cn("detail_image", !src && "is_empty")}>
       {src ? (
         <Image src={src} alt={alt} fill sizes="220px" className="object-cover" />
-      ) : null}
+      ) : (
+        <Placeholder className="detail_image_placeholder" strokeWidth={1.5} aria-label="No image yet" />
+      )}
     </div>
   );
 }
