@@ -65,6 +65,20 @@ const ORDER_TABLE_HEADERS = [
 const money = (value: number | null | undefined) =>
   value == null ? "-" : `$${Number(value).toFixed(2)}`;
 
+function formatDate(value: string | null) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function formatTime(value: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
 function formatDateTime(value: string | null) {
   if (!value) return "-";
   const parsed = new Date(value);
@@ -291,10 +305,13 @@ export default function Orders() {
                   {fulfillmentLabel(order) || "-"}
                 </Cell>
                 <Cell>{order.handledByName ? titleCase(order.handledByName) : "-"}</Cell>
-                <Cell className="max-w-[14rem] truncate">{summariseItems(order)}</Cell>
+                <Cell className="max-w-[11rem] truncate">{summariseItems(order)}</Cell>
                 <Cell className="whitespace-nowrap font-semibold">{money(order.totalAmount)}</Cell>
                 <Cell className="whitespace-nowrap">{order.paymentMethod ? humanise(order.paymentMethod) : "-"}</Cell>
-                <Cell className="whitespace-nowrap">{formatDateTime(order.createdAt)}</Cell>
+                <Cell className="whitespace-nowrap">
+                  <span className="block">{formatDate(order.createdAt)}</span>
+                  <span className="block text-[11px] text-gray-500">{formatTime(order.createdAt)}</span>
+                </Cell>
                 <Cell>
                   <div className="flex flex-col items-start gap-1">
                     <StatusBadge label={humanise(order.status)} tone={statusTone(order.status)} />

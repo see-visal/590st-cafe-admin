@@ -48,6 +48,7 @@ import { buildCashPaymentSchema, deliveryFeeSchema, firstIssueMessage } from "@/
 import { useDefaultPageSize, useRefreshOptions } from "@/contexts/AdminPreferencesContext";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { useNow } from "@/hooks/useNow";
 
 const DELIVERY_FEE_HEADERS = [
   "No",
@@ -268,6 +269,7 @@ export default function PaymentManagementView() {
   const deliveryFeeOrders = deliveryFeeData?.content ?? [];
   const pickupOrders = pickupData?.content ?? [];
   const bakongOrders = bakongData?.content ?? [];
+  const now = useNow(15_000);
   const deliveryBoardOrders = deliveryBoardData?.content ?? [];
 
   const pickupTotal = pickupOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
@@ -441,7 +443,7 @@ export default function PaymentManagementView() {
                 </Cell>
                 <Cell>{formatDateTime(order.createdAt)}</Cell>
                 <Cell>
-                  <StatusBadge label="Waiting for QR payment" tone="warning" />
+                  <QrPaymentStatus expiresAt={order.bakongExpiresAt} now={now} />
                 </Cell>
               </Row>
             ))}
@@ -599,5 +601,19 @@ export default function PaymentManagementView() {
         </ModalGrid>
       </FormModal>
     </PageShell>
+  );
+}
+
+// Customers get one QR payment window; once it closes the order is cancelled after a final check with Bakong.
+function QrPaymentStatus({ expiresAt, now }: { expiresAt?: string | null; now: number }) {
+  const deadline = expiresAt ? new Date(expiresAt).getTime() : Number.NaN;
+  if (Number.isNaN(deadline)) {
+    return <StatusBadge label="Waiting for QR payment" tone="warning" />;
+  }
+  const minutesLeft = Math.ceil((deadline - now) / 60_000);
+  return minutesLeft > 0 ? (
+    <StatusBadge label={`Waiting · ${minutesLeft} min left`} tone="warning" />
+  ) : (
+    <StatusBadge label="Time's up · final check" tone="neutral" />
   );
 }
