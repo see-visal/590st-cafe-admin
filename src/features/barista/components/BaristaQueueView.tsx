@@ -60,7 +60,7 @@ import {
   useSetOrderEstimatedTimeMutation,
   useStartPreparingOrderMutation,
 } from "@/store/api/orderApi";
-import { useGetExchangeRateQuery } from "@/store/api/reportApi";
+import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import { useGetCurrentUserQuery } from "@/store/api/authApi";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
@@ -467,7 +467,7 @@ export default function BaristaQueueView() {
     isDeliveringBarista ||
     isSettingFee;
 
-  const { data: exchangeRate } = useGetExchangeRateQuery(undefined, { skip: !isAdmin });
+  const { exchangeRate } = useExchangeRate();
   const khrPerUsdRate = exchangeRate ? Number(exchangeRate.khrPerUsdRate) : null;
 
   const [cashOrder, setCashOrder] = useState<OrderResponse | null>(null);

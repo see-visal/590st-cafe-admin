@@ -49,6 +49,7 @@ import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 import { DatePickerInput } from "@/components/forms/DatePickerInput";
+import { Download } from "lucide-react";
 
 const INVENTORY_TABLE_HEADERS = [
   "No",
@@ -279,13 +280,13 @@ export default function Inventory() {
         actions={
           isAdmin ? (
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <label className="form_field w-auto">
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                <label className="form_field min-w-0">
                   <DatePickerInput
                     type="month"
                     value={expenseMonth}
                     onChange={setExpenseMonth}
-                    className="min-w-[160px]"
+                    className="sm:min-w-[160px]"
                     aria-label="Stock expense report month"
                   />
                 </label>
@@ -293,10 +294,11 @@ export default function Inventory() {
                   type="button"
                   onClick={handleDownloadExpenseReport}
                   disabled={isDownloadingExpenseReport || !expenseMonth}
-                  className="btn_outline_black text-xs"
+                  className="btn_outline_black shrink-0"
                   title="Every stock-purchase (stock-in) cost recorded this month, as an Excel file"
                 >
-                  {isDownloadingExpenseReport ? "Exporting..." : "Export Stock Expenses"}
+                  {isDownloadingExpenseReport ? "Exporting..." : "Export expenses"}
+                  <Download />
                 </button>
               </div>
               <ExcelImportButton
