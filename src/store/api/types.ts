@@ -478,6 +478,8 @@ export interface OrderResponse {
   bakongMd5Hash: string | null;
   bakongCurrency: Currency | null;
   bakongAmount: Numeric | null;
+  /** When the QR payment window closes; unpaid online orders are cancelled after it. */
+  bakongExpiresAt?: string | null;
   note: string | null;
   paidAt: string | null;
   createdAt: string;

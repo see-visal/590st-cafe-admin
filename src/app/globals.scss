@@ -1890,10 +1890,8 @@ body {
       right: 0;
       z-index: 1;
       background-color: var(--surface);
-      // Only draw the edge when the table is actually wider than its card.
-      @media (max-width: 1279px) {
-        box-shadow: -8px 0 12px -10px rgba(0, 0, 0, 0.25);
-      }
+      // Rows scroll under this column when the table is wider than its card; the edge shows that.
+      box-shadow: -8px 0 12px -10px rgba(0, 0, 0, 0.25);
     }
     thead th:last-child,
     tbody tr.is_striped td:last-child {
