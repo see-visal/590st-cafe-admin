@@ -191,6 +191,42 @@ export const baristaOrderApi = baseApi.injectEndpoints({
       ],
     }),
 
+    listBaristaAwaitingPickup: builder.query<
+      PageResponse<OrderResponse>,
+      PageQuery | void
+    >({
+      query: (params) => ({
+        url: "/api/barista/orders/awaiting-pickup",
+        params: params ?? undefined,
+      }),
+      transformResponse: unwrap<PageResponse<OrderResponse>>,
+      providesTags: [{ type: "Order", id: "AWAITING_PICKUP" }],
+    }),
+
+    listBaristaAwaitingBakongConfirmation: builder.query<
+      PageResponse<OrderResponse>,
+      PageQuery | void
+    >({
+      query: (params) => ({
+        url: "/api/barista/orders/awaiting-bakong-confirmation",
+        params: params ?? undefined,
+      }),
+      transformResponse: unwrap<PageResponse<OrderResponse>>,
+      providesTags: [{ type: "Order", id: "AWAITING_BAKONG" }],
+    }),
+
+    listBaristaAwaitingDeliveryFee: builder.query<
+      PageResponse<OrderResponse>,
+      PageQuery | void
+    >({
+      query: (params) => ({
+        url: "/api/barista/orders/awaiting-delivery-fee",
+        params: params ?? undefined,
+      }),
+      transformResponse: unwrap<PageResponse<OrderResponse>>,
+      providesTags: [{ type: "Order", id: "AWAITING_DELIVERY_FEE" }],
+    }),
+
     listBaristaDeliveryBoard: builder.query<
       PageResponse<OrderResponse>,
       PageQuery | void
@@ -286,6 +322,9 @@ export const {
   useListBaristaOrdersQuery,
   useListAllBaristaOrdersQuery,
   useListBaristaDeliveryBoardQuery,
+  useListBaristaAwaitingPickupQuery,
+  useListBaristaAwaitingBakongConfirmationQuery,
+  useListBaristaAwaitingDeliveryFeeQuery,
   useSetBaristaOrderDeliveryFeeMutation,
   useSetBaristaOrderEstimatedTimeMutation,
   useGetBaristaOrderQuery,

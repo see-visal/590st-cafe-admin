@@ -8,7 +8,7 @@ export function canAccessAdminPage(role: Role | undefined, pathname: string): bo
   if (route === "barista-queue" || route === "notifications" || route === "stock-alerts") return true;
   if (route === "categories" || route === "reports") return true;
   if (route === "invoices") return true;
-  if (route === "tables") return true;
+  if (route === "tables" || route === "payments") return true;
   if (route === "inventory") return true;
   if (route === "products" && pathname.replace(/\/$/, "") === "/products") return true;
   if (role === "BARISTA") return false;

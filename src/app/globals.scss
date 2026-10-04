@@ -2061,6 +2061,29 @@ body {
       justify-content: space-between;
     }
   }
+  // Card toolbar (Import / Export / Register…). On phones it takes the full width and
+  // buttons share each row evenly instead of running off the card.
+  .subheader_actions {
+    min-width: 0;
+    @media (max-width: 639px) {
+      width: 100%;
+      > div,
+      > div > div {
+        width: 100%;
+      }
+      > div {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      // Action buttons only; leave field triggers (date picker, selects) to their own layout.
+      .btn_outline_black,
+      .btn_primary_black {
+        flex: 1 1 auto;
+        justify-content: center;
+      }
+    }
+  }
   .subheader_title {
     font-size: 1.5rem;
     font-weight: 500;
@@ -3181,8 +3204,13 @@ body {
 }
 
 .page_shell_content.is_pos_page {
+  // Side-by-side layout: the product grid and order panel scroll on their own, so the page doesn't.
+  // Stacked layout (phones, iPad portrait): the page itself must scroll to reach products and the order.
   overflow: hidden;
   gap: 16px;
+  @media (max-width: 1099px) {
+    overflow-y: auto;
+  }
   @media (max-width: 1023px) {
     padding-bottom: calc(84px + env(safe-area-inset-bottom));
   }
