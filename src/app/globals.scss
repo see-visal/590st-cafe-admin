@@ -1105,6 +1105,8 @@ body {
   }
 }
 .form_product_select_popover {
+  margin-top: 6px;
+  overflow: hidden;
   padding: 0 !important;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
@@ -1113,8 +1115,9 @@ body {
   font-family: var(--current-english-font), "SF Pro Display", sans-serif;
   .form_product_select_list {
     margin-top: 0;
-    max-height: 220px;
+    max-height: 260px;
     overflow-y: auto;
+    overscroll-behavior: contain;
     border: none;
     border-radius: 0;
     background-color: transparent;

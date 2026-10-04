@@ -448,6 +448,8 @@ export interface OrderItemResponse {
   iceLevel: IceLevel | null;
   milkType: MilkType | null;
   extras: OrderItemExtraResponse[];
+  variantId: UUID | null;
+  productImageUrl: string | null;
 }
 
 export interface OrderResponse {

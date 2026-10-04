@@ -51,7 +51,6 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
-  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
@@ -757,7 +756,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "rounded-full px-3 py-1 text-xs font-semibold",
+        "inline-flex whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold",
         styles[resolvedTone]
       )}
     >
@@ -807,6 +806,7 @@ export function RowActions({
   onDelete,
   onHistory,
   onPrint,
+  deleteLabel = "Delete",
   isLoading = false,
 }: {
   onView?: () => void;
@@ -814,17 +814,19 @@ export function RowActions({
   onDelete?: () => void;
   onHistory?: () => void;
   onPrint?: () => void;
+  deleteLabel?: string;
   isLoading?: boolean;
 }) {
   const actions = [
     [Eye, onView, "View"],
     [Printer, onPrint, "Print invoice"],
     [Pencil, onEdit, "Edit"],
-    [onHistory ? Clock : Trash2, onHistory ?? onDelete, onHistory ? "Disable" : "Delete"],
+    [Clock, onHistory, "History"],
+    [Trash2, onDelete, deleteLabel],
   ] as const;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-nowrap items-center gap-2">
       {actions
         .filter(([, onClick]) => Boolean(onClick))
         .map(([Icon, onClick, label]) => (
@@ -835,6 +837,7 @@ export function RowActions({
             disabled={isLoading}
             className="grid h-7 w-7 place-items-center rounded-full bg-black text-[#befe35] transition hover:bg-gray-800 disabled:opacity-50"
             aria-label={label}
+            title={label}
           >
             <Icon className="h-4 w-4" />
           </button>
@@ -1568,6 +1571,7 @@ export function FormProductSelect({
 }) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const listId = useId();
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -1579,55 +1583,61 @@ export function FormProductSelect({
     );
   }, [options, search]);
 
-  const handleSelect = (product: ProductSelectOption) => {
-    onChange?.(product);
-    setSearch("");
+  const close = () => {
     setOpen(false);
+    setSearch("");
   };
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen);
-    if (!nextOpen) {
-      setSearch("");
-    }
+  const handleSelect = (product: ProductSelectOption) => {
+    onChange?.(product);
+    close();
   };
 
   const inputValue = open ? search : value ? titleCase(value.name) : "";
 
+  // The list renders inline (no portal) so it scrolls inside modals, whose scroll lock blocks portalled popups.
   return (
-    <div className="form_field form_field_product_select">
+    <div
+      className="form_field form_field_product_select"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && open) {
+          e.stopPropagation();
+          close();
+        }
+      }}
+    >
       <span className="form_field_label">
         {label}
         {required && <span className="form_field_required"> *</span>}
       </span>
-      <Popover open={open} onOpenChange={handleOpenChange}>
-        <PopoverAnchor asChild>
-          <div className="form_field_control_wrap">
-            <Search className="form_field_search_icon" />
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                if (!open) setOpen(true);
-              }}
-              onFocus={() => setOpen(true)}
-              placeholder={searchPlaceholder}
-              className={cn(
-                "form_field_control form_field_search_input",
-                !open && !value && "is_placeholder"
-              )}
-            />
-          </div>
-        </PopoverAnchor>
-        <PopoverContent
-          align="start"
-          sideOffset={6}
-          className="form_product_select_popover w-[var(--radix-popover-trigger-width)] p-0"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
+      <div className="form_field_control_wrap">
+        <Search className="form_field_search_icon" />
+        <input
+          type="text"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listId}
+          value={inputValue}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onClick={() => setOpen(true)}
+          placeholder={searchPlaceholder}
+          className={cn(
+            "form_field_control form_field_search_input",
+            !open && !value && "is_placeholder"
+          )}
+        />
+      </div>
+      {open && (
+        <div className="form_product_select_popover">
           {filtered.length > 0 ? (
-            <ul className="form_product_select_list" role="listbox">
+            <ul id={listId} className="form_product_select_list" role="listbox">
               {filtered.map((product) => {
                 const isSelected = value?.id === product.id;
                 return (
@@ -1660,8 +1670,8 @@ export function FormProductSelect({
           ) : (
             <div className="form_product_select_empty">No products found</div>
           )}
-        </PopoverContent>
-      </Popover>
+        </div>
+      )}
     </div>
   );
 }
