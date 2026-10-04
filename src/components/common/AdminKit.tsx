@@ -215,9 +215,17 @@ export function FilterPanel({
         <h2 className="filter_title">{title}</h2>
       </div>
       {!isCollapsed && children && (
-        <div className={cn("grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-2 xl:grid-cols-4 filter_content_wrapper", collapsible && "has_top_border")}>
+        // A form so Enter in any filter field runs Search (its button is the submit button).
+        <form
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.currentTarget.querySelector<HTMLButtonElement>('button[type="submit"]')?.click();
+          }}
+          className={cn("grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-2 xl:grid-cols-4 filter_content_wrapper", collapsible && "has_top_border")}
+        >
           {children}
-        </div>
+        </form>
       )}
     </section>
   );
@@ -465,13 +473,33 @@ export function FormDateField({
   );
 }
 
+// Filters apply as you type; Search refreshes the list and brings the results into view,
+// which matters on phones where the table sits below the filter panel.
+function revealResults(from: HTMLElement) {
+  const results = from.closest(".box_collapse")?.nextElementSibling;
+  if (!(results instanceof HTMLElement)) return;
+  const top = results.getBoundingClientRect().top;
+  if (top > window.innerHeight * 0.5 || top < 0) {
+    results.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
 export function FilterActions({ onClear, onSearch }: { onClear: () => void; onSearch: () => void }) {
   return (
     <div className="flex items-end justify-end gap-3 xl:col-span-4">
       <button type="button" onClick={onClear} className="btn_outline_black">
         Clear
       </button>
-      <button type="button" onClick={onSearch} className="btn_primary_black">
+      <button
+        type="submit"
+        onClick={(event) => {
+          event.preventDefault();
+          onSearch();
+          const button = event.currentTarget;
+          window.requestAnimationFrame(() => revealResults(button));
+        }}
+        className="btn_primary_black"
+      >
         Search
         <Search />
       </button>
@@ -620,7 +648,7 @@ export function DataCard({
           <h2 className="subheader_title">{title}</h2>
           {meta && <p className="subheader_meta">{meta}</p>}
         </div>
-        {actions}
+        {actions ? <div className="subheader_actions">{actions}</div> : null}
       </div>
       {children}
     </section>

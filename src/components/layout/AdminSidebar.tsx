@@ -77,7 +77,7 @@ export function Sidebar() {
       {isMobileMenuOpen && ( <div className="mobile_overlay" onClick={() => setIsMobileMenuOpen(false)}/>)}
       <div className={cn("mobile_drawer", isMobileMenuOpen && "is_open")}> 
         {navItems}
-        <SidebarProfile isMobile={true} />
+        <SidebarProfile isMobile={true} onNavigate={handleNavClick} />
       </div>
       <div className={cn("desktop_sidebar", isCollapsed && "is_collapsed")}>
         <div className="logo_container">

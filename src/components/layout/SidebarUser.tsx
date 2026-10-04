@@ -9,7 +9,7 @@ import { useGetCurrentUserQuery, useLogoutMutation } from "@/store/api/authApi";
 import { humanise, titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
-export function SidebarUser() {
+export function SidebarUser({ onNavigate }: { onNavigate?: () => void } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: user, isLoading } = useGetCurrentUserQuery();
@@ -47,6 +47,7 @@ export function SidebarUser() {
     <div className="flex items-center gap-3 sidebar_user">
       <Link
         href="/profile"
+        onClick={onNavigate}
         aria-current={isOnProfile ? "page" : undefined}
         title="View and edit your profile"
         className="sidebar_user_link flex min-w-0 flex-1 items-center gap-3 rounded-lg transition hover:opacity-80"

@@ -88,6 +88,13 @@ export const reportApi = baseApi.injectEndpoints({
       providesTags: [{ type: "Finance", id: "SUMMARY" }],
     }),
 
+    // Read-only copy for baristas, so they can take payments in riel.
+    getBaristaExchangeRate: builder.query<BakongExchangeRateResponse, void>({
+      query: () => "/api/barista/bakong/exchange-rate",
+      transformResponse: unwrap<BakongExchangeRateResponse>,
+      providesTags: ["ExchangeRate"],
+    }),
+
     getExchangeRate: builder.query<BakongExchangeRateResponse, void>({
       query: () => "/api/admin/bakong/exchange-rate",
       transformResponse: unwrap<BakongExchangeRateResponse>,
@@ -117,5 +124,6 @@ export const {
   useGetMonthlyFinanceQuery,
   useGetYearlyFinanceQuery,
   useGetExchangeRateQuery,
+  useGetBaristaExchangeRateQuery,
   useUpdateExchangeRateMutation,
 } = reportApi;
