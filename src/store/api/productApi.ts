@@ -10,6 +10,7 @@ import type {
   ProductResponse,
   ProductVariantResponse,
   SetProductDiscountRequest,
+  SkuSuggestionResponse,
   UpdateProductExtraRequest,
   UpdateProductRequest,
   UpdateProductVariantRequest,
@@ -123,6 +124,22 @@ export const productApi = baseApi.injectEndpoints({
         { type: "Product", id },
         { type: "Product", id: "LIST" },
       ],
+    }),
+
+    generateSku: builder.mutation<
+      SkuSuggestionResponse,
+      { categoryId: UUID; name: string; productId?: UUID }
+    >({
+      query: (params) => ({ url: "/api/admin/products/sku/generate", params }),
+      transformResponse: unwrap<SkuSuggestionResponse>,
+    }),
+
+    downloadProductImportTemplate: builder.mutation<Blob, void>({
+      query: () => ({
+        url: "/api/admin/products/import/template",
+        responseHandler: (response: Response) =>
+          response.ok ? response.blob() : response.json(),
+      }),
     }),
 
     importProducts: builder.mutation<ProductImportResponse, File>({
@@ -246,6 +263,8 @@ export const {
   useClearProductDiscountMutation,
   useUploadProductImageMutation,
   useRemoveProductImageMutation,
+  useGenerateSkuMutation,
+  useDownloadProductImportTemplateMutation,
   useImportProductsMutation,
   useListVariantsQuery,
   useCreateVariantMutation,
