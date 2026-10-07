@@ -99,6 +99,14 @@ export const inventoryApi = baseApi.injectEndpoints({
         STOCK_MOVEMENT_TAGS(productId),
     }),
 
+    downloadStockInImportTemplate: builder.mutation<Blob, void>({
+      query: () => ({
+        url: "/api/admin/inventory/stock-in/import/template",
+        responseHandler: (response: Response) =>
+          response.ok ? response.blob() : response.json(),
+      }),
+    }),
+
     stockInFromExcel: builder.mutation<StockInImportResponse, File>({
       query: (file) => {
         const formData = new FormData();
@@ -138,6 +146,7 @@ export const {
   useListStockMovementsQuery,
   useStockInMutation,
   useStockCutMutation,
+  useDownloadStockInImportTemplateMutation,
   useStockInFromExcelMutation,
   useDownloadMonthlyStockExpenseReportMutation,
 } = inventoryApi;

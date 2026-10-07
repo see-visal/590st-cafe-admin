@@ -320,11 +320,14 @@ export interface ProductResponse {
   updatedAt: string;
 }
 
+export type SkuMode = "MANUAL" | "GENERATE";
+
 export interface CreateProductRequest {
   name: string;
   nameKh?: string;
   description?: string;
-  sku: string;
+  sku?: string;
+  skuMode?: SkuMode;
   stockUnit: StockUnit;
   sellUnit: SellUnit;
   unitsPerStock?: Numeric;
@@ -337,6 +340,7 @@ export interface UpdateProductRequest {
   nameKh?: string;
   description?: string;
   sku?: string;
+  skuMode?: SkuMode;
   stockUnit?: StockUnit;
   sellUnit?: SellUnit;
   unitsPerStock?: Numeric;
@@ -350,6 +354,15 @@ export interface SetProductDiscountRequest {
   discountValue: Numeric;
   discountStartAt?: string;
   discountEndAt?: string;
+}
+
+export interface SkuSuggestionResponse {
+  sku: string;
+  prefix: string;
+  categoryName: string;
+  categoryGroup: CategoryGroup | null;
+  allowedVariants: VariantLabel[];
+  variantSkus: Partial<Record<VariantLabel, string>>;
 }
 
 export interface ProductImportRowError {

@@ -36,6 +36,7 @@ import { apiErrorMessage } from "@/store/api/baseApi";
 import { usePageSize } from "@/contexts/AdminPreferencesContext";
 import {
   useDownloadMonthlyStockExpenseReportMutation,
+  useDownloadStockInImportTemplateMutation,
   useListInventoryQuery,
   useStockCutMutation,
   useStockInFromExcelMutation,
@@ -111,6 +112,7 @@ export default function Inventory() {
   const [stockIn, { isLoading: isStockingIn }] = useStockInMutation();
   const [stockCut, { isLoading: isCutting }] = useStockCutMutation();
   const [stockInFromExcel] = useStockInFromExcelMutation();
+  const [downloadStockInTemplate] = useDownloadStockInImportTemplateMutation();
   const [downloadExpenseReport, { isLoading: isDownloadingExpenseReport }] =
     useDownloadMonthlyStockExpenseReportMutation();
 
@@ -303,8 +305,12 @@ export default function Inventory() {
               </div>
               <ExcelImportButton
                 label="Import Stock-In"
-                columnsHint="sku, quantity, unitCost, note"
+                columnsHint="SKU, Quantity, Unit Cost, Note (optional)"
                 onImport={(file) => stockInFromExcel(file).unwrap()}
+                template={{
+                  filename: "stock-in-import-template.xlsx",
+                  download: () => downloadStockInTemplate().unwrap(),
+                }}
               />
               <TableActions onRegister={() => handleOpenForm()} primaryLabel="Adjust Stock" />
             </div>

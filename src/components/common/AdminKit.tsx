@@ -59,7 +59,7 @@ import {
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useI18n } from "@/contexts/I18nContext";
-import { cn, formatSku, titleCase } from "@/lib/utils";
+import { cn, downloadBlob, formatSku, titleCase } from "@/lib/utils";
 import { formatPhoneInput, PHONE_MAX_LENGTH, PHONE_PLACEHOLDER } from "@/lib/phone";
 import { apiErrorMessage } from "@/store/api/baseApi";
 
@@ -547,14 +547,30 @@ export function ExcelImportButton({
   label = "Import Excel",
   columnsHint,
   onImport,
+  template,
 }: {
   label?: string;
   columnsHint: string;
   onImport: (file: File) => Promise<ExcelImportResult>;
+  /** Adds a "Download Sample" button that saves the server's import template. */
+  template?: { filename: string; download: () => Promise<Blob> };
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [result, setResult] = useState<ExcelImportResult | null>(null);
+
+  const handleDownloadTemplate = async () => {
+    if (!template) return;
+    setIsDownloading(true);
+    try {
+      downloadBlob(await template.download(), template.filename);
+    } catch (error) {
+      toast.error(apiErrorMessage(error as never, "Could not download the sample file."));
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleFile = async (file: File) => {
     setIsBusy(true);
@@ -575,6 +591,18 @@ export function ExcelImportButton({
 
   return (
     <>
+      {template && (
+        <button
+          type="button"
+          onClick={handleDownloadTemplate}
+          disabled={isDownloading}
+          className="btn_outline_black"
+          title={`Excel sample with the expected columns: ${columnsHint}`}
+        >
+          {isDownloading ? "Downloading..." : "Download Sample"}
+          <Download />
+        </button>
+      )}
       <button
         type="button"
         onClick={() => inputRef.current?.click()}

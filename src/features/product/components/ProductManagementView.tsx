@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { TriangleAlert } from "lucide-react";
+import { RefreshCw, TriangleAlert } from "lucide-react";
 import toast from "react-hot-toast";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -44,12 +44,14 @@ import {
   useCreateProductMutation,
   useCreateVariantMutation,
   useDeleteProductMutation,
+  useDownloadProductImportTemplateMutation,
+  useGenerateSkuMutation,
   useImportProductsMutation,
   useListProductsQuery,
   useUpdateProductMutation,
   useUploadProductImageMutation,
 } from "@/store/api/productApi";
-import type { ProductResponse, SellUnit, Status, StockUnit, VariantLabel } from "@/store/api/types";
+import type { ProductResponse, SellUnit, SkuMode, Status, StockUnit, VariantLabel } from "@/store/api/types";
 import { formatSku, humanise, productPriceLabel, titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
@@ -72,10 +74,17 @@ const STOCK_UNITS: StockUnit[] = ["PACK", "BOX", "CARTON", "PIECE"];
 const SELL_UNITS: SellUnit[] = ["PLATE", "BOTTLE", "CAN", "CUP", "CARTON", "PACKAGE", "TANK", "PIECE"];
 const VARIANT_LABELS: VariantLabel[] = ["MEDIUM", "LARGE", "PIECE"];
 
+// Mirrors the API's ValidationPatterns.SKU_REGEX / SKU_MAX_LENGTH.
+const SKU_PATTERN = /^[A-Z0-9]+([-_.][A-Z0-9]+)*$/;
+const SKU_MAX_LENGTH = 64;
+const SKU_FORMAT_HINT = "Letters, digits and single - _ . separators, e.g. FD-COF-IL-001";
+
 type ProductFormFields = {
   name: string;
   description: string;
   sku: string;
+  // GENERATE: the server assigns the SKU on save (`sku` is only a preview). MANUAL: `sku` is sent as typed.
+  skuMode: SkuMode;
   stockUnit: StockUnit | "";
   sellUnit: SellUnit | "";
   unitsPerStock: string;
@@ -90,6 +99,7 @@ const EMPTY_FORM: ProductFormFields = {
   name: "",
   description: "",
   sku: "",
+  skuMode: "GENERATE",
   stockUnit: "",
   sellUnit: "",
   unitsPerStock: "",
@@ -146,6 +156,8 @@ export default function Products() {
   const [deleteProduct] = useDeleteProductMutation();
   const [uploadImage, { isLoading: isUploading }] = useUploadProductImageMutation();
   const [importProducts] = useImportProductsMutation();
+  const [downloadProductTemplate] = useDownloadProductImportTemplateMutation();
+  const [generateSku, { isLoading: isGeneratingSku }] = useGenerateSkuMutation();
 
   const [formOpen, setFormOpen] = usePersistentState("products:formOpen", false);
   const [detailOpen, setDetailOpen] = usePersistentState("products:detailOpen", false);
@@ -186,6 +198,7 @@ export default function Products() {
             name: product.name,
             description: product.description ?? "",
             sku: formatSku(product.sku),
+            skuMode: "MANUAL",
             stockUnit: product.stockUnit,
             sellUnit: product.sellUnit,
             unitsPerStock: String(product.unitsPerStock ?? ""),
@@ -205,6 +218,33 @@ export default function Products() {
     setSelected(null);
     setFormFields(EMPTY_FORM);
     setImageFile(null);
+  };
+
+  // A generated preview depends on name + category, so drop it when either changes; the server
+  // still generates a fresh SKU on save while the mode stays GENERATE.
+  const updateSkuSource = (patch: Pick<Partial<ProductFormFields>, "name" | "categoryId">) =>
+    setFormFields({
+      ...formFields,
+      ...patch,
+      ...(formFields.skuMode === "GENERATE" ? { sku: "" } : {}),
+    });
+
+  const handleGenerateSku = async () => {
+    const name = formFields.name.trim();
+    if (!name || !formFields.categoryId) {
+      toast.error("Enter a product name and choose a category to generate a SKU");
+      return;
+    }
+    try {
+      const suggestion = await generateSku({
+        categoryId: formFields.categoryId,
+        name,
+        ...(selected ? { productId: selected.id } : {}),
+      }).unwrap();
+      setFormFields({ ...formFields, sku: suggestion.sku, skuMode: "GENERATE" });
+    } catch (err) {
+      toast.error(apiErrorMessage(err as never, "Could not generate a SKU."));
+    }
   };
 
   const handleSubmitForm = async () => {
@@ -228,6 +268,19 @@ export default function Products() {
       return;
     }
 
+    const manualSku = formatSku(formFields.sku.trim());
+    const isManualSku = formFields.skuMode === "MANUAL" && Boolean(manualSku);
+    if (isManualSku && (manualSku.length > SKU_MAX_LENGTH || !SKU_PATTERN.test(manualSku))) {
+      toast.error(`Invalid SKU. ${SKU_FORMAT_HINT}`);
+      return;
+    }
+    // Blank manual SKU: create falls back to generating one, update keeps the current SKU.
+    const skuFields = isManualSku
+      ? { sku: manualSku, skuMode: "MANUAL" as const }
+      : !selected || formFields.skuMode === "GENERATE"
+        ? { skuMode: "GENERATE" as const }
+        : {};
+
     const reorderLevel = formFields.reorderLevel.trim()
       ? Number(formFields.reorderLevel)
       : undefined;
@@ -244,7 +297,7 @@ export default function Products() {
           body: {
             name,
             description: formFields.description.trim() || undefined,
-            sku: formatSku(formFields.sku.trim()) || undefined,
+            ...skuFields,
             stockUnit: formFields.stockUnit,
             sellUnit: formFields.sellUnit,
             unitsPerStock,
@@ -255,10 +308,6 @@ export default function Products() {
         }).unwrap();
         productId = updated.id;
       } else {
-        if (!formFields.sku.trim()) {
-          toast.error("SKU is required");
-          return;
-        }
         const variantPrice = Number(formFields.variantPrice);
         if (!formFields.variantName) {
           toast.error("Choose a variant (e.g. Medium) for the starting price");
@@ -271,7 +320,7 @@ export default function Products() {
         const created = await createProduct({
           name,
           description: formFields.description.trim() || undefined,
-          sku: formatSku(formFields.sku.trim()),
+          ...skuFields,
           stockUnit: formFields.stockUnit,
           sellUnit: formFields.sellUnit,
           unitsPerStock,
@@ -383,8 +432,12 @@ export default function Products() {
             <div className="flex flex-wrap items-center gap-3">
               <ExcelImportButton
                 label="Import Excel"
-                columnsHint="name, description, sku, unit, price, category, reorderLevel, variants (optional, e.g. MEDIUM:1.50;LARGE:1.75), sellUnit (optional), unitsPerStock (optional), nameKh (optional)"
+                columnsHint="Name, Category, Price, Stock Unit, plus optional Name (Khmer), Description, SKU (blank = auto-generate), Large Price, Sell Unit, Units Per Stock, Reorder Level"
                 onImport={(file) => importProducts(file).unwrap()}
+                template={{
+                  filename: "product-import-template.xlsx",
+                  download: () => downloadProductTemplate().unwrap(),
+                }}
               />
               <TableActions onRegister={() => handleOpenForm()} primaryLabel="Register" />
             </div>
@@ -488,16 +541,41 @@ export default function Products() {
             label="Product Name"
             placeholder="e.g. Iced Latte"
             value={formFields.name}
-            onChange={(e) => setFormFields({ ...formFields, name: e.target.value })}
+            onChange={(e) => updateSkuSource({ name: e.target.value })}
             required
           />
-          <FormInput
-            label="SKU"
-            placeholder="e.g. DRK-LAT-01"
-            value={formFields.sku}
-            onChange={(e) => setFormFields({ ...formFields, sku: e.target.value.toUpperCase() })}
-            required={!selected}
-          />
+          <div className="form_field">
+            <span className="form_field_label">SKU</span>
+            <div className="flex gap-2">
+              <input
+                value={formFields.sku}
+                onChange={(e) =>
+                  setFormFields({ ...formFields, sku: e.target.value.toUpperCase(), skuMode: "MANUAL" })
+                }
+                placeholder={
+                  formFields.skuMode === "GENERATE" ? "Auto-generated on save" : "e.g. FD-COF-IL-001"
+                }
+                maxLength={SKU_MAX_LENGTH}
+                aria-label="SKU"
+                className="form_field_control min-w-0 flex-1"
+              />
+              <button
+                type="button"
+                onClick={handleGenerateSku}
+                disabled={isGeneratingSku}
+                className="btn_outline_black shrink-0"
+                title="Generate from category and name (GROUP-CATEGORY-NAME-###)"
+              >
+                {selected ? "Regenerate" : "Generate"}
+                <RefreshCw className={isGeneratingSku ? "animate-spin" : undefined} />
+              </button>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {formFields.skuMode === "GENERATE"
+                ? "Generated from category and name. Type to enter your own."
+                : SKU_FORMAT_HINT}
+            </span>
+          </div>
           <FormSelect
             label="Stock Unit"
             placeholder="Select stock unit"
@@ -535,9 +613,7 @@ export default function Products() {
             label="Category"
             placeholder="Select category"
             value={formFields.categoryId}
-            onChange={(e) =>
-              setFormFields({ ...formFields, categoryId: e.target.value })
-            }
+            onChange={(e) => updateSkuSource({ categoryId: e.target.value })}
             required
           >
             {categories.map((category) => (
