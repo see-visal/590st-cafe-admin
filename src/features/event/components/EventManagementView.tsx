@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { MapPin } from "lucide-react";
+import { MapPin, Store } from "lucide-react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
@@ -34,6 +34,8 @@ import {
   Thumbnail,
 } from "@/components/common/AdminKit";
 import { LocationPickerModal } from "@/components/common/LocationPickerModal";
+import { SHOP_LOCATION, isShopLocation } from "@/constants/shop";
+import { useI18n } from "@/contexts/I18nContext";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import { usePageSize } from "@/contexts/AdminPreferencesContext";
 import {
@@ -139,8 +141,11 @@ export default function EventManagementView() {
   const [formOpen, setFormOpen] = usePersistentState("events:formOpen", false);
   const [detailOpen, setDetailOpen] = usePersistentState("events:detailOpen", false);
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const { t } = useI18n();
   const [selected, setSelected] = usePersistentState<EventResponse | null>("events:selected", null);
   const [form, setForm] = usePersistentState<EventFormFields>("events:form", EMPTY_FORM);
+  const hasVenue = Boolean(form.latitude.trim() && form.longitude.trim());
+  const venueIsShop = hasVenue && isShopLocation(Number(form.latitude), Number(form.longitude));
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const events = useMemo(() => eventPage?.content ?? [], [eventPage]);
@@ -342,9 +347,17 @@ export default function EventManagementView() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 underline"
-                        title="View venue on map"
+                        title={t("venue.view_on_map", "View on map")}
                       >
-                        <MapPin className="h-3.5 w-3.5" /> View
+                        {isShopLocation(event.latitude, event.longitude) ? (
+                          <>
+                            <Store className="h-3.5 w-3.5" /> {t("map.shop_location", SHOP_LOCATION.name)}
+                          </>
+                        ) : (
+                          <>
+                            <MapPin className="h-3.5 w-3.5" /> {t("venue.view", "View")}
+                          </>
+                        )}
                       </a>
                     ) : (
                       "-"
@@ -415,7 +428,7 @@ export default function EventManagementView() {
             required
           />
           <div className="form_field md:col-span-3">
-            <span className="form_field_label">Venue</span>
+            <span className="form_field_label">{t("venue.label", "Venue")}</span>
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -423,11 +436,33 @@ export default function EventManagementView() {
                 className="btn_outline_black inline-flex items-center gap-2 text-xs"
               >
                 <MapPin className="h-3.5 w-3.5" />
-                {form.latitude.trim() && form.longitude.trim() ? "Change Pin on Map" : "Pin on Map"}
+                {hasVenue ? t("venue.change_pin", "Change Pin on Map") : t("venue.pin_on_map", "Pin on Map")}
               </button>
-              {form.latitude.trim() && form.longitude.trim() ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    latitude: SHOP_LOCATION.lat.toFixed(6),
+                    longitude: SHOP_LOCATION.lng.toFixed(6),
+                  }))
+                }
+                aria-pressed={venueIsShop}
+                className={
+                  venueIsShop
+                    ? "btn_primary_yellow inline-flex items-center gap-2 text-xs"
+                    : "btn_outline_black inline-flex items-center gap-2 text-xs"
+                }
+              >
+                <Store className="h-3.5 w-3.5" />
+                {t("venue.use_shop", "Use Shop Location")}
+              </button>
+              {hasVenue ? (
                 <>
                   <span className="text-xs text-gray-600">
+                    {venueIsShop ? (
+                      <span className="font-semibold text-gray-900">{t("map.shop_location", SHOP_LOCATION.name)} · </span>
+                    ) : null}
                     {Number(form.latitude).toFixed(6)}, {Number(form.longitude).toFixed(6)}
                   </span>
                   <a
@@ -436,19 +471,19 @@ export default function EventManagementView() {
                     rel="noopener noreferrer"
                     className="text-xs underline"
                   >
-                    Preview
+                    {t("venue.preview", "Preview")}
                   </a>
                   <button
                     type="button"
                     onClick={() => setForm({ ...form, latitude: "", longitude: "" })}
                     className="text-xs text-red-600 underline"
                   >
-                    Clear
+                    {t("venue.clear", "Clear")}
                   </button>
                 </>
               ) : (
                 <span className="text-xs text-gray-500">
-                  No fixed venue set — optional, leave blank for an announcement with no venue.
+                  {t("venue.none_hint", "No fixed venue set — optional, leave blank for an announcement with no venue.")}
                 </span>
               )}
             </div>
@@ -522,7 +557,7 @@ export default function EventManagementView() {
             <DetailGrid>
               <DetailItem label="Title">{titleCase(selected.title)}</DetailItem>
               <DetailItem label="Description">{selected.description || "-"}</DetailItem>
-              <DetailItem label="Venue">
+              <DetailItem label={t("venue.label", "Venue")}>
                 {selected.latitude != null && selected.longitude != null ? (
                   <a
                     href={`https://www.google.com/maps?q=${selected.latitude},${selected.longitude}`}
@@ -530,10 +565,12 @@ export default function EventManagementView() {
                     rel="noopener noreferrer"
                     className="underline"
                   >
-                    View on map
+                    {isShopLocation(selected.latitude, selected.longitude)
+                      ? t("map.shop_location", SHOP_LOCATION.name)
+                      : t("venue.view_on_map", "View on map")}
                   </a>
                 ) : (
-                  "No fixed venue"
+                  t("venue.none", "No fixed venue")
                 )}
               </DetailItem>
               <DetailItem label="Starts At">{formatDateTime(selected.startAt)}</DetailItem>

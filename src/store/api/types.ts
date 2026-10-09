@@ -128,6 +128,20 @@ export interface VerifyLoginOtpRequest {
   otp: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  otp: string;
+  newPassword: string;
+}
+
+export type ResendOtpRequest =
+  | { purpose: "RESET_PASSWORD"; email: string }
+  | { purpose: "LOGIN"; loginTicket: string };
+
 export interface UserResponse {
   id: UUID;
   fullName: string;
