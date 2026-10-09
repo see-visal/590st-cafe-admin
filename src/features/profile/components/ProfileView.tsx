@@ -36,15 +36,13 @@ import {
   useUpdateProfileMutation,
   useUploadAvatarMutation,
 } from "@/store/api/authApi";
+import { STRONG_PASSWORD_HINT, STRONG_PASSWORD_PATTERN } from "@/lib/validation";
 import type { Gender, UpdateProfileRequest } from "@/store/api/types";
 import { humanise, statusTone } from "@/features/user/components/UserManagementView";
 import { titleCase } from "@/lib/utils";
 import { formatPhoneInput, isValidPhone, PHONE_INVALID_MESSAGE, samePhone } from "@/lib/phone";
 
 const GENDERS: Gender[] = ["MALE", "FEMALE", "OTHER"];
-
-const STRONG_PASSWORD =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
@@ -130,10 +128,8 @@ export default function ProfileView() {
       toast.error("The new passwords do not match");
       return;
     }
-    if (!STRONG_PASSWORD.test(password.next)) {
-      toast.error(
-        "Use 8+ characters with upper, lower, number and symbol."
-      );
+    if (!STRONG_PASSWORD_PATTERN.test(password.next)) {
+      toast.error(STRONG_PASSWORD_HINT);
       return;
     }
     if (password.next === password.current) {
@@ -421,8 +417,7 @@ export default function ProfileView() {
 
                 <p className="flex items-start gap-2 text-xs text-gray-400">
                   <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  At least 8 characters, including an uppercase letter, a lowercase letter, a number
-                  and a symbol.
+                  {STRONG_PASSWORD_HINT}
                 </p>
 
                 <div className="flex justify-end border-t border-gray-100 pt-6">
