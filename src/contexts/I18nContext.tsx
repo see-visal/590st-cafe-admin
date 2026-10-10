@@ -30,7 +30,7 @@ type TranslationMessages = {
 type I18nContextType = {
   locale: string;
   setLocale: (locale: string) => void;
-  t: (key: string) => string;
+  t: (key: string, fallback?: string) => string;
   loadPage: (pageName: string) => Promise<void>;
   formatNumber: (num: number) => string;
   parseTimeAgo: (timeAgo: string) => string;
@@ -76,27 +76,23 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     return pageMap[pageName] || pageName;
   };
 
+  // Shared strings loaded on every page: sidebar labels plus common UI (map picker, venue, etc.).
   const loadSidebar = useCallback(async (): Promise<TranslationMessages> => {
-    try {
-      const res = await fetch(`/locales/${locale}/sidebar.json`);
-
-      if (!res.ok) {
+    const loadFile = async (file: string): Promise<TranslationMessages> => {
+      try {
+        const res = await fetch(`/locales/${locale}/${file}.json`);
+        if (res.ok) return await res.json();
         if (locale !== "en") {
-          try {
-            const enRes = await fetch(`/locales/en/sidebar.json`);
-            if (enRes.ok) {
-              return await enRes.json();
-            }
-          } catch {
-          }
+          const enRes = await fetch(`/locales/en/${file}.json`);
+          if (enRes.ok) return await enRes.json();
         }
-        return {};
+      } catch {
       }
-
-      return await res.json();
-    } catch {
       return {};
-    }
+    };
+
+    const [sidebar, common] = await Promise.all([loadFile("sidebar"), loadFile("common")]);
+    return { ...common, ...sidebar };
   }, [locale]);
 
   const loadPage = useCallback(
@@ -159,7 +155,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     loadPage(pageName);
   }, [pathname, locale, loadPage]);
 
-  const t = (key: string): string => {
+  const t = (key: string, fallback?: string): string => {
     const keys = key.split(".");
     let result: string | TranslationMessages | undefined = messages;
 
@@ -167,11 +163,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       if (typeof result === "object" && result !== null && k in result) {
         result = result[k];
       } else {
-        return key;
+        return fallback ?? key;
       }
     }
 
-    return typeof result === "string" ? result : key;
+    return typeof result === "string" ? result : fallback ?? key;
   };
 
   const formatNumber = useCallback(

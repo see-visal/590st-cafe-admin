@@ -31,6 +31,13 @@ import {
   PHONE_PLACEHOLDER,
 } from "@/lib/phone";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+import { ForgotPasswordDialog } from "@/features/auth/components/ForgotPasswordDialog";
+import {
+  AUTH_DIALOG_BADGE_CLASS,
+  AUTH_DIALOG_CLASS,
+  AUTH_FIELD_CLASS as FIELD_CLASS,
+  AUTH_SUBMIT_CLASS as SUBMIT_CLASS,
+} from "@/features/auth/authStyles";
 
 function resolveNextPath(): string {
   if (typeof window === "undefined") return "/";
@@ -63,11 +70,6 @@ const LOGIN_METHODS: {
 
 const LOGIN_METHOD_KEY = "loginMethod";
 
-const FIELD_CLASS =
-  "h-11 w-full rounded-md border border-gray-300 text-sm outline-none focus:border-[#befe35] focus:ring-2 focus:ring-lime-100";
-const SUBMIT_CLASS =
-  "mt-8 h-12 w-full rounded-md bg-black text-sm font-semibold text-white disabled:opacity-60";
-
 const parseLoginMethod = (raw: string | null): LoginMethod =>
   raw === "PHONE" || raw === "TELEGRAM" ? "PHONE" : "EMAIL";
 
@@ -79,6 +81,8 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   const [rememberMe, setRememberMe] = useState(true);
   const [method, setMethod] = useLocalStorageState<LoginMethod>(
@@ -88,6 +92,7 @@ export default function AuthPage() {
   const chooseMethod = (next: LoginMethod) => {
     setMethod(next);
     setError("");
+    setNotice("");
   };
 
   const [loginTicket, setLoginTicket] = useState<string | null>(null);
@@ -125,6 +130,7 @@ export default function AuthPage() {
   const handleCredentials = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setNotice("");
 
     try {
       const result = await login({
@@ -289,7 +295,7 @@ export default function AuthPage() {
                   </p>
 
                   {error ? (
-                    <p className="mt-4 text-sm text-red-600">{error}</p>
+                    <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>
                   ) : null}
 
                   <button
@@ -350,7 +356,10 @@ export default function AuthPage() {
                   </div>
 
                   {error ? (
-                    <p className="mt-4 text-sm text-red-600">{error}</p>
+                    <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>
+                  ) : null}
+                  {notice ? (
+                    <p role="status" className="mt-4 text-sm text-lime-700">{notice}</p>
                   ) : null}
 
                   <button
@@ -364,24 +373,39 @@ export default function AuthPage() {
               )}
             </div>
 
-            <label className="mt-6 inline-flex cursor-pointer items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              <span
-                className={`grid h-5 w-5 place-items-center rounded border ${
-                  rememberMe
-                    ? "border-black bg-black text-[#befe35]"
-                    : "border-gray-300 bg-white"
-                }`}
-              >
-                {rememberMe && <Check className="h-4 w-4" />}
-              </span>
-              Keep me logged in
-            </label>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+              <label className="inline-flex cursor-pointer items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                />
+                <span
+                  className={`grid h-5 w-5 place-items-center rounded border ${
+                    rememberMe
+                      ? "border-black bg-black text-[#befe35]"
+                      : "border-gray-300 bg-white"
+                  }`}
+                >
+                  {rememberMe && <Check className="h-4 w-4" />}
+                </span>
+                Keep me logged in
+              </label>
+              {method === "EMAIL" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError("");
+                    setNotice("");
+                    setForgotOpen(true);
+                  }}
+                  className="text-sm font-medium text-gray-700 underline hover:text-black"
+                >
+                  Forgot password?
+                </button>
+              ) : null}
+            </div>
           </div>
         </section>
 
@@ -411,9 +435,9 @@ export default function AuthPage() {
           if (!next && !isVerifying) backToCredentials();
         }}
       >
-        <DialogContent className="max-w-md gap-0 rounded-2xl border-none bg-white p-0 text-black shadow-2xl">
+        <DialogContent className={AUTH_DIALOG_CLASS}>
           <form onSubmit={handleOtp} className="px-6 py-10 sm:px-10">
-            <div className="mx-auto mb-6 grid h-[4.5rem] w-[4.5rem] place-items-center rounded-full bg-[var(--brand-ink)] text-[var(--brand-lime)] shadow-[0_0_0_6px_#eefccf,0_10px_24px_-10px_rgba(0,0,0,0.45)]">
+            <div className={AUTH_DIALOG_BADGE_CLASS}>
               <ShieldCheck className="h-8 w-8" strokeWidth={1.75} aria-hidden="true" />
             </div>
 
@@ -451,7 +475,7 @@ export default function AuthPage() {
             </label>
 
             {error ? (
-              <p className="mt-4 text-sm text-red-600">{error}</p>
+              <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>
             ) : null}
 
             <button
@@ -482,6 +506,18 @@ export default function AuthPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ForgotPasswordDialog
+        open={forgotOpen}
+        onOpenChange={setForgotOpen}
+        initialEmail={email}
+        onReset={(resetEmail) => {
+          setEmail(resetEmail);
+          setPassword("");
+          setError("");
+          setNotice("Password reset. Log in with your new password.");
+        }}
+      />
     </main>
   );
 }

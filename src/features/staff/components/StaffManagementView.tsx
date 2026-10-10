@@ -58,6 +58,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { formatPhone, formatPhoneInput, isValidPhone, PHONE_INVALID_MESSAGE } from "@/lib/phone";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
+import { STRONG_PASSWORD_HINT, STRONG_PASSWORD_PATTERN } from "@/lib/validation";
 
 const STAFF_TABLE_HEADERS = [
   "No",
@@ -259,8 +260,8 @@ export default function Staff() {
           toast.error("Email is required");
           return;
         }
-        if (form.password.length < 8) {
-          toast.error("Password must be at least 8 characters");
+        if (!STRONG_PASSWORD_PATTERN.test(form.password)) {
+          toast.error(STRONG_PASSWORD_HINT);
           return;
         }
         const body = {

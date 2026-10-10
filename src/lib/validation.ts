@@ -32,3 +32,12 @@ export function firstIssueMessage(
 ): string {
   return error.issues[0]?.message ?? fallback;
 }
+
+// Mirrors the API's ValidationPatterns.STRONG_PASSWORD_REGEX (register, reset, change password, create staff).
+export const STRONG_PASSWORD_PATTERN =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
+export const STRONG_PASSWORD_HINT =
+  "At least 8 characters, including an uppercase letter, a lowercase letter, a number and a symbol.";
+
+export const OTP_PATTERN = /^\d{6}$/;

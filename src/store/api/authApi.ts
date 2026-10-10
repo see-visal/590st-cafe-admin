@@ -5,9 +5,12 @@ import type {
   ApiEnvelope,
   AuthTokenResponse,
   ChangePasswordRequest,
+  ForgotPasswordRequest,
   LoginRequest,
   LoginResponse,
   PhoneLoginRequest,
+  ResendOtpRequest,
+  ResetPasswordRequest,
   TelegramWidgetAuthRequest,
   UpdateProfileRequest,
   UserResponse,
@@ -23,7 +26,7 @@ export const authApi = baseApi.injectEndpoints({
       query: ({ email, password }) => ({
         url: "/api/auth/login",
         method: "POST",
-        body: { email, password },
+        body: { email: email.trim().toLowerCase(), password },
       }),
       transformResponse: (response: ApiEnvelope<LoginResponse>, _meta, arg) => {
         const result = unwrap(response);
@@ -89,29 +92,25 @@ export const authApi = baseApi.injectEndpoints({
       invalidatesTags: ["Auth"],
     }),
 
-    resendOtp: builder.mutation<
-      void,
-      { purpose: "LOGIN"; loginTicket: string }
-    >({
+    resendOtp: builder.mutation<void, ResendOtpRequest>({
       query: (body) => ({ url: "/api/auth/resend-otp", method: "POST", body }),
     }),
 
-    forgotPassword: builder.mutation<void, { email: string }>({
-      query: (body) => ({
+    // The API answers the same way whether or not the email has an account.
+    forgotPassword: builder.mutation<void, ForgotPasswordRequest>({
+      query: ({ email }) => ({
         url: "/api/auth/forgot-password",
         method: "POST",
-        body,
+        body: { email: email.trim().toLowerCase() },
       }),
     }),
 
-    resetPassword: builder.mutation<
-      void,
-      { email: string; otp: string; newPassword: string }
-    >({
-      query: (body) => ({
+    // A successful reset revokes the account's refresh tokens on every device.
+    resetPassword: builder.mutation<void, ResetPasswordRequest>({
+      query: ({ email, otp, newPassword }) => ({
         url: "/api/auth/reset-password",
         method: "POST",
-        body,
+        body: { email: email.trim().toLowerCase(), otp: otp.trim(), newPassword },
       }),
     }),
 

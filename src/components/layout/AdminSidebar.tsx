@@ -43,14 +43,14 @@ export function Sidebar() {
     <nav className="sidebar scrollbar">
       {sections.map((section) => (
         <div key={section.title || "home"} className="sidebar_section" data-divider={section.dividerBefore}>
-          {section.title && ( <p className="title"> {section.title} </p> )}
+          {section.title && ( <p className="title"> {t(section.titleKey, section.title)} </p> )}
           <div className="sidebar_wrap">
             {section.items.map((item) => {
               const isActive = isNavItemActive(pathname, item.href);
               return (
                 <Link key={item.name} href={item.href} onClick={handleNavClick} className={cn("sidebar_item", isActive ? "active" : "")}>
                   <item.icon className="icons" strokeWidth={2.2} />
-                  <span className="sidebar_item_label">{t(item.label) === item.label ? item.name : t(item.label)}</span>
+                  <span className="sidebar_item_label">{t(item.label, item.name)}</span>
                 </Link>
               );
             })}

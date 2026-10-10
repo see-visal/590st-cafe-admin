@@ -25,11 +25,13 @@ import {
 const navigationSections = [
   {
     title: "",
+    titleKey: "section_home",
     dividerBefore: false,
     items: [{ name: "Home", href: "/", icon: Home, label: "nav_home" }],
   },
   {
     title: "Operations",
+    titleKey: "section_operations",
     dividerBefore: true,
     items: [
       {
@@ -52,6 +54,7 @@ const navigationSections = [
   },
   {
     title: "Catalog",
+    titleKey: "section_catalog",
     dividerBefore: false,
     items: [
       {
@@ -79,6 +82,7 @@ const navigationSections = [
   },
   {
     title: "Customer & Rating",
+    titleKey: "section_customer",
     dividerBefore: false,
     items: [
       {
@@ -103,6 +107,7 @@ const navigationSections = [
   },
   {
     title: "Analytics & Admin",
+    titleKey: "section_admin",
     dividerBefore: true,
     items: [
       { name: "Report", href: "/reports", icon: BarChart3, label: "nav_report" },
