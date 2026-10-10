@@ -251,7 +251,7 @@ export function LocationPickerModal({
               )}
             >
               <Store className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t("map.shop_location", SHOP_LOCATION.name)}</span>
+              <span className="truncate">{SHOP_LOCATION.name}</span>
             </button>
           </div>
 
