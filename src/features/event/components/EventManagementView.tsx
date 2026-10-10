@@ -50,6 +50,8 @@ import { titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
+import { parseForm } from "@/lib/validation";
+import { eventSchema } from "@/lib/formSchemas";
 
 const EVENT_TABLE_HEADERS = [
   "No",
@@ -185,40 +187,9 @@ export default function EventManagementView() {
   };
 
   const handleSubmit = async () => {
-    const title = form.title.trim();
-    if (!title) {
-      toast.error("Title is required");
-      return;
-    }
-    if (!form.startAt || !form.endAt) {
-      toast.error("Start and end date/time are both required");
-      return;
-    }
-    if (new Date(form.endAt).getTime() <= new Date(form.startAt).getTime()) {
-      toast.error("The end must come after the start");
-      return;
-    }
-
-    const lat = form.latitude.trim();
-    const lng = form.longitude.trim();
-    if (Boolean(lat) !== Boolean(lng)) {
-      toast.error("Latitude and longitude must be given together");
-      return;
-    }
-    let latitude: number | undefined;
-    let longitude: number | undefined;
-    if (lat && lng) {
-      latitude = Number(lat);
-      longitude = Number(lng);
-      if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
-        toast.error("Latitude must be between -90 and 90");
-        return;
-      }
-      if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-        toast.error("Longitude must be between -180 and 180");
-        return;
-      }
-    }
+    const parsed = parseForm(eventSchema, form);
+    if (!parsed) return;
+    const { title, description, startAt, endAt, latitude, longitude } = parsed;
 
     try {
       let eventId: string;
@@ -227,11 +198,11 @@ export default function EventManagementView() {
           id: selected.id,
           body: {
             title,
-            description: form.description.trim() || undefined,
+            description,
             latitude,
             longitude,
-            startAt: form.startAt,
-            endAt: form.endAt,
+            startAt,
+            endAt,
             status: form.status,
           },
         }).unwrap();
@@ -239,11 +210,11 @@ export default function EventManagementView() {
       } else {
         const created = await createEvent({
           title,
-          description: form.description.trim() || undefined,
+          description,
           latitude,
           longitude,
-          startAt: form.startAt,
-          endAt: form.endAt,
+          startAt,
+          endAt,
         }).unwrap();
         eventId = created.id;
       }

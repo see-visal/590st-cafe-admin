@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import toast from "react-hot-toast";
 import { Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -12,6 +11,8 @@ import {
 } from "@/lib/estimate";
 import { useNow } from "@/hooks/useNow";
 import type { OrderResponse } from "@/store/api/types";
+import { parseForm } from "@/lib/validation";
+import { estimateMinutesSchema } from "@/lib/formSchemas";
 
 type EstimateOrder = Pick<OrderResponse, "status" | "estimatedReadyAt">;
 
@@ -64,12 +65,9 @@ export function OrderEstimateEditor({
   if (estimate.state === "finished") return null;
 
   const submitCustom = () => {
-    const minutes = Number(custom);
-    if (!Number.isInteger(minutes) || minutes < 1 || minutes > ESTIMATE_MAX_MINUTES) {
-      toast.error(`Enter whole minutes between 1 and ${ESTIMATE_MAX_MINUTES}.`);
-      return;
-    }
-    onSave(minutes);
+    const parsed = parseForm(estimateMinutesSchema, { minutes: custom });
+    if (!parsed) return;
+    onSave(parsed.minutes);
     setCustom("");
   };
 

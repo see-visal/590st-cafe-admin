@@ -55,10 +55,11 @@ import { humanise, statusTone } from "@/features/user/components/UserManagementV
 import { titleCase } from "@/lib/utils";
 import type { Gender, TelegramLinkCodeResponse, UserResponse, UserStatus } from "@/store/api/types";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { formatPhone, formatPhoneInput, isValidPhone, PHONE_INVALID_MESSAGE } from "@/lib/phone";
+import { formatPhone, formatPhoneInput } from "@/lib/phone";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
-import { STRONG_PASSWORD_HINT, STRONG_PASSWORD_PATTERN } from "@/lib/validation";
+import { parseForm } from "@/lib/validation";
+import { staffCreateSchema, staffInviteSchema, staffUpdateSchema } from "@/lib/formSchemas";
 
 const STAFF_TABLE_HEADERS = [
   "No",
@@ -147,11 +148,11 @@ export default function Staff() {
   const handlePickImage = (file: File | null) => {
     if (submitting.current) return;
     if (file && !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
-      toast.error("Choose a JPEG, PNG, WebP, or GIF image");
+      toast.error("Choose a JPEG, PNG, WebP, or GIF image.");
       return;
     }
     if (file && (file.size === 0 || file.size > 5 * 1024 * 1024)) {
-      toast.error("Choose a non-empty image of 5 MB or smaller");
+      toast.error("Choose a non-empty image of 5 MB or smaller.");
       return;
     }
     setImageFile(file);
@@ -205,25 +206,15 @@ export default function Staff() {
       toast.error("Your account cannot manage this staff role.");
       return;
     }
-    const fullName = form.fullName.trim();
-    if (!fullName) {
-      toast.error("Full name is required");
-      return;
-    }
-    if (!isValidPhone(form.phoneNumber)) {
-      toast.error(PHONE_INVALID_MESSAGE);
-      return;
-    }
+    const gender = (form.gender || undefined) as Gender | undefined;
+    const isInvite = !selected && Boolean(formKind) && creationMode === "TELEGRAM";
 
-    if (!selected && formKind && creationMode === "TELEGRAM") {
-      const phoneNumber = form.phoneNumber.trim();
-      if (!phoneNumber) {
-        toast.error("Phone number is required to invite via Telegram");
-        return;
-      }
+    if (isInvite) {
+      const invite = parseForm(staffInviteSchema, form);
+      if (!invite) return;
       submitting.current = true;
       try {
-        const body = { fullName, phoneNumber, gender: (form.gender || undefined) as Gender | undefined };
+        const body = { ...invite, gender };
         const result = formKind === "ADMIN" ? await inviteAdmin(body).unwrap() : await inviteBarista(body).unwrap();
         setKind(formKind);
         setPage(1);
@@ -239,38 +230,23 @@ export default function Staff() {
       return;
     }
 
+    const updates = selected ? parseForm(staffUpdateSchema, form) : null;
+    const created = selected ? null : parseForm(staffCreateSchema, form);
+    if (!updates && !created) return;
+
     submitting.current = true;
     let detailsSaved = false;
     try {
       let savedMember: UserResponse;
-      if (selected) {
-        const body = {
-          fullName,
-          phoneNumber: form.phoneNumber.trim() || undefined,
-          gender: (form.gender || undefined) as Gender | undefined,
-          status: form.status,
-        };
+      if (selected && updates) {
+        const body = { ...updates, gender, status: form.status };
         if (formKind === "ADMIN") {
           savedMember = await updateAdmin({ id: selected.id, body }).unwrap();
         } else {
           savedMember = await updateBarista({ id: selected.id, body }).unwrap();
         }
       } else {
-        if (!form.email.trim()) {
-          toast.error("Email is required");
-          return;
-        }
-        if (!STRONG_PASSWORD_PATTERN.test(form.password)) {
-          toast.error(STRONG_PASSWORD_HINT);
-          return;
-        }
-        const body = {
-          fullName,
-          email: form.email.trim(),
-          password: form.password,
-          phoneNumber: form.phoneNumber.trim() || undefined,
-          gender: (form.gender || undefined) as Gender | undefined,
-        };
+        const body = { ...created!, gender };
         if (formKind === "ADMIN") {
           savedMember = await createAdmin(body).unwrap();
         } else {
@@ -648,7 +624,7 @@ export default function Staff() {
                   await navigator.clipboard.writeText(inviteResult.deepLink);
                   toast.success("Link copied");
                 } catch {
-                  toast.error("Could not copy the link");
+                  toast.error("Could not copy the link.");
                 }
               }}
             >

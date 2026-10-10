@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import toast from "react-hot-toast";
 import type { OrderResponse } from "@/store/api/types";
 import { fulfillmentLabel, titleCase } from "@/lib/utils";
-import { deliveryFeeSchema, firstIssueMessage } from "@/lib/validation";
+import { deliveryFeeSchema, parseForm } from "@/lib/validation";
 import { formatPhone } from "@/lib/phone";
 import { MoneyInput } from "@/components/forms/MoneyInput";
 
@@ -27,12 +26,9 @@ export function OrderFulfillmentDetails({
   const hasPin = order.deliveryLatitude != null && order.deliveryLongitude != null;
 
   const submitFee = () => {
-    const parsed = deliveryFeeSchema.safeParse({ fee: feeInput });
-    if (!parsed.success) {
-      toast.error(firstIssueMessage(parsed.error));
-      return;
-    }
-    onSetDeliveryFee?.(parsed.data.fee);
+    const parsed = parseForm(deliveryFeeSchema, { fee: feeInput });
+    if (!parsed) return;
+    onSetDeliveryFee?.(parsed.fee);
   };
 
   return <div className="my-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">

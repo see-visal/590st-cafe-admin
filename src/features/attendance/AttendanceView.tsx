@@ -18,6 +18,8 @@ import {
 import { titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { parseForm } from "@/lib/validation";
+import { attendanceSchema } from "@/lib/formSchemas";
 
 const emptyForm: AttendanceInput = { baristaId: "", checkInAt: "", checkOutAt: "", note: "" };
 const displayTime = (value: string | null) => value ? value.replace("T", " ").slice(0, 19) : "—";
@@ -80,16 +82,15 @@ export default function AttendanceView() {
   };
 
   const save = async () => {
-    if (!form.baristaId || !form.checkInAt) { toast.error("Choose a staff member and check-in time."); return; }
-    const now = toLocalInput(new Date());
-    if (form.checkInAt > now) { toast.error("Check-in can't be in the future."); return; }
-    if (form.checkOutAt && form.checkOutAt > now) { toast.error("Check-out can't be in the future — leave it empty if still on shift."); return; }
-    if (form.checkOutAt && form.checkOutAt <= form.checkInAt) { toast.error("Check-out must be after check-in."); return; }
-    if (editing?.checkOutAt && !form.checkOutAt) { toast.error("A completed shift must keep a check-out time."); return; }
-    const body = { checkInAt: form.checkInAt, checkOutAt: form.checkOutAt || undefined, note: form.note };
+    const parsed = parseForm(
+      attendanceSchema({ now: toLocalInput(new Date()), mustKeepCheckOut: Boolean(editing?.checkOutAt) }),
+      { ...form, checkOutAt: form.checkOutAt ?? "", note: form.note ?? "" },
+    );
+    if (!parsed) return;
+    const body = { checkInAt: parsed.checkInAt, checkOutAt: parsed.checkOutAt, note: parsed.note ?? "" };
     try {
       if (editing) await update({ id: editing.id, body }).unwrap();
-      else await create({ ...body, baristaId: form.baristaId }).unwrap();
+      else await create({ ...body, baristaId: parsed.baristaId }).unwrap();
       toast.success("Attendance saved"); setFormOpen(false);
     } catch (error) { toast.error(apiErrorMessage(error as never, "Could not save attendance.")); }
   };
