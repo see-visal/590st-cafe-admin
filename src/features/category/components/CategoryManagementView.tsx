@@ -45,6 +45,8 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
+import { parseForm } from "@/lib/validation";
+import { categorySchema } from "@/lib/formSchemas";
 
 const CATEGORY_GROUPS: CategoryGroup[] = ["FRESH_DRINK", "BEVERAGE", "SNACK"];
 
@@ -176,13 +178,9 @@ export default function Categories() {
 
   const handleSubmitForm = async () => {
     if (!isAdmin) return;
-    const name = formFields.name.trim();
-    if (!name) {
-      toast.error("Please enter a category name");
-      return;
-    }
-
-    const description = formFields.description.trim() || undefined;
+    const parsed = parseForm(categorySchema, formFields);
+    if (!parsed) return;
+    const { name, description } = parsed;
     const categoryGroup = formFields.categoryGroup || undefined;
 
     try {

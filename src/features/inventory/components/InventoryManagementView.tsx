@@ -51,6 +51,8 @@ import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 import { DatePickerInput } from "@/components/forms/DatePickerInput";
 import { Download } from "lucide-react";
+import { parseForm } from "@/lib/validation";
+import { stockMovementSchema } from "@/lib/formSchemas";
 
 const INVENTORY_TABLE_HEADERS = [
   "No",
@@ -185,28 +187,22 @@ export default function Inventory() {
 
   const handleSubmit = async () => {
     if (!isAdmin) return;
-    if (!selectedProduct) {
-      toast.error("Choose a product first");
-      return;
-    }
-    const qty = Number(quantity);
-    if (!Number.isFinite(qty) || qty <= 0) {
-      toast.error("Quantity must be greater than zero");
-      return;
-    }
+    const parsed = parseForm(stockMovementSchema(movementKind), {
+      productId: selectedProduct?.id ?? "",
+      quantity,
+      unitCost,
+      note,
+    });
+    if (!parsed || !selectedProduct) return;
+    const qty = parsed.quantity;
 
     try {
       if (movementKind === "STOCK_IN") {
-        const cost = Number(unitCost);
-        if (!Number.isFinite(cost) || cost < 0) {
-          toast.error("Enter a valid unit cost");
-          return;
-        }
         await stockIn({
           productId: selectedProduct.id,
           quantity: qty,
-          unitCost: cost,
-          note: note.trim() || undefined,
+          unitCost: parsed.unitCost ?? 0,
+          note: parsed.note,
         }).unwrap();
         toast.success(`Stocked in ${qty} ${selectedProduct.unit}`);
       } else {
@@ -214,7 +210,7 @@ export default function Inventory() {
           productId: selectedProduct.id,
           quantity: qty,
           strategy,
-          note: note.trim() || undefined,
+          note: parsed.note,
         }).unwrap();
         toast.success(`Cut ${qty} ${selectedProduct.unit}`);
       }
