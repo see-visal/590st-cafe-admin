@@ -322,7 +322,7 @@ export default function EventManagementView() {
                       >
                         {isShopLocation(event.latitude, event.longitude) ? (
                           <>
-                            <Store className="h-3.5 w-3.5" /> {t("map.shop_location", SHOP_LOCATION.name)}
+                            <Store className="h-3.5 w-3.5" /> {SHOP_LOCATION.name}
                           </>
                         ) : (
                           <>
@@ -432,7 +432,7 @@ export default function EventManagementView() {
                 <>
                   <span className="text-xs text-gray-600">
                     {venueIsShop ? (
-                      <span className="font-semibold text-gray-900">{t("map.shop_location", SHOP_LOCATION.name)} · </span>
+                      <span className="font-semibold text-gray-900">{SHOP_LOCATION.name} · </span>
                     ) : null}
                     {Number(form.latitude).toFixed(6)}, {Number(form.longitude).toFixed(6)}
                   </span>
@@ -537,7 +537,7 @@ export default function EventManagementView() {
                     className="underline"
                   >
                     {isShopLocation(selected.latitude, selected.longitude)
-                      ? t("map.shop_location", SHOP_LOCATION.name)
+                      ? SHOP_LOCATION.name
                       : t("venue.view_on_map", "View on map")}
                   </a>
                 ) : (
