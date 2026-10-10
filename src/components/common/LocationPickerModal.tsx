@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { Compass, Loader2, MapPin, Navigation, Search } from "lucide-react";
+import { Compass, Loader2, MapPin, Navigation, Search, Store } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,15 +21,22 @@ import {
   type PlaceResult,
 } from "@/lib/geoSearch";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/contexts/I18nContext";
+import { SHOP_LOCATION, isShopLocation } from "@/constants/shop";
 
 const LocationMapPicker = dynamic(() => import("./LocationMapPicker"), {
   ssr: false,
-  loading: () => (
-    <div className="flex h-full w-full items-center justify-center text-xs font-medium text-gray-400">
-      Loading map...
-    </div>
-  ),
+  loading: () => <MapLoading />,
 });
+
+function MapLoading() {
+  const { t } = useI18n();
+  return (
+    <div className="flex h-full w-full items-center justify-center text-xs font-medium text-gray-400">
+      {t("map.loading", "Loading map...")}
+    </div>
+  );
+}
 
 const PHNOM_PENH = { lat: 11.5621, lng: 104.916 };
 const PLACE_ZOOM = 17;
@@ -49,6 +56,7 @@ export function LocationPickerModal({
   initialLng: number | null;
   onConfirm: (lat: number, lng: number) => void;
 }) {
+  const { t } = useI18n();
   const startAt = () =>
     initialLat != null && initialLng != null ? { lat: initialLat, lng: initialLng } : PHNOM_PENH;
   const [coords, setCoords] = useState<LatLng>(startAt);
@@ -75,6 +83,8 @@ export function LocationPickerModal({
     }
   }
 
+  const atShop = isShopLocation(coords.lat, coords.lng);
+
   const placePin = (point: LatLng, options: { fly?: boolean; label?: string } = {}) => {
     setCoords(point);
     if (options.fly) setFocus({ ...point, zoom: PLACE_ZOOM, key: Date.now() });
@@ -96,12 +106,25 @@ export function LocationPickerModal({
       const position = await locateMe();
       setAccuracy(position.accuracy);
       placePin(position, { fly: true });
-      setNotice({ tone: "info", text: `Pinned your current location (accurate to about ${Math.round(position.accuracy)} m).` });
+      setNotice({
+        tone: "info",
+        text: t("map.pinned_current", "Pinned your current location (accurate to about {m} m).").replace(
+          "{m}",
+          String(Math.round(position.accuracy))
+        ),
+      });
     } catch (err) {
       setNotice({ tone: "error", text: (err as Error).message });
     } finally {
       setIsLocating(false);
     }
+  };
+
+  const handleShopLocation = () => {
+    setResults([]);
+    setAccuracy(null);
+    placePin({ lat: SHOP_LOCATION.lat, lng: SHOP_LOCATION.lng }, { fly: true, label: SHOP_LOCATION.name });
+    setNotice({ tone: "info", text: t("map.pinned_shop", "Pinned the 590st Cafe Shop location.") });
   };
 
   const choosePlace = (place: PlaceResult) => {
@@ -126,7 +149,10 @@ export function LocationPickerModal({
     if (isShortMapsLink(query)) {
       setNotice({
         tone: "error",
-        text: "Short Google Maps links can't be read here. Open the link, then copy the full address-bar link or the coordinates (e.g. 11.5621, 104.916).",
+        text: t(
+          "map.short_link",
+          "Short Google Maps links can't be read here. Open the link, then copy the full address-bar link or the coordinates (e.g. 11.5621, 104.916)."
+        ),
       });
       return;
     }
@@ -137,7 +163,10 @@ export function LocationPickerModal({
       if (found.length === 0) {
         setNotice({
           tone: "error",
-          text: `No places found for "${query}". Try a street, area or landmark — or paste a Google Maps link or coordinates.`,
+          text: t(
+            "map.no_results",
+            'No places found for "{query}". Try a street, area or landmark — or paste a Google Maps link or coordinates.'
+          ).replace("{query}", query),
         });
       } else if (found.length === 1) {
         choosePlace(found[0]);
@@ -145,7 +174,10 @@ export function LocationPickerModal({
         setResults(found);
       }
     } catch {
-      setNotice({ tone: "error", text: "Search isn't reachable right now. Drag the pin or tap the map instead." });
+      setNotice({
+        tone: "error",
+        text: t("map.search_unavailable", "Search isn't reachable right now. Drag the pin or tap the map instead."),
+      });
     } finally {
       setIsSearching(false);
     }
@@ -159,26 +191,26 @@ export function LocationPickerModal({
       >
         <DialogHeader className="admin_modal_header">
           <DialogTitle className="admin_modal_title flex items-center gap-2">
-            <MapPin className="h-4 w-4" /> Pin the Venue
+            <MapPin className="h-4 w-4" /> {t("map.title", "Pin the Venue")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="admin_modal_body space-y-3">
           <form
-            className="flex flex-wrap items-center gap-2 sm:flex-nowrap"
+            className="flex items-center gap-2"
             onSubmit={(e) => {
               e.preventDefault();
               void handleSearch();
             }}
           >
-            <div className="relative min-w-0 flex-1 basis-full sm:basis-auto">
+            <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Street, landmark, area, or paste a Google Maps link"
-                aria-label="Search for a place"
+                placeholder={t("map.search_placeholder", "Street, landmark, area, or paste a Google Maps link")}
+                aria-label={t("map.search_label", "Search for a place")}
                 enterKeyHint="search"
                 className="h-10 w-full rounded-full border border-gray-200 bg-white pr-3 pl-9 text-sm outline-none focus:border-[#7ec900] focus:ring-2 focus:ring-[#befe35]/40"
               />
@@ -186,24 +218,45 @@ export function LocationPickerModal({
             <button
               type="submit"
               disabled={isSearching || !searchQuery.trim()}
-              className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-black disabled:opacity-50 sm:flex-none"
+              className="flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-black disabled:opacity-50"
             >
               {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Search
+              {t("map.search", "Search")}
             </button>
+          </form>
+
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={handleLocateMe}
               disabled={isLocating}
-              className="flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-black px-4 text-sm font-semibold text-[#befe35] transition-colors hover:bg-gray-900 disabled:opacity-50 sm:flex-none"
+              className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-full bg-black px-3 text-sm font-semibold text-[#befe35] transition-colors hover:bg-gray-900 disabled:opacity-50"
             >
-              {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
-              Use my location
+              {isLocating ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <Navigation className="h-4 w-4 shrink-0" />
+              )}
+              <span className="truncate">{t("map.use_my_location", "Use my location")}</span>
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={handleShopLocation}
+              aria-pressed={atShop}
+              className={cn(
+                "flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors",
+                atShop
+                  ? "border-[#7ec900] bg-[#befe35] text-black"
+                  : "border-gray-900 bg-white text-gray-900 hover:bg-gray-50"
+              )}
+            >
+              <Store className="h-4 w-4 shrink-0" />
+              <span className="truncate">{t("map.shop_location", SHOP_LOCATION.name)}</span>
+            </button>
+          </div>
 
           {results.length > 0 ? (
-            <ul className="max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white" aria-label="Search results">
+            <ul className="max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white" aria-label={t("map.search_results", "Search results")}>
               {results.map((place) => (
                 <li key={place.id} className="border-b border-gray-100 last:border-0">
                   <button
@@ -253,7 +306,7 @@ export function LocationPickerModal({
           </div>
 
           <p className="text-xs text-gray-500">
-            Drag the pin or tap the map to fine-tune. Scroll or pinch to zoom.
+            {t("map.hint", "Drag the pin or tap the map to fine-tune. Scroll or pinch to zoom.")}
             {address ? (
               <span className="mt-1 block text-gray-700">{address}</span>
             ) : null}
@@ -266,7 +319,7 @@ export function LocationPickerModal({
             onClick={() => onOpenChange(false)}
             className="btn_outline_black"
           >
-            Cancel
+            {t("map.cancel", "Cancel")}
           </button>
           <button
             type="button"
@@ -276,7 +329,7 @@ export function LocationPickerModal({
             }}
             className="btn_primary_yellow"
           >
-            Use This Location
+            {t("map.confirm", "Use This Location")}
           </button>
         </DialogFooter>
       </DialogContent>

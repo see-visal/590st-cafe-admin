@@ -1,0 +1,35 @@
+{
+  "previous": "Previous",
+  "next": "Next",
+  "more_pages": "More pages",
+  "map": {
+    "title": "Pin the Venue",
+    "loading": "Loading map...",
+    "search_placeholder": "Street, landmark, area, or paste a Google Maps link",
+    "search_label": "Search for a place",
+    "search": "Search",
+    "search_results": "Search results",
+    "use_my_location": "Use my location",
+    "shop_location": "590st Cafe Shop",
+    "pinned_current": "Pinned your current location (accurate to about {m} m).",
+    "pinned_shop": "Pinned the 590st Cafe Shop location.",
+    "short_link": "Short Google Maps links can't be read here. Open the link, then copy the full address-bar link or the coordinates (e.g. 11.5621, 104.916).",
+    "no_results": "No places found for \"{query}\". Try a street, area or landmark — or paste a Google Maps link or coordinates.",
+    "search_unavailable": "Search isn't reachable right now. Drag the pin or tap the map instead.",
+    "hint": "Drag the pin or tap the map to fine-tune. Scroll or pinch to zoom.",
+    "cancel": "Cancel",
+    "confirm": "Use This Location"
+  },
+  "venue": {
+    "label": "Venue",
+    "pin_on_map": "Pin on Map",
+    "change_pin": "Change Pin on Map",
+    "use_shop": "Use Shop Location",
+    "preview": "Preview",
+    "clear": "Clear",
+    "none_hint": "No fixed venue set — optional, leave blank for an announcement with no venue.",
+    "none": "No fixed venue",
+    "view": "View",
+    "view_on_map": "View on map"
+  }
+}
