@@ -57,6 +57,8 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
+import { parseForm } from "@/lib/validation";
+import { productSchema, SKU_FORMAT_HINT, SKU_MAX_LENGTH } from "@/lib/formSchemas";
 
 const PRODUCT_TABLE_HEADERS = [
   "No",
@@ -74,10 +76,6 @@ const STOCK_UNITS: StockUnit[] = ["PACK", "BOX", "CARTON", "PIECE"];
 const SELL_UNITS: SellUnit[] = ["PLATE", "BOTTLE", "CAN", "CUP", "CARTON", "PACKAGE", "TANK", "PIECE"];
 const VARIANT_LABELS: VariantLabel[] = ["MEDIUM", "LARGE", "PIECE"];
 
-// Mirrors the API's ValidationPatterns.SKU_REGEX / SKU_MAX_LENGTH.
-const SKU_PATTERN = /^[A-Z0-9]+([-_.][A-Z0-9]+)*$/;
-const SKU_MAX_LENGTH = 64;
-const SKU_FORMAT_HINT = "Letters, digits and single - _ . separators, e.g. FD-COF-IL-001";
 
 type ProductFormFields = {
   name: string;
@@ -232,7 +230,7 @@ export default function Products() {
   const handleGenerateSku = async () => {
     const name = formFields.name.trim();
     if (!name || !formFields.categoryId) {
-      toast.error("Enter a product name and choose a category to generate a SKU");
+      toast.error("Enter a product name and choose a category to generate a SKU.");
       return;
     }
     try {
@@ -249,44 +247,20 @@ export default function Products() {
 
   const handleSubmitForm = async () => {
     if (!isAdmin) return;
-    const name = formFields.name.trim();
-
-    if (!name) {
-      toast.error("Product name is required");
-      return;
-    }
-    if (!formFields.categoryId) {
-      toast.error(
-        hasNoCategories
-          ? "Create a category first — a product has to belong to one."
-          : "Please choose a category"
-      );
-      return;
-    }
-    if (!formFields.stockUnit || !formFields.sellUnit) {
-      toast.error("Choose a stock unit and a sell unit");
-      return;
-    }
-
     const manualSku = formatSku(formFields.sku.trim());
+    const parsed = parseForm(productSchema({ isCreate: !selected, hasNoCategories }), {
+      ...formFields,
+      sku: manualSku,
+    });
+    if (!parsed) return;
+    const { name, description, stockUnit, sellUnit, variantName, unitsPerStock, reorderLevel } = parsed;
     const isManualSku = formFields.skuMode === "MANUAL" && Boolean(manualSku);
-    if (isManualSku && (manualSku.length > SKU_MAX_LENGTH || !SKU_PATTERN.test(manualSku))) {
-      toast.error(`Invalid SKU. ${SKU_FORMAT_HINT}`);
-      return;
-    }
     // Blank manual SKU: create falls back to generating one, update keeps the current SKU.
     const skuFields = isManualSku
       ? { sku: manualSku, skuMode: "MANUAL" as const }
       : !selected || formFields.skuMode === "GENERATE"
         ? { skuMode: "GENERATE" as const }
         : {};
-
-    const reorderLevel = formFields.reorderLevel.trim()
-      ? Number(formFields.reorderLevel)
-      : undefined;
-    const unitsPerStock = formFields.unitsPerStock.trim()
-      ? Number(formFields.unitsPerStock)
-      : undefined;
 
     try {
       let productId: string;
@@ -296,10 +270,10 @@ export default function Products() {
           id: selected.id,
           body: {
             name,
-            description: formFields.description.trim() || undefined,
+            description,
             ...skuFields,
-            stockUnit: formFields.stockUnit,
-            sellUnit: formFields.sellUnit,
+            stockUnit,
+            sellUnit,
             unitsPerStock,
             categoryId: formFields.categoryId,
             status: formFields.status,
@@ -308,21 +282,13 @@ export default function Products() {
         }).unwrap();
         productId = updated.id;
       } else {
-        const variantPrice = Number(formFields.variantPrice);
-        if (!formFields.variantName) {
-          toast.error("Choose a variant (e.g. Medium) for the starting price");
-          return;
-        }
-        if (!Number.isFinite(variantPrice) || variantPrice < 0) {
-          toast.error("Enter a valid starting price");
-          return;
-        }
+        const variantPrice = Number(formFields.variantPrice.replace(/,/g, ""));
         const created = await createProduct({
           name,
-          description: formFields.description.trim() || undefined,
+          description,
           ...skuFields,
-          stockUnit: formFields.stockUnit,
-          sellUnit: formFields.sellUnit,
+          stockUnit,
+          sellUnit,
           unitsPerStock,
           categoryId: formFields.categoryId,
           reorderLevel,
@@ -330,7 +296,7 @@ export default function Products() {
         productId = created.id;
         await createVariant({
           productId,
-          body: { name: formFields.variantName, price: variantPrice },
+          body: { name: variantName as VariantLabel, price: variantPrice },
         }).unwrap();
       }
 

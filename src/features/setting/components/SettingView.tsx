@@ -38,6 +38,8 @@ import {
 import { humanise, statusTone } from "@/features/user/components/UserManagementView";
 import { MoneyInput } from "@/components/forms/MoneyInput";
 import { formatAmount } from "@/lib/moneyInput";
+import { parseForm } from "@/lib/validation";
+import { exchangeRateSchema } from "@/lib/formSchemas";
 
 const LANGUAGES = [
   { code: "en", label: "English" },
@@ -78,19 +80,11 @@ export default function Settings() {
   }
 
   const handleSaveRate = async () => {
-    const value = Number(khrPerUsd);
-    if (!Number.isFinite(value) || value <= 0) {
-      toast.error("Enter a rate greater than zero");
-      return;
-    }
-    const market = marketRate.trim() ? Number(marketRate) : undefined;
-    if (market !== undefined && (!Number.isFinite(market) || market <= 0)) {
-      toast.error("Market rate must be greater than zero");
-      return;
-    }
+    const parsed = parseForm(exchangeRateSchema, { khrPerUsd, marketRate });
+    if (!parsed) return;
 
     try {
-      await updateRate({ khrPerUsdRate: value, marketRate: market }).unwrap();
+      await updateRate({ khrPerUsdRate: parsed.khrPerUsd, marketRate: parsed.marketRate }).unwrap();
       toast.success("Exchange rate updated");
     } catch (err) {
       toast.error(apiErrorMessage(err as never, "Could not update the exchange rate."));

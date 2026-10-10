@@ -36,9 +36,11 @@ import { useListUsersQuery, useUpdateUserStatusMutation, useUpdateUserMutation, 
 import type { Gender, Role, UserResponse, UserStatus } from "@/store/api/types";
 import { humanise, titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { formatPhone, formatPhoneInput, isValidPhone, PHONE_INVALID_MESSAGE } from "@/lib/phone";
+import { formatPhone, formatPhoneInput } from "@/lib/phone";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
+import { parseForm } from "@/lib/validation";
+import { userAccountSchema } from "@/lib/formSchemas";
 
 export { humanise };
 
@@ -139,17 +141,11 @@ export default function UserManagementView({
 
   const handleSaveProfile = async () => {
     if (!selected) return;
-    if (fullName.trim().length < 2) {
-      toast.error("Full name must contain at least two characters.");
-      return;
-    }
-    if (!isValidPhone(phoneNumber)) {
-      toast.error(PHONE_INVALID_MESSAGE);
-      return;
-    }
+    const parsed = parseForm(userAccountSchema, { fullName, phoneNumber });
+    if (!parsed) return;
     try {
       await updateUser({ id: selected.id, body: {
-        fullName: fullName.trim(), phoneNumber: phoneNumber.trim(), ...(gender ? { gender } : {}),
+        fullName: parsed.fullName, phoneNumber: parsed.phoneNumber ?? "", ...(gender ? { gender } : {}),
       } }).unwrap();
       toast.success("Account updated");
       setEditOpen(false);

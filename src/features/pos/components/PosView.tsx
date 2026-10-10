@@ -166,7 +166,7 @@ export default function PosView() {
     }
     const quantity = cart.filter((line) => line.product.id === product.id).reduce((sum, line) => sum + line.quantity, 0);
     if (quantity + 1 > Number(product.quantityOnHand)) {
-      toast.error(`${product.name} does not have enough stock`);
+      toast.error(`${product.name} does not have enough stock.`);
       return;
     }
     const key = `${product.id}:${variant.id}`;
@@ -188,7 +188,7 @@ export default function PosView() {
     if (item && delta > 0) {
       const quantity = cart.filter((line) => line.product.id === item.product.id).reduce((sum, line) => sum + line.quantity, 0);
       if (quantity + delta > Number(item.product.quantityOnHand)) {
-        toast.error(`${item.product.name} does not have enough stock`);
+        toast.error(`${item.product.name} does not have enough stock.`);
         return;
       }
     }
@@ -529,7 +529,7 @@ export default function PosView() {
                             variant="product"
                             onIncrement={() => {
                               if (outOfStock) {
-                                toast.error(`${product.name} is out of stock`);
+                                toast.error(`${product.name} is out of stock.`);
                                 return;
                               }
                               addToCart(product, onlyVariant);

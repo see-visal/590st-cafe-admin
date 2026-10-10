@@ -68,7 +68,7 @@ import type { Currency, OrderResponse, OrderStatus } from "@/store/api/types";
 import { cn, formatByCurrency, formatLevel, fulfillmentLabel, humanise, timeAgo, titleCase } from "@/lib/utils";
 import { InvoiceActions, PrintInvoiceIconButton, toastPaidWithInvoice } from "@/components/common/InvoiceActions";
 import { useOrderInvoice } from "@/hooks/useOrderInvoice";
-import { buildCashPaymentSchema, firstIssueMessage } from "@/lib/validation";
+import { buildCashPaymentSchema, parseForm } from "@/lib/validation";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
 
@@ -515,18 +515,15 @@ export default function BaristaQueueView() {
 
   const handlePayCash = async () => {
     if (!cashOrder) return;
-    const parsed = buildCashPaymentSchema(cashDue).safeParse({
+    const parsed = parseForm(buildCashPaymentSchema(cashDue), {
       currency: cashCurrency,
       amountTendered,
     });
-    if (!parsed.success) {
-      toast.error(firstIssueMessage(parsed.error));
-      return;
-    }
+    if (!parsed) return;
     try {
       const updated = await cashMutationFor(cashOrder)({
         id: cashOrder.id,
-        body: parsed.data,
+        body: parsed,
       }).unwrap();
       toastPaidWithInvoice(
         Number(updated.changeDue) > 0

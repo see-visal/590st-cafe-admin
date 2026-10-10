@@ -44,7 +44,7 @@ import {
 } from "@/store/api/baristaOrderApi";
 import type { Currency, OrderResponse } from "@/store/api/types";
 import { formatByCurrency, titleCase } from "@/lib/utils";
-import { buildCashPaymentSchema, deliveryFeeSchema, firstIssueMessage } from "@/lib/validation";
+import { buildCashPaymentSchema, deliveryFeeSchema, parseForm } from "@/lib/validation";
 import { useDefaultPageSize, useRefreshOptions } from "@/contexts/AdminPreferencesContext";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
@@ -187,13 +187,10 @@ export default function PaymentManagementView() {
 
   const handleSetDeliveryFee = async () => {
     if (!feeOrder) return;
-    const parsed = deliveryFeeSchema.safeParse({ fee: feeInput });
-    if (!parsed.success) {
-      toast.error(firstIssueMessage(parsed.error));
-      return;
-    }
+    const parsed = parseForm(deliveryFeeSchema, { fee: feeInput });
+    if (!parsed) return;
     try {
-      await setDeliveryFee({ id: feeOrder.id, body: parsed.data }).unwrap();
+      await setDeliveryFee({ id: feeOrder.id, body: parsed }).unwrap();
       toast.success("Delivery fee set — the customer can now choose how to pay.");
       setFeeOrder(null);
     } catch (err) {
@@ -232,19 +229,16 @@ export default function PaymentManagementView() {
 
   const handleCollectCash = async () => {
     if (!cashOrder) return;
-    const parsed = buildCashPaymentSchema(cashDue).safeParse({
+    const parsed = parseForm(buildCashPaymentSchema(cashDue), {
       currency,
       amountTendered,
     });
-    if (!parsed.success) {
-      toast.error(firstIssueMessage(parsed.error));
-      return;
-    }
+    if (!parsed) return;
 
     try {
       const updated = await collectCash({
         id: cashOrder.id,
-        body: parsed.data,
+        body: parsed,
       }).unwrap();
       toast.success(
         updated.changeDue && Number(updated.changeDue) > 0

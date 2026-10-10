@@ -23,6 +23,8 @@ import type {
 import { humanise, productPriceLabel, titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
+import { parseForm } from "@/lib/validation";
+import { attachExtraSchema, discountSchema, extraSchema, variantSchema } from "@/lib/formSchemas";
 
 const inputClass = "mt-1 block w-full rounded border px-3 py-2 text-sm";
 const discountTypes: Record<DiscountType, string> = { PERCENTAGE: "Percentage", FIXED: "Amount in USD" };
@@ -39,9 +41,10 @@ function DiscountForm({ product }: { product: ProductResponse }) {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (start && end && end <= start) { toast.error("End time must be after start time."); return; }
+    const parsed = parseForm(discountSchema(type), { value, start, end });
+    if (!parsed) return;
     try {
-      await save({ id: product.id, body: { discountType: type, discountValue: Number(value),
+      await save({ id: product.id, body: { discountType: type, discountValue: parsed.value,
         ...(start ? { discountStartAt: `${start}:00` } : {}), ...(end ? { discountEndAt: `${end}:00` } : {}),
       } }).unwrap();
       toast.success("Product discount saved");
@@ -81,9 +84,9 @@ function VariantForm({ productId, variant, takenLabels }: { productId: string; v
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const priceNumber = Number(price);
-    if (!Number.isFinite(priceNumber) || priceNumber < 0) { toast.error("Enter a valid price."); return; }
-    const body = { name, price: priceNumber, sortOrder: Number(sortOrder) };
+    const parsed = parseForm(variantSchema, { price, sortOrder });
+    if (!parsed) return;
+    const body = { name, price: parsed.price, sortOrder: parsed.sortOrder ?? 0 };
     try {
       if (variant) await update({ productId, id: variant.id, body }).unwrap();
       else { await create({ productId, body }).unwrap(); setPrice(""); setSortOrder("0"); }
@@ -135,13 +138,12 @@ function ExtraCatalogForm({ extra }: { extra?: ExtraResponse }) {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const priceNumber = Number(price);
-    if (!name.trim()) { toast.error("Enter an extra's name."); return; }
-    if (!Number.isFinite(priceNumber) || priceNumber < 0) { toast.error("Enter a valid price."); return; }
-    const qty = tracked && quantityOnHand.trim() ? Number(quantityOnHand) : undefined;
+    const parsed = parseForm(extraSchema, { name, price, quantityOnHand: tracked ? quantityOnHand : "" });
+    if (!parsed) return;
+    const body = { name: parsed.name, price: parsed.price, quantityOnHand: parsed.quantityOnHand };
     try {
-      if (extra) await update({ id: extra.id, body: { name: name.trim(), price: priceNumber, quantityOnHand: qty } }).unwrap();
-      else { await create({ name: name.trim(), price: priceNumber, quantityOnHand: qty }).unwrap(); setName(""); setPrice(""); setQuantityOnHand(""); }
+      if (extra) await update({ id: extra.id, body }).unwrap();
+      else { await create(body).unwrap(); setName(""); setPrice(""); setQuantityOnHand(""); }
       toast.success("Extra saved");
     } catch (error) { toast.error(apiErrorMessage(error as never, "Could not save extra.")); }
   }
@@ -253,9 +255,10 @@ function ExtrasSection({ productId }: { productId: string }) {
 
   async function handleAttach(event: FormEvent) {
     event.preventDefault();
-    if (!selectedExtraId) { toast.error("Choose an extra to offer."); return; }
+    const parsed = parseForm(attachExtraSchema, { extraId: selectedExtraId });
+    if (!parsed) return;
     try {
-      await attach({ productId, body: { extraId: selectedExtraId } }).unwrap();
+      await attach({ productId, body: { extraId: parsed.extraId } }).unwrap();
       toast.success("Extra offered on this product");
       setSelectedExtraId("");
     } catch (error) { toast.error(apiErrorMessage(error as never, "Could not offer this extra.")); }
