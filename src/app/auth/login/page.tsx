@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import toast from "react-hot-toast";
 import {
   Check,
   Eye,
@@ -23,13 +24,9 @@ import {
   useResendOtpMutation,
   useVerifyLoginOtpMutation,
 } from "@/store/api/authApi";
-import {
-  formatPhoneInput,
-  PHONE_INVALID_MESSAGE,
-  PHONE_MAX_LENGTH,
-  PHONE_PATTERN,
-  PHONE_PLACEHOLDER,
-} from "@/lib/phone";
+import { formatPhoneInput, PHONE_MAX_LENGTH, PHONE_PLACEHOLDER } from "@/lib/phone";
+import { parseForm } from "@/lib/validation";
+import { emailLoginSchema, otpSchema, phoneLoginSchema } from "@/lib/formSchemas";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { ForgotPasswordDialog } from "@/features/auth/components/ForgotPasswordDialog";
 import {
@@ -80,8 +77,6 @@ export default function AuthPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [forgotOpen, setForgotOpen] = useState(false);
 
   const [rememberMe, setRememberMe] = useState(true);
@@ -91,8 +86,6 @@ export default function AuthPage() {
   );
   const chooseMethod = (next: LoginMethod) => {
     setMethod(next);
-    setError("");
-    setNotice("");
   };
 
   const [loginTicket, setLoginTicket] = useState<string | null>(null);
@@ -122,29 +115,26 @@ export default function AuthPage() {
     setLoginTicket(null);
     setOtp("");
     setPassword("");
-    setError(
+    toast.error(
       "This is a customer account. Customer accounts can't open the staff dashboard — sign in with an admin or barista account.",
     );
   };
 
   const handleCredentials = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError("");
-    setNotice("");
+
+    const credentials = parseForm(emailLoginSchema, { email, password });
+    if (!credentials) return;
 
     try {
-      const result = await login({
-        email: email.trim(),
-        password,
-        remember: rememberMe,
-      }).unwrap();
+      const result = await login({ ...credentials, remember: rememberMe }).unwrap();
       if (result.otpRequired && result.loginTicket) {
         setLoginTicket(result.loginTicket);
       } else {
         await finishSignIn();
       }
     } catch (err) {
-      setError(
+      toast.error(
         apiErrorMessage(
           err as Parameters<typeof apiErrorMessage>[0],
           "Login failed. Check your credentials and try again.",
@@ -155,18 +145,14 @@ export default function AuthPage() {
 
   const handlePhone = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError("");
-    const phoneNumber = phone.trim();
-    if (!PHONE_PATTERN.test(phoneNumber)) {
-      setError(PHONE_INVALID_MESSAGE);
-      return;
-    }
+    const parsed = parseForm(phoneLoginSchema, { phoneNumber: phone });
+    if (!parsed) return;
 
     try {
-      const result = await loginPhone({ phoneNumber }).unwrap();
+      const result = await loginPhone(parsed).unwrap();
       if (result.loginTicket) setLoginTicket(result.loginTicket);
     } catch (err) {
-      setError(
+      toast.error(
         apiErrorMessage(
           err as Parameters<typeof apiErrorMessage>[0],
           "Could not send a code to this number. Please try again.",
@@ -177,18 +163,19 @@ export default function AuthPage() {
 
   const handleOtp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError("");
     if (!loginTicket) return;
+    const parsed = parseForm(otpSchema, { otp });
+    if (!parsed) return;
 
     try {
       await verifyOtp({
         loginTicket,
-        otp: otp.trim(),
+        otp: parsed.otp,
         remember: rememberMe,
       }).unwrap();
       await finishSignIn();
     } catch (err) {
-      setError(
+      toast.error(
         apiErrorMessage(
           err as Parameters<typeof apiErrorMessage>[0],
           "That code was not accepted. Check it and try again.",
@@ -198,12 +185,11 @@ export default function AuthPage() {
   };
 
   const handleResend = async () => {
-    setError("");
     if (!loginTicket) return;
     try {
       await resendOtp({ purpose: "LOGIN", loginTicket }).unwrap();
     } catch (err) {
-      setError(apiErrorMessage(err as Parameters<typeof apiErrorMessage>[0]));
+      toast.error(apiErrorMessage(err as Parameters<typeof apiErrorMessage>[0]));
     }
   };
 
@@ -212,7 +198,6 @@ export default function AuthPage() {
   const backToCredentials = () => {
     setLoginTicket(null);
     setOtp("");
-    setError("");
   };
 
   return (
@@ -294,10 +279,6 @@ export default function AuthPage() {
                     Telegram chat that accepted the invite.
                   </p>
 
-                  {error ? (
-                    <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>
-                  ) : null}
-
                   <button
                     type="submit"
                     disabled={isSendingPhoneCode}
@@ -355,13 +336,6 @@ export default function AuthPage() {
                     </label>
                   </div>
 
-                  {error ? (
-                    <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>
-                  ) : null}
-                  {notice ? (
-                    <p role="status" className="mt-4 text-sm text-lime-700">{notice}</p>
-                  ) : null}
-
                   <button
                     type="submit"
                     disabled={isLoggingIn}
@@ -395,11 +369,7 @@ export default function AuthPage() {
               {method === "EMAIL" ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setError("");
-                    setNotice("");
-                    setForgotOpen(true);
-                  }}
+                  onClick={() => setForgotOpen(true)}
                   className="text-sm font-medium text-gray-700 underline hover:text-black"
                 >
                   Forgot password?
@@ -474,10 +444,6 @@ export default function AuthPage() {
               />
             </label>
 
-            {error ? (
-              <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>
-            ) : null}
-
             <button
               type="submit"
               disabled={isVerifying || otp.length !== 6}
@@ -514,8 +480,7 @@ export default function AuthPage() {
         onReset={(resetEmail) => {
           setEmail(resetEmail);
           setPassword("");
-          setError("");
-          setNotice("Password reset. Log in with your new password.");
+          toast.success("Password reset. Log in with your new password.");
         }}
       />
     </main>

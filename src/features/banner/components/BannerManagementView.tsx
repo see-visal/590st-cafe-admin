@@ -48,6 +48,8 @@ import { titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
+import { parseForm } from "@/lib/validation";
+import { bannerSchema } from "@/lib/formSchemas";
 
 const BANNER_TABLE_HEADERS = [
   "No",
@@ -72,10 +74,6 @@ const EMPTY_FORM: BannerFormFields = {
   sortOrder: "0",
   status: "ACTIVE",
 };
-
-function isUsableLink(link: string): boolean {
-  return link.startsWith("/") || /^https?:\/\//i.test(link);
-}
 
 function formatDateTime(iso: string | null) {
   if (!iso) return "-";
@@ -156,21 +154,9 @@ export default function BannerManagementView() {
   };
 
   const handleSubmit = async () => {
-    const title = form.title.trim();
-    if (!title) {
-      toast.error("Title is required");
-      return;
-    }
-    const linkUrl = form.linkUrl.trim();
-    if (linkUrl && !isUsableLink(linkUrl)) {
-      toast.error('Link must be a shop path starting with "/" (e.g. /menu) or a full http(s) URL');
-      return;
-    }
-    const sortOrder = Number(form.sortOrder.trim() || "0");
-    if (!Number.isInteger(sortOrder) || sortOrder < 0) {
-      toast.error("Display order must be a whole number, 0 or higher");
-      return;
-    }
+    const parsed = parseForm(bannerSchema, form);
+    if (!parsed) return;
+    const { title, linkUrl, sortOrder } = parsed;
 
     try {
       let bannerId: string;
@@ -179,7 +165,7 @@ export default function BannerManagementView() {
           id: selected.id,
           body: {
             title,
-            linkUrl,
+            linkUrl: linkUrl ?? "",
             sortOrder,
             status: form.status,
           },
@@ -188,7 +174,7 @@ export default function BannerManagementView() {
       } else {
         const created = await createBanner({
           title,
-          linkUrl: linkUrl || undefined,
+          linkUrl,
           sortOrder,
         }).unwrap();
         bannerId = created.id;

@@ -36,11 +36,12 @@ import {
   useUpdateProfileMutation,
   useUploadAvatarMutation,
 } from "@/store/api/authApi";
-import { STRONG_PASSWORD_HINT, STRONG_PASSWORD_PATTERN } from "@/lib/validation";
+import { parseForm, STRONG_PASSWORD_HINT } from "@/lib/validation";
+import { changePasswordSchema, profileSchema } from "@/lib/formSchemas";
 import type { Gender, UpdateProfileRequest } from "@/store/api/types";
 import { humanise, statusTone } from "@/features/user/components/UserManagementView";
 import { titleCase } from "@/lib/utils";
-import { formatPhoneInput, isValidPhone, PHONE_INVALID_MESSAGE, samePhone } from "@/lib/phone";
+import { formatPhoneInput, samePhone } from "@/lib/phone";
 
 const GENDERS: Gender[] = ["MALE", "FEMALE", "OTHER"];
 
@@ -82,25 +83,16 @@ export default function ProfileView() {
   const handleSaveProfile = async () => {
     if (!user) return;
 
-    const trimmedName = fullName.trim();
-    if (trimmedName.length < 2) {
-      toast.error("Full name must be at least 2 characters");
-      return;
-    }
+    const parsed = parseForm(profileSchema, { fullName, phoneNumber });
+    if (!parsed) return;
 
     const body: UpdateProfileRequest = {};
-    if (trimmedName !== user.fullName) body.fullName = trimmedName;
-    if (!samePhone(phoneNumber, user.phoneNumber)) {
-      if (!isValidPhone(phoneNumber)) {
-        toast.error(PHONE_INVALID_MESSAGE);
-        return;
-      }
-      body.phoneNumber = phoneNumber.trim();
-    }
+    if (parsed.fullName !== user.fullName) body.fullName = parsed.fullName;
+    if (!samePhone(phoneNumber, user.phoneNumber)) body.phoneNumber = parsed.phoneNumber ?? "";
     if (gender && gender !== user.gender) body.gender = gender as Gender;
 
     if (Object.keys(body).length === 0) {
-      toast("Nothing to save");
+      toast("Nothing to save.");
       return;
     }
 
@@ -120,22 +112,7 @@ export default function ProfileView() {
   };
 
   const handleChangePassword = async () => {
-    if (!password.current) {
-      toast.error("Enter your current password");
-      return;
-    }
-    if (password.next !== password.confirm) {
-      toast.error("The new passwords do not match");
-      return;
-    }
-    if (!STRONG_PASSWORD_PATTERN.test(password.next)) {
-      toast.error(STRONG_PASSWORD_HINT);
-      return;
-    }
-    if (password.next === password.current) {
-      toast.error("The new password must be different from the current one");
-      return;
-    }
+    if (!parseForm(changePasswordSchema, password)) return;
 
     try {
       await changePassword({
@@ -154,11 +131,11 @@ export default function ProfileView() {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Choose an image file");
+      toast.error("Choose an image file.");
       return;
     }
     if (file.size > MAX_AVATAR_BYTES) {
-      toast.error("Image must be 5 MB or smaller");
+      toast.error("Image must be 5 MB or smaller.");
       return;
     }
 

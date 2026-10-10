@@ -39,6 +39,8 @@ import {
 } from "@/store/api/tableApi";
 import type { OrderResponse, OrderStatus, TableActivityResponse, TableResponse, TableSize, TableStatus } from "@/store/api/types";
 import { cn, humanise, timeAgo, titleCase } from "@/lib/utils";
+import { parseForm } from "@/lib/validation";
+import { tableSchema } from "@/lib/formSchemas";
 
 const STATUS_LABEL: Record<TableStatus, string> = {
   AVAILABLE: "Available",
@@ -140,16 +142,9 @@ export default function TableManagementView() {
   };
 
   const saveTable = async () => {
-    const tableNumber = form.tableNumber.trim();
-    if (!/^[A-Za-z0-9-]{1,20}$/.test(tableNumber)) {
-      toast.error("Use 1–20 letters, digits or dashes for the table number");
-      return;
-    }
-    const capacity = form.capacity.trim() ? Number(form.capacity) : undefined;
-    if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1 || capacity > 50)) {
-      toast.error("Seats must be a whole number from 1 to 50");
-      return;
-    }
+    const parsed = parseForm(tableSchema, form);
+    if (!parsed) return;
+    const { tableNumber, capacity } = parsed;
     try {
       if (editing) {
         await updateTable({ id: editing.id, body: { tableNumber, size: form.size, capacity } }).unwrap();
@@ -573,7 +568,7 @@ function QrDialog({ target, onClose }: { target: QrTarget | null; onClose: () =>
     let active = true;
     QRCode.toDataURL(target.url, { errorCorrectionLevel: "M", margin: 2, width: 640 })
       .then((dataUrl) => { if (active) setQr({ url: target.url, dataUrl }); })
-      .catch(() => toast.error("Could not draw the QR code"));
+      .catch(() => toast.error("Could not draw the QR code."));
     return () => { active = false; };
   }, [target]);
 
@@ -583,7 +578,7 @@ function QrDialog({ target, onClose }: { target: QrTarget | null; onClose: () =>
     if (!target || !dataUrl) return;
     const win = window.open("", "_blank", "width=480,height=640");
     if (!win) {
-      toast.error("Allow pop-ups to print the QR code");
+      toast.error("Allow pop-ups to print the QR code.");
       return;
     }
     const escape = (text: string) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
@@ -629,7 +624,7 @@ function QrDialog({ target, onClose }: { target: QrTarget | null; onClose: () =>
                 onClick={() => {
                   void navigator.clipboard?.writeText(target.url).then(
                     () => toast.success("Link copied"),
-                    () => toast.error("Could not copy the link")
+                    () => toast.error("Could not copy the link.")
                   );
                 }}
               >

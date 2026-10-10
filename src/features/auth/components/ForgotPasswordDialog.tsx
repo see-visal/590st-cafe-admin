@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import toast from "react-hot-toast";
 import { Eye, EyeOff, KeyRound, Mail } from "lucide-react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -10,11 +11,8 @@ import {
   useResendOtpMutation,
   useResetPasswordMutation,
 } from "@/store/api/authApi";
-import {
-  OTP_PATTERN,
-  STRONG_PASSWORD_HINT,
-  STRONG_PASSWORD_PATTERN,
-} from "@/lib/validation";
+import { parseForm, STRONG_PASSWORD_HINT } from "@/lib/validation";
+import { forgotPasswordSchema, resetPasswordSchema } from "@/lib/formSchemas";
 import {
   AUTH_DIALOG_BADGE_CLASS,
   AUTH_DIALOG_CLASS,
@@ -43,8 +41,6 @@ export function ForgotPasswordDialog({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
 
   const [forgotPassword, { isLoading: isRequesting }] = useForgotPasswordMutation();
   const [resetPassword, { isLoading: isResetting }] = useResetPasswordMutation();
@@ -60,8 +56,6 @@ export function ForgotPasswordDialog({
       setNewPassword("");
       setConfirmPassword("");
       setShowPassword(false);
-      setError("");
-      setNotice("");
     }
   }
 
@@ -69,56 +63,37 @@ export function ForgotPasswordDialog({
 
   const handleRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError("");
-    const address = email.trim();
-    if (!address) {
-      setError("Enter the email address of your staff account.");
-      return;
-    }
+    const parsed = parseForm(forgotPasswordSchema, { email });
+    if (!parsed) return;
 
     try {
-      await forgotPassword({ email: address }).unwrap();
-      setEmail(address);
+      await forgotPassword(parsed).unwrap();
+      setEmail(parsed.email);
       setStep("RESET");
-      setNotice("");
     } catch (err) {
-      setError(apiErrorMessage(err as ApiError, "Could not send a reset code. Please try again."));
+      toast.error(apiErrorMessage(err as ApiError, "Could not send a reset code. Please try again."));
     }
   };
 
   const handleReset = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError("");
-    if (!OTP_PATTERN.test(otp)) {
-      setError("Enter the 6-digit code from your email.");
-      return;
-    }
-    if (!STRONG_PASSWORD_PATTERN.test(newPassword)) {
-      setError(STRONG_PASSWORD_HINT);
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("The new passwords do not match.");
-      return;
-    }
+    if (!parseForm(resetPasswordSchema, { otp, newPassword, confirmPassword })) return;
 
     try {
       await resetPassword({ email, otp, newPassword }).unwrap();
       onReset(email);
       onOpenChange(false);
     } catch (err) {
-      setError(apiErrorMessage(err as ApiError, "That code was not accepted. Check it and try again."));
+      toast.error(apiErrorMessage(err as ApiError, "That code was not accepted. Check it and try again."));
     }
   };
 
   const handleResend = async () => {
-    setError("");
-    setNotice("");
     try {
       await resendOtp({ purpose: "RESET_PASSWORD", email }).unwrap();
-      setNotice("A new code is on its way. Codes from earlier emails no longer work.");
+      toast.success("A new code is on its way. Codes from earlier emails no longer work.");
     } catch (err) {
-      setError(apiErrorMessage(err as ApiError, "Could not resend the code. Please try again."));
+      toast.error(apiErrorMessage(err as ApiError, "Could not resend the code. Please try again."));
     }
   };
 
@@ -127,16 +102,7 @@ export function ForgotPasswordDialog({
     setOtp("");
     setNewPassword("");
     setConfirmPassword("");
-    setError("");
-    setNotice("");
   };
-
-  const feedback = (
-    <>
-      {error ? <p role="alert" className="mt-4 text-sm text-red-600">{error}</p> : null}
-      {notice ? <p role="status" className="mt-4 text-sm text-lime-700">{notice}</p> : null}
-    </>
-  );
 
   return (
     <Dialog
@@ -176,8 +142,6 @@ export function ForgotPasswordDialog({
                 <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
               </span>
             </label>
-
-            {feedback}
 
             <button type="submit" disabled={isRequesting} className={AUTH_SUBMIT_CLASS}>
               {isRequesting ? "Sending code..." : "Send reset code"}
@@ -253,8 +217,6 @@ export function ForgotPasswordDialog({
                 required
               />
             </label>
-
-            {feedback}
 
             <button
               type="submit"
