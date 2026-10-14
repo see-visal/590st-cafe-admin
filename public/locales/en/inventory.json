@@ -1,0 +1,89 @@
+{
+  "title": "Inventory",
+  "breadcrumb": {
+    "inventory": "Inventory",
+    "stock_list": "Stock List",
+    "detail": "Detail"
+  },
+  "fields": {
+    "product_name": "Product Name",
+    "reorder_level": "Reorder Level"
+  },
+  "table": {
+    "current_stock": "Current Stock"
+  },
+  "levels": {
+    "ok": "In Stock",
+    "low": "Low Stock",
+    "out": "Out of Stock"
+  },
+  "stats": {
+    "tracked_products": "Tracked Products",
+    "low_stock_page": "Low Stock (this page)",
+    "out_of_stock_page": "Out of Stock (this page)"
+  },
+  "filters": {
+    "search_products": "Search products",
+    "stock_level": "Stock Level",
+    "all_levels": "All levels"
+  },
+  "card": {
+    "title": "Stock Levels",
+    "meta": "Tracked Products: {count}"
+  },
+  "expense": {
+    "month_aria": "Stock expense report month",
+    "export_tooltip": "Every stock-purchase (stock-in) cost recorded this month, as an Excel file",
+    "export": "Export expenses",
+    "exporting": "Exporting..."
+  },
+  "import": {
+    "label": "Import Stock-In",
+    "columns_hint": "SKU, Quantity, Unit Cost, Note (optional)"
+  },
+  "actions": {
+    "adjust_stock": "Adjust Stock"
+  },
+  "empty": {
+    "filtered": "No stock records match these filters.",
+    "none": "No inventory records. Products get a stock row when they are created."
+  },
+  "toast": {
+    "stocked_in": "Stocked in {quantity} {unit}",
+    "stock_cut": "Cut {quantity} {unit}"
+  },
+  "errors": {
+    "download_expense_report": "Could not download the expense report.",
+    "record_movement": "Could not record the stock movement."
+  },
+  "form": {
+    "title": "Stock Movement",
+    "movement": "Movement",
+    "select_movement": "Select movement",
+    "unit_cost": "Unit Cost (USD)",
+    "costing_strategy": "Costing Strategy",
+    "select_strategy": "Select strategy",
+    "note_placeholder": "Optional reason or reference",
+    "current_stock": "Current stock: {quantity} {unit}"
+  },
+  "detail": {
+    "title": "Inventory Detail",
+    "not_found": {
+      "title": "Not Found",
+      "message": "No inventory record for this product.",
+      "back": "Back to inventory"
+    },
+    "stats": {
+      "on_hand": "On Hand"
+    },
+    "movements": {
+      "title": "Stock Movements",
+      "meta": "Total Movements: {count}",
+      "empty": "No stock movements recorded for this product yet."
+    },
+    "table": {
+      "strategy": "Strategy",
+      "performed_by": "Performed By"
+    }
+  }
+}

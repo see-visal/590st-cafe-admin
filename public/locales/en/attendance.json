@@ -1,0 +1,66 @@
+{
+  "title": "Staff attendance",
+  "description": "Work shifts for shop staff. Times are shown in Cambodia time.",
+  "my_shift": {
+    "title": "My shift",
+    "loading": "Loading shift...",
+    "load_failed": "Could not load shift.",
+    "checked_in_at": "Checked in at {time}",
+    "checked_out": "You are currently checked out."
+  },
+  "actions": {
+    "check_in": "Check in",
+    "check_out": "Check out",
+    "checking_out": "Checking out...",
+    "correct": "Correct",
+    "add_missed_shift": "Add missed shift"
+  },
+  "filters": {
+    "staff": "Staff",
+    "filter_staff": "Filter staff",
+    "all_staff": "All staff",
+    "from": "From",
+    "to": "To"
+  },
+  "errors": {
+    "load_failed": "Could not load attendance."
+  },
+  "table": {
+    "staff": "Staff",
+    "check_in": "Check in",
+    "check_out": "Check out",
+    "worked": "Worked",
+    "worked_value": "{hours}h {minutes}m",
+    "on_shift": "On shift",
+    "loading": "Loading attendance..."
+  },
+  "empty": {
+    "no_records": "No attendance records."
+  },
+  "pagination": {
+    "page_of": "Page {page} of {total}"
+  },
+  "form": {
+    "title_correct": "Correct staff attendance",
+    "title_add": "Add missed staff shift",
+    "submit": "Save attendance",
+    "staff_member": "Staff member",
+    "staff_placeholder": "Select staff",
+    "check_in": "Check in (Cambodia time)",
+    "check_out": "Check out (leave empty if still on shift)",
+    "note": "Correction note"
+  },
+  "confirm": {
+    "check_out_title": "Check out",
+    "check_out_description": "Check {name} out now?"
+  },
+  "toast": {
+    "checked_out": "Checked out",
+    "checked_in": "Checked in",
+    "record_failed": "Could not record attendance.",
+    "member_checked_out": "{name} checked out",
+    "check_out_failed": "Could not check this shift out.",
+    "saved": "Attendance saved",
+    "save_failed": "Could not save attendance."
+  }
+}

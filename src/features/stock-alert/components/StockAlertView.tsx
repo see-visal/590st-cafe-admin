@@ -22,20 +22,21 @@ import { usePageSize } from "@/contexts/AdminPreferencesContext";
 import { humanise, titleCase } from "@/lib/utils";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
-
-const STOCK_ALERT_HEADERS = [
-  "No",
-  "Product Name",
-  "On Hand",
-  "Unit",
-  "Reorder Level",
-  "Shortfall",
-  "Severity",
-  "Action",
-] as const;
+import { useI18n } from "@/contexts/I18nContext";
 
 export default function StockAlertView() {
+  const { t } = useI18n();
   const router = useRouter();
+  const stockAlertHeaders = [
+    t("table.no", "No"),
+    t("stock_alerts.table.product_name", "Product Name"),
+    t("stock_alerts.table.on_hand", "On Hand"),
+    t("fields.unit", "Unit"),
+    t("stock_alerts.table.reorder_level", "Reorder Level"),
+    t("stock_alerts.table.shortfall", "Shortfall"),
+    t("stock_alerts.table.severity", "Severity"),
+    t("table.action", "Action"),
+  ];
   const [page, setPage] = usePersistentState("stock-alerts:page", 1);
   const [size, setSize] = usePageSize();
 
@@ -53,39 +54,39 @@ export default function StockAlertView() {
   return (
     <PageShell>
       <PageHeader
-        title="Stock Alerts"
+        title={t("stock_alerts.title", "Stock Alerts")}
         breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "Inventory" },
-          { label: "Stock Alerts" },
+          { label: t("breadcrumb.home", "Home"), href: "/" },
+          { label: t("stock_alerts.breadcrumb.inventory", "Inventory") },
+          { label: t("stock_alerts.title", "Stock Alerts") },
         ]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <StatTile
-          title="Products Needing Restock"
+          title={t("stock_alerts.stats.needing_restock", "Products Needing Restock")}
           value={String(alertPage?.totalElements ?? 0)}
           tone={(alertPage?.totalElements ?? 0) > 0 ? "orange" : "green"}
         />
         <StatTile
-          title="Out of Stock (this page)"
+          title={t("stock_alerts.stats.out_of_stock_page", "Out of Stock (this page)")}
           value={String(outOfStock)}
           tone={outOfStock > 0 ? "red" : "gray"}
         />
       </div>
 
       <DataCard
-        title="Low Stock"
-        meta={`At or below reorder level: ${alertPage?.totalElements ?? 0}`}
+        title={t("stock_alerts.card.title", "Low Stock")}
+        meta={t("stock_alerts.card.meta", "At or below reorder level: {count}", { count: alertPage?.totalElements ?? 0 })}
       >
-        <SimpleTable headers={[...STOCK_ALERT_HEADERS]}>
+        <SimpleTable headers={stockAlertHeaders}>
           <TableState
-            colSpan={STOCK_ALERT_HEADERS.length}
+            colSpan={stockAlertHeaders.length}
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={alerts.length === 0}
-            emptyLabel="Nothing is below its reorder level. Stock levels are healthy."
+            emptyLabel={t("stock_alerts.empty.no_alerts", "Nothing is below its reorder level. Stock levels are healthy.")}
             onRetry={refetch}
           />
           {list.showRows &&
@@ -107,7 +108,11 @@ export default function StockAlertView() {
                   <Cell>{shortfall.toLocaleString()}</Cell>
                   <Cell>
                     <StatusBadge
-                      label={isOut ? "Out of Stock" : "Low Stock"}
+                      label={
+                        isOut
+                          ? t("stock_alerts.severity.out_of_stock", "Out of Stock")
+                          : t("stock_alerts.severity.low_stock", "Low Stock")
+                      }
                       tone={isOut ? "danger" : "warning"}
                     />
                   </Cell>

@@ -7,18 +7,13 @@ import { clearTokens } from "@/lib/authStorage";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import { useLoginTelegramMutation } from "@/store/api/authApi";
 import type { TelegramWidgetAuthRequest } from "@/store/api/types";
+import { translate, useI18n } from "@/contexts/I18nContext";
 
 declare global {
   interface Window {
     onTelegramAuth?: (user: TelegramWidgetAuthRequest) => void;
   }
 }
-
-const STEPS = [
-  { icon: Send, text: "Tap “Log in with Telegram” below." },
-  { icon: Phone, text: "Enter the phone number of your Telegram account." },
-  { icon: ShieldCheck, text: "Confirm the login in your Telegram app." },
-];
 
 function roleFromToken(accessToken: string): string | null {
   try {
@@ -39,6 +34,27 @@ export function TelegramLoginPanel({
   remember: boolean;
   onSuccess: () => void;
 }) {
+  const { t } = useI18n();
+  const steps = [
+    {
+      icon: Send,
+      text: t("auth.telegram.steps.tap", "Tap “Log in with Telegram” below."),
+    },
+    {
+      icon: Phone,
+      text: t(
+        "auth.telegram.steps.phone",
+        "Enter the phone number of your Telegram account.",
+      ),
+    },
+    {
+      icon: ShieldCheck,
+      text: t(
+        "auth.telegram.steps.confirm",
+        "Confirm the login in your Telegram app.",
+      ),
+    },
+  ];
   const containerRef = useRef<HTMLDivElement>(null);
   const [loginTelegram, { isLoading }] = useLoginTelegramMutation();
   const [error, setError] = useState("");
@@ -64,8 +80,10 @@ export function TelegramLoginPanel({
         if (role !== "ADMIN" && role !== "BARISTA") {
           clearTokens();
           setError(
-            "This Telegram account isn't linked to a staff account. Use the Telegram account " +
-              "that accepted your invite, or ask your admin to send the invite again.",
+            translate(
+              "auth.telegram.errors.not_staff",
+              "This Telegram account isn't linked to a staff account. Use the Telegram account that accepted your invite, or ask your admin to send the invite again.",
+            ),
           );
           return;
         }
@@ -74,7 +92,10 @@ export function TelegramLoginPanel({
         setError(
           apiErrorMessage(
             err as never,
-            "Telegram login failed. Please try again.",
+            translate(
+              "auth.telegram.errors.login_failed",
+              "Telegram login failed. Please try again.",
+            ),
           ),
         );
       }
@@ -100,7 +121,7 @@ export function TelegramLoginPanel({
   return (
     <div>
       <ol className="space-y-3">
-        {STEPS.map(({ icon: Icon, text }, index) => (
+        {steps.map(({ icon: Icon, text }, index) => (
           <li
             key={text}
             className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm"
@@ -123,15 +144,17 @@ export function TelegramLoginPanel({
           <div ref={containerRef} className="flex justify-center" />
           {isLoading ? (
             <p className="flex items-center gap-2 text-sm text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> Signing in...
+              <Loader2 className="h-4 w-4 animate-spin" />{" "}
+              {t("auth.shared.signing_in", "Signing in...")}
             </p>
           ) : null}
         </div>
       ) : (
         <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          Telegram login isn&apos;t configured. Set
-          NEXT_PUBLIC_TELEGRAM_BOT_USERNAME to the bot&apos;s username and
-          rebuild the dashboard.
+          {t(
+            "auth.telegram.not_configured",
+            "Telegram login isn't configured. Set NEXT_PUBLIC_TELEGRAM_BOT_USERNAME to the bot's username and rebuild the dashboard.",
+          )}
         </p>
       )}
 
@@ -141,8 +164,10 @@ export function TelegramLoginPanel({
 
       <p className="mt-6 flex items-start gap-2 text-xs text-gray-500">
         <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
-        For admins and baristas invited through Telegram. Use the same Telegram
-        account that accepted your invite.
+        {t(
+          "auth.telegram.footer",
+          "For admins and baristas invited through Telegram. Use the same Telegram account that accepted your invite.",
+        )}
       </p>
     </div>
   );

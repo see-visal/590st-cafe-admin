@@ -15,6 +15,7 @@ import {
   setTokens,
 } from "@/lib/authStorage";
 import type { ApiEnvelope, ApiErrorBody, AuthTokenResponse } from "./types";
+import { translate } from "@/contexts/translate";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -24,11 +25,11 @@ export function unwrap<T>(response: ApiEnvelope<T>): T {
 
 export function apiErrorMessage(
   error: FetchBaseQueryError | undefined,
-  fallback = "Something went wrong. Please try again.",
+  fallback = translate("errors.generic", "Something went wrong. Please try again."),
 ): string {
   if (!error) return fallback;
   if ("status" in error && error.status === "FETCH_ERROR") {
-    return "Cannot reach the server. Please check your connection and try again.";
+    return translate("errors.unreachable", "Cannot reach the server. Please check your connection and try again.");
   }
   const body = (error as { data?: Partial<ApiErrorBody> }).data;
   return body?.message ?? fallback;
@@ -82,7 +83,7 @@ function trackServerStatus(error: FetchBaseQueryError | undefined): void {
     if (!serverDown) {
       serverDown = true;
       toast.error(
-        "System unavailable — retrying automatically.",
+        translate("errors.system_unavailable", "System unavailable — retrying automatically."),
         {
           id: SERVER_STATUS_TOAST_ID,
           duration: Infinity,
@@ -93,7 +94,7 @@ function trackServerStatus(error: FetchBaseQueryError | undefined): void {
   }
   if (serverDown) {
     serverDown = false;
-    toast.success("Connection restored", {
+    toast.success(translate("errors.connection_restored", "Connection restored"), {
       id: SERVER_STATUS_TOAST_ID,
       duration: 3000,
     });

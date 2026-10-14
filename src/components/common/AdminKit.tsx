@@ -78,6 +78,7 @@ const LANGUAGES = [
     shortLabel: "KH",
     label: "ខ្មែរ",
     flag: "/images/cambodia.svg",
+    flagAltKey: "language.flag_cambodia",
     flagAlt: "Cambodia",
   },
   {
@@ -85,6 +86,7 @@ const LANGUAGES = [
     shortLabel: "ENG",
     label: "English",
     flag: "/images/english.svg",
+    flagAltKey: "language.flag_english",
     flagAlt: "English",
   },
 ] as const;
@@ -113,7 +115,7 @@ function LanguageFlag({
 export function AdminTopActions() {
   const alerts = useOperationalAlerts();
   const [open, setOpen] = useState(false);
-  const { locale, setLocale } = useI18n();
+  const { locale, setLocale, t } = useI18n();
   const currentLang =
     LANGUAGES.find((lang) => lang.code === locale) ?? LANGUAGES[0];
   const pathname = usePathname();
@@ -129,7 +131,7 @@ export function AdminTopActions() {
             if (!onAlertsPage) setOpen(true);
           }}
           className="header_action_btn header_notify_btn"
-          aria-label="Notifications"
+          aria-label={t("alerts.notifications", "Notifications")}
         >
           <Bell className="h-5 w-5" />
           {alerts.unseen !== undefined && alerts.unseen > 0 && <span className="header_notify_badge">{alerts.unseen}</span>}
@@ -140,9 +142,9 @@ export function AdminTopActions() {
             <button
               type="button"
               className="header_action_btn header_lang_btn"
-              aria-label="Language"
+              aria-label={t("language.label", "Language")}
             >
-              <LanguageFlag src={currentLang.flag} alt={currentLang.flagAlt} />
+              <LanguageFlag src={currentLang.flag} alt={t(currentLang.flagAltKey, currentLang.flagAlt)} />
               <span className="header_lang_label">{currentLang.label}</span>
               <ChevronDown className="h-4 w-4 shrink-0" />
             </button>
@@ -162,7 +164,7 @@ export function AdminTopActions() {
                     isActive && "bg-gray-50"
                   )}
                 >
-                  <LanguageFlag src={lang.flag} alt={lang.flagAlt} />
+                  <LanguageFlag src={lang.flag} alt={t(lang.flagAltKey, lang.flagAlt)} />
                   <span className="flex-1">{lang.shortLabel}</span>
                   {isActive && <Check className="h-4 w-4 text-black" />}
                 </DropdownMenuItem>
@@ -176,10 +178,10 @@ export function AdminTopActions() {
         <SheetContent side="right" className="notify_slider_popup" showCloseButton={false}>
           <div className="notify_header">
             <div>
-              <SheetTitle className="notify_header_title">Current alerts</SheetTitle>
-              <p className="notify_header_sub">{alerts.count === undefined ? "Checking current activity" : `${alerts.count} items need attention`}</p>
+              <SheetTitle className="notify_header_title">{t("alerts.title", "Current alerts")}</SheetTitle>
+              <p className="notify_header_sub">{alerts.count === undefined ? t("alerts.checking", "Checking current activity") : t("alerts.need_attention", "{count} items need attention", { count: alerts.count })}</p>
             </div>
-            <button type="button" onClick={() => setOpen(false)} className="notify_icon_btn" aria-label="Close notifications">
+            <button type="button" onClick={() => setOpen(false)} className="notify_icon_btn" aria-label={t("alerts.close", "Close notifications")}>
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -194,7 +196,7 @@ export function FilterPanel({
   children,
   collapsible = true,
   defaultCollapsed = false,
-  title = "Filters",
+  title,
 }: {
   children?: ReactNode;
   collapsible?: boolean;
@@ -202,6 +204,7 @@ export function FilterPanel({
   title?: string;
 }) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const { t } = useI18n();
 
   return (
     <section className={cn("box_collapse", isCollapsed && "is_collapsed")}>
@@ -210,11 +213,11 @@ export function FilterPanel({
           type="button"
           className="filter_icon_wrapper"
           onClick={() => collapsible && setIsCollapsed(!isCollapsed)}
-          aria-label="Toggle filter panel"
+          aria-label={t("filters.toggle", "Toggle filter panel")}
         >
           <SlidersHorizontal className="filter_icon" />
         </button>
-        <h2 className="filter_title">{title}</h2>
+        <h2 className="filter_title">{title ?? t("filters.title", "Filters")}</h2>
       </div>
       {!isCollapsed && children && (
         // A form so Enter in any filter field runs Search (its button is the submit button).
@@ -240,7 +243,7 @@ function pickerChangeEvent(value: string) {
 
 export function TextField({
   label,
-  placeholder = "Placeholder",
+  placeholder,
   value,
   onChange,
   type = "text",
@@ -251,6 +254,7 @@ export function TextField({
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   type?: string;
 }) {
+  const { t } = useI18n();
   return (
     <label className="form_field">
       <span className="form_field_label">{label}</span>
@@ -267,7 +271,7 @@ export function TextField({
           value={value || ""}
           onChange={onChange}
           className="form_field_control"
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("form.placeholder", "Placeholder")}
         />
       )}
     </label>
@@ -297,7 +301,7 @@ function withUnsetOption(options: { value: string; label: ReactNode; disabled?: 
 
 export function SelectField({
   label,
-  placeholder = "Select Method",
+  placeholder: placeholderProp,
   value,
   onChange,
   children,
@@ -308,6 +312,8 @@ export function SelectField({
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   children?: React.ReactNode;
 }) {
+  const { t } = useI18n();
+  const placeholder = placeholderProp ?? t("form.select_method", "Select Method");
   const id = useId();
   const rawOptions = children
     ? optionsFromChildren(children)
@@ -352,7 +358,7 @@ export function SelectField({
 
 export function DateField({
   label,
-  placeholder = "Start Date - End Date",
+  placeholder,
   value,
   onChange,
 }: {
@@ -361,6 +367,7 @@ export function DateField({
   value?: DateRange;
   onChange?: (range: DateRange | undefined) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [internalRange, setInternalRange] = useState<DateRange | undefined>();
   const range = value ?? internalRange;
@@ -377,7 +384,7 @@ export function DateField({
     ? range.to
       ? `${format(range.from, "dd MMM yyyy")} - ${format(range.to, "dd MMM yyyy")}`
       : format(range.from, "dd MMM yyyy")
-    : placeholder;
+    : placeholder ?? t("form.date_range", "Start Date - End Date");
 
   return (
     <div className="form_field">
@@ -412,7 +419,7 @@ export function DateField({
 
 export function FormDateField({
   label,
-  placeholder = "Select date",
+  placeholder,
   value,
   onChange,
   required = false,
@@ -423,6 +430,7 @@ export function FormDateField({
   onChange?: (date: Date | undefined) => void;
   required?: boolean;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [internalDate, setInternalDate] = useState<Date | undefined>();
   const date = value ?? internalDate;
@@ -440,7 +448,7 @@ export function FormDateField({
 
   const displayValue = date
     ? format(date, "dd MMM yyyy")
-    : placeholder;
+    : placeholder ?? t("form.select_date", "Select date");
 
   return (
     <div className="form_field">
@@ -487,10 +495,11 @@ function revealResults(from: HTMLElement) {
 }
 
 export function FilterActions({ onClear, onSearch }: { onClear: () => void; onSearch: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-end justify-end gap-3 xl:col-span-4">
       <button type="button" onClick={onClear} className="btn_outline_black">
-        Clear
+        {t("actions.clear", "Clear")}
       </button>
       <button
         type="submit"
@@ -502,7 +511,7 @@ export function FilterActions({ onClear, onSearch }: { onClear: () => void; onSe
         }}
         className="btn_primary_black"
       >
-        Search
+        {t("actions.search", "Search")}
         <Search />
       </button>
     </div>
@@ -512,7 +521,7 @@ export function FilterActions({ onClear, onSearch }: { onClear: () => void; onSe
 export function TableActions({
   onRegister,
   onExport,
-  primaryLabel = "Register",
+  primaryLabel,
   showRegister = true,
 }: {
   onRegister?: () => void;
@@ -520,15 +529,16 @@ export function TableActions({
   primaryLabel?: string;
   showRegister?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-wrap items-center gap-3">
       {onExport && <button type="button" onClick={onExport} className="btn_outline_black">
-        Download Excel
+        {t("actions.download_excel", "Download Excel")}
         <Download />
       </button>}
       {showRegister && onRegister && (
         <button type="button" onClick={onRegister} className="btn_primary_black">
-          {primaryLabel}
+          {primaryLabel ?? t("actions.register", "Register")}
           <Plus />
         </button>
       )}
@@ -544,7 +554,7 @@ export interface ExcelImportResult {
 }
 
 export function ExcelImportButton({
-  label = "Import Excel",
+  label,
   columnsHint,
   onImport,
   template,
@@ -555,6 +565,7 @@ export function ExcelImportButton({
   /** Adds a "Download Sample" button that saves the server's import template. */
   template?: { filename: string; download: () => Promise<Blob> };
 }) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -566,7 +577,7 @@ export function ExcelImportButton({
     try {
       downloadBlob(await template.download(), template.filename);
     } catch (error) {
-      toast.error(apiErrorMessage(error as never, "Could not download the sample file."));
+      toast.error(apiErrorMessage(error as never, t("excel.sample_failed", "Could not download the sample file.")));
     } finally {
       setIsDownloading(false);
     }
@@ -578,12 +589,12 @@ export function ExcelImportButton({
       const response = await onImport(file);
       setResult(response);
       if (response.failed === 0) {
-        toast.success(`Imported ${response.created} of ${response.totalRows} row(s).`);
+        toast.success(t("excel.imported", "Imported {created} of {total} row(s).", { created: response.created, total: response.totalRows }));
       } else {
-        toast.error(`${response.created} imported, ${response.failed} failed — see details.`);
+        toast.error(t("excel.partly_failed", "{created} imported, {failed} failed — see details.", { created: response.created, failed: response.failed }));
       }
     } catch (error) {
-      toast.error(apiErrorMessage(error as never, "Could not import the file."));
+      toast.error(apiErrorMessage(error as never, t("excel.import_failed", "Could not import the file.")));
     } finally {
       setIsBusy(false);
     }
@@ -597,9 +608,9 @@ export function ExcelImportButton({
           onClick={handleDownloadTemplate}
           disabled={isDownloading}
           className="btn_outline_black"
-          title={`Excel sample with the expected columns: ${columnsHint}`}
+          title={t("excel.sample_title", "Excel sample with the expected columns: {columns}", { columns: columnsHint })}
         >
-          {isDownloading ? "Downloading..." : "Download Sample"}
+          {isDownloading ? t("states.downloading", "Downloading...") : t("excel.download_sample", "Download Sample")}
           <Download />
         </button>
       )}
@@ -609,7 +620,7 @@ export function ExcelImportButton({
         disabled={isBusy}
         className="btn_outline_black"
       >
-        {isBusy ? "Importing..." : label}
+        {isBusy ? t("states.importing", "Importing...") : label ?? t("actions.import_excel", "Import Excel")}
         <Upload />
       </button>
       <input
@@ -627,31 +638,32 @@ export function ExcelImportButton({
       <Dialog open={result !== null} onOpenChange={(open) => { if (!open) setResult(null); }}>
         <DialogContent className="admin_modal sm:max-w-[560px]">
           <DialogHeader className="admin_modal_header">
-            <DialogTitle className="admin_modal_title">Import results</DialogTitle>
+            <DialogTitle className="admin_modal_title">{t("excel.results_title", "Import results")}</DialogTitle>
           </DialogHeader>
           <div className="admin_modal_body space-y-3">
             {result && (
               <>
                 <p className="text-sm">
-                  {result.created} of {result.totalRows} row(s) imported
-                  {result.failed > 0 ? `, ${result.failed} failed.` : "."}
+                  {result.failed > 0
+                    ? t("excel.summary_failed", "{created} of {total} row(s) imported, {failed} failed.", { created: result.created, total: result.totalRows, failed: result.failed })
+                    : t("excel.summary", "{created} of {total} row(s) imported.", { created: result.created, total: result.totalRows })}
                 </p>
                 {result.errors.length > 0 && (
                   <div className="max-h-64 space-y-2 overflow-y-auto">
                     {result.errors.map((issue, index) => (
                       <div key={index} className="rounded border border-red-200 bg-red-50 p-2 text-xs text-red-800">
-                        Row {issue.rowNumber}{issue.sku ? ` (${issue.sku})` : ""}: {issue.message}
+                        {t("excel.row", "Row {row}", { row: issue.rowNumber })}{issue.sku ? ` (${issue.sku})` : ""}: {issue.message}
                       </div>
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground">Columns: {columnsHint}</p>
+                <p className="text-xs text-muted-foreground">{t("excel.columns", "Columns: {columns}", { columns: columnsHint })}</p>
               </>
             )}
           </div>
           <DialogFooter className="admin_modal_footer">
             <button type="button" onClick={() => setResult(null)} className="btn_primary_yellow">
-              Close
+              {t("actions.close", "Close")}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -692,9 +704,11 @@ export function SimpleTable({
   headers: string[];
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   // Keep row actions reachable when the table scrolls sideways on phones and tablets.
   const lastHeader = headers[headers.length - 1]?.toLowerCase();
-  const stickyAction = lastHeader === "action" || lastHeader === "actions";
+  const actionHeaders = ["action", "actions", t("table.action", "Action").toLowerCase(), t("table.actions", "Actions").toLowerCase()];
+  const stickyAction = lastHeader !== undefined && actionHeaders.includes(lastHeader);
   return (
     <div className="data_table_wrap">
       <table className={cn("data_table", stickyAction && "has_sticky_action")}>
@@ -816,10 +830,11 @@ export function LockedYnCell({
 }: {
   locked?: boolean;
 }) {
+  const { t } = useI18n();
   return (
-    <div className="locked_yn" role="group" aria-label="Locked YN">
-      <span className={cn("locked_yn_opt", !locked && "is_on")}>Enabled</span>
-      <span className={cn("locked_yn_opt", locked && "is_off")}>Disabled</span>
+    <div className="locked_yn" role="group" aria-label={t("locked.label", "Locked YN")}>
+      <span className={cn("locked_yn_opt", !locked && "is_on")}>{t("locked.enabled", "Enabled")}</span>
+      <span className={cn("locked_yn_opt", locked && "is_off")}>{t("locked.disabled", "Disabled")}</span>
     </div>
   );
 }
@@ -852,7 +867,7 @@ export function RowActions({
   onDelete,
   onHistory,
   onPrint,
-  deleteLabel = "Delete",
+  deleteLabel,
   isLoading = false,
 }: {
   onView?: () => void;
@@ -863,12 +878,13 @@ export function RowActions({
   deleteLabel?: string;
   isLoading?: boolean;
 }) {
+  const { t } = useI18n();
   const actions = [
-    [Eye, onView, "View"],
-    [Printer, onPrint, "Print invoice"],
-    [Pencil, onEdit, "Edit"],
-    [Clock, onHistory, "History"],
-    [Trash2, onDelete, deleteLabel],
+    [Eye, onView, t("actions.view", "View")],
+    [Printer, onPrint, t("actions.print_invoice", "Print invoice")],
+    [Pencil, onEdit, t("actions.edit", "Edit")],
+    [Clock, onHistory, t("actions.history", "History")],
+    [Trash2, onDelete, deleteLabel ?? t("actions.delete", "Delete")],
   ] as const;
 
   return (
@@ -915,6 +931,7 @@ export function PaginationFooter({
   onPageChange?: (page: number) => void;
   onSizeChange?: (size: number) => void;
 } = {}) {
+  const { t } = useI18n();
   const pages = pageWindow(page, Math.max(totalPages, 1));
   const canPrev = page > 1;
   const canNext = page < totalPages;
@@ -922,7 +939,7 @@ export function PaginationFooter({
   return (
     <div className="table_pagination">
       <div className="pagination_per_page">
-        Show Per Page:
+        {t("pagination.per_page", "Show Per Page:")}
         <Select
           value={String(size)}
           onValueChange={(next) => onSizeChange?.(Number(next))}
@@ -940,14 +957,14 @@ export function PaginationFooter({
           </SelectContent>
         </Select>
         {typeof totalElements === "number" ? (
-          <span className="ml-3 text-muted-foreground">{totalElements} total</span>
+          <span className="ml-3 text-muted-foreground">{t("pagination.total", "{count} total", { count: totalElements })}</span>
         ) : null}
       </div>
       <div className="pagination_controls">
         <button
           type="button"
           className="pagination_btn is_icon"
-          aria-label="First page"
+          aria-label={t("pagination.first_page", "First page")}
           disabled={!canPrev}
           onClick={() => onPageChange?.(1)}
         >
@@ -959,7 +976,7 @@ export function PaginationFooter({
           disabled={!canPrev}
           onClick={() => onPageChange?.(page - 1)}
         >
-          Prev
+          {t("actions.prev", "Prev")}
         </button>
         {pages.map((pageNumber) => (
           <button
@@ -980,12 +997,12 @@ export function PaginationFooter({
           disabled={!canNext}
           onClick={() => onPageChange?.(page + 1)}
         >
-          Next
+          {t("actions.next", "Next")}
         </button>
         <button
           type="button"
           className="pagination_btn is_icon"
-          aria-label="Last page"
+          aria-label={t("pagination.last_page", "Last page")}
           disabled={!canNext}
           onClick={() => onPageChange?.(totalPages)}
         >
@@ -1001,9 +1018,10 @@ export function SkeletonBlock({ className }: { className?: string }) {
 }
 
 export function CardSkeleton({ lines = 3, className }: { lines?: number; className?: string }) {
+  const { t } = useI18n();
   const widths = ["w-2/3", "w-full", "w-1/2", "w-5/6", "w-3/4"];
   return (
-    <div className={cn("space-y-3 p-2 pb-4", className)} role="status" aria-label="Loading">
+    <div className={cn("space-y-3 p-2 pb-4", className)} role="status" aria-label={t("states.loading_label", "Loading")}>
       {Array.from({ length: lines }).map((_, i) => (
         <SkeletonBlock key={i} className={cn("h-4", widths[i % widths.length])} />
       ))}
@@ -1013,7 +1031,7 @@ export function CardSkeleton({ lines = 3, className }: { lines?: number; classNa
 
 export function ErrorState({
   error,
-  fallback = "Could not load this data.",
+  fallback,
   onRetry,
   isRetrying,
 }: {
@@ -1022,17 +1040,18 @@ export function ErrorState({
   onRetry?: () => void;
   isRetrying?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div
       role="alert"
       className="flex flex-col items-center gap-3 rounded-xl border border-red-100 bg-red-50/60 px-4 py-8 text-center"
     >
       <TriangleAlert className="h-6 w-6 text-red-500" />
-      <p className="text-sm text-red-600">{apiErrorMessage(error as never, fallback)}</p>
+      <p className="text-sm text-red-600">{apiErrorMessage(error as never, fallback ?? t("errors.load_failed", "Could not load this data."))}</p>
       {onRetry ? (
         <button type="button" className="btn_outline_black" onClick={onRetry} disabled={isRetrying}>
           {isRetrying ? <Loader2 className="animate-spin" /> : <RotateCcw />}
-          {isRetrying ? "Retrying..." : "Try again"}
+          {isRetrying ? t("states.retrying", "Retrying...") : t("actions.try_again", "Try again")}
         </button>
       ) : null}
     </div>
@@ -1053,7 +1072,7 @@ export function TableState({
   isLoading,
   error,
   isEmpty,
-  emptyLabel = "No records found.",
+  emptyLabel,
   onRetry,
   skeletonRows = 5,
 }: {
@@ -1065,6 +1084,7 @@ export function TableState({
   onRetry?: () => void;
   skeletonRows?: number;
 }) {
+  const { t } = useI18n();
   if (!isLoading && !error && !isEmpty) return null;
 
   if (isLoading) {
@@ -1091,12 +1111,12 @@ export function TableState({
             <span className="text-destructive">{apiErrorMessage(error as never)}</span>
             {onRetry ? (
               <button type="button" className="pagination_btn" onClick={onRetry}>
-                Retry
+                {t("actions.retry", "Retry")}
               </button>
             ) : null}
           </span>
         ) : (
-          emptyLabel
+          emptyLabel ?? t("table.no_records", "No records found.")
         )}
       </td>
     </tr>
@@ -1140,8 +1160,8 @@ export function AdminStatusAlert({
   title,
   headline,
   description,
-  confirmLabel = "Okay",
-  cancelLabel = "Cancel",
+  confirmLabel: confirmLabelProp,
+  cancelLabel: cancelLabelProp,
   onConfirm,
   isLoading = false,
 }: {
@@ -1156,6 +1176,9 @@ export function AdminStatusAlert({
   onConfirm?: () => Promise<void> | void;
   isLoading?: boolean;
 }) {
+  const { t } = useI18n();
+  const confirmLabel = confirmLabelProp ?? t("actions.okay", "Okay");
+  const cancelLabel = cancelLabelProp ?? t("actions.cancel", "Cancel");
   const handleConfirm = async () => {
     if (onConfirm) {
       await onConfirm();
@@ -1210,7 +1233,7 @@ export function AdminStatusAlert({
                 onClick={handleConfirm}
                 disabled={isLoading}
               >
-                {isLoading ? "Processing..." : confirmLabel}
+                {isLoading ? t("states.processing", "Processing...") : confirmLabel}
               </button>
             </>
           ) : (
@@ -1233,7 +1256,7 @@ export function FormModal({
   onOpenChange,
   title,
   children,
-  submitLabel = "Submit",
+  submitLabel,
   onSubmit,
   isLoading = false,
 }: {
@@ -1245,6 +1268,7 @@ export function FormModal({
   onSubmit?: () => Promise<void> | void;
   isLoading?: boolean;
 }) {
+  const { t } = useI18n();
   const handleSubmit = async () => {
     if (onSubmit) {
       await onSubmit();
@@ -1265,7 +1289,7 @@ export function FormModal({
             disabled={isLoading}
             className="btn_outline_black"
           >
-            Cancel
+            {t("actions.cancel", "Cancel")}
           </button>
           <button
             type="button"
@@ -1273,7 +1297,7 @@ export function FormModal({
             disabled={isLoading}
             className="btn_primary_yellow"
           >
-            {isLoading ? "Processing..." : submitLabel}
+            {isLoading ? t("states.processing", "Processing...") : submitLabel ?? t("actions.submit", "Submit")}
           </button>
         </DialogFooter>
       </DialogContent>
@@ -1294,6 +1318,7 @@ export function DetailModal({
   children: ReactNode;
   onEdit?: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="admin_modal sm:max-w-[900px]">
@@ -1304,7 +1329,7 @@ export function DetailModal({
         {onEdit && (
           <DialogFooter className="admin_modal_footer">
             <button type="button" onClick={onEdit} className="btn_primary_yellow">
-              Edit
+              {t("actions.edit", "Edit")}
             </button>
           </DialogFooter>
         )}
@@ -1317,8 +1342,8 @@ export function ConfirmDialog({
   open,
   title,
   description,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   tone = "default",
   onConfirm,
   onCancel,
@@ -1334,6 +1359,7 @@ export function ConfirmDialog({
   onCancel: () => void;
   isLoading?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next && !isLoading) onCancel(); }}>
       <DialogContent className="admin_modal is_confirm_modal sm:max-w-[420px]" showCloseButton={false}>
@@ -1350,7 +1376,7 @@ export function ConfirmDialog({
         </div>
         <DialogFooter className="confirm_modal_footer">
           <button type="button" onClick={onCancel} disabled={isLoading} className="btn_outline_black">
-            {cancelLabel}
+            {cancelLabel ?? t("actions.cancel", "Cancel")}
           </button>
           <button
             type="button"
@@ -1358,7 +1384,7 @@ export function ConfirmDialog({
             disabled={isLoading}
             className={tone === "danger" ? "btn_danger" : "btn_primary_yellow"}
           >
-            {isLoading ? "Working..." : confirmLabel}
+            {isLoading ? t("states.working", "Working...") : confirmLabel ?? t("actions.confirm", "Confirm")}
           </button>
         </DialogFooter>
       </DialogContent>
@@ -1398,13 +1424,14 @@ export function DetailImage({
   alt?: string;
   kind?: ImageKind;
 }) {
+  const { t } = useI18n();
   const Placeholder = PLACEHOLDER_ICONS[kind];
   return (
     <div className={cn("detail_image", !src && "is_empty")}>
       {src ? (
         <Image src={src} alt={alt} fill sizes="220px" className="object-cover" />
       ) : (
-        <Placeholder className="detail_image_placeholder" strokeWidth={1.5} aria-label="No image yet" />
+        <Placeholder className="detail_image_placeholder" strokeWidth={1.5} aria-label={t("image.none", "No image yet")} />
       )}
     </div>
   );
@@ -1514,7 +1541,7 @@ export function MoneyField({
 }
 
 export function FormPhoneInput({
-  label = "Phone Number",
+  label,
   value,
   onChange,
   required = false,
@@ -1528,9 +1555,10 @@ export function FormPhoneInput({
   readOnly?: boolean;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <FormInput
-      label={label}
+      label={label ?? t("fields.phone_number", "Phone Number")}
       type="tel"
       inputMode="numeric"
       autoComplete="tel-national"
@@ -1551,7 +1579,7 @@ export function FormSelect({
   onChange,
   children,
   required = false,
-  placeholder = "Select Method",
+  placeholder: placeholderProp,
   disabled = false,
 }: {
   label: string;
@@ -1562,6 +1590,8 @@ export function FormSelect({
   placeholder?: string;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
+  const placeholder = placeholderProp ?? t("form.select_method", "Select Method");
   const id = useId();
   const options = withUnsetOption(optionsFromChildren(children), placeholder);
   return (
@@ -1611,7 +1641,7 @@ export function FormProductSelect({
   options,
   value,
   onChange,
-  searchPlaceholder = "Search by product name or SKU...",
+  searchPlaceholder,
 }: {
   label: string;
   required?: boolean;
@@ -1620,6 +1650,7 @@ export function FormProductSelect({
   onChange?: (product: ProductSelectOption | null) => void;
   searchPlaceholder?: string;
 }) {
+  const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const listId = useId();
@@ -1678,7 +1709,7 @@ export function FormProductSelect({
           }}
           onFocus={() => setOpen(true)}
           onClick={() => setOpen(true)}
-          placeholder={searchPlaceholder}
+          placeholder={searchPlaceholder ?? t("product_select.search", "Search by product name or SKU...")}
           className={cn(
             "form_field_control form_field_search_input",
             !open && !value && "is_placeholder"
@@ -1707,11 +1738,11 @@ export function FormProductSelect({
                       <div className="form_product_select_item_main">
                         <span className="form_product_select_name">{titleCase(product.name)}</span>
                         <span className="form_product_select_meta">
-                          SKU: {formatSku(product.sku)} · {product.currentStock} {product.unit}
+                          {t("product_select.sku", "SKU: {sku}", { sku: formatSku(product.sku) })} · {product.currentStock} {product.unit}
                         </span>
                       </div>
                       {isSelected && (
-                        <span className="form_product_select_badge">Selected</span>
+                        <span className="form_product_select_badge">{t("product_select.selected", "Selected")}</span>
                       )}
                     </button>
                   </li>
@@ -1719,7 +1750,7 @@ export function FormProductSelect({
               })}
             </ul>
           ) : (
-            <div className="form_product_select_empty">No products found</div>
+            <div className="form_product_select_empty">{t("product_select.empty", "No products found")}</div>
           )}
         </div>
       )}
@@ -1732,7 +1763,7 @@ export function FormCategoryMultiSelect({
   options,
   value,
   onChange,
-  placeholder = "Select categories",
+  placeholder: placeholderProp,
 }: {
   label: string;
   options: { value: string; label: string }[];
@@ -1740,6 +1771,8 @@ export function FormCategoryMultiSelect({
   onChange?: (values: string[]) => void;
   placeholder?: string;
 }) {
+  const { t } = useI18n();
+  const placeholder = placeholderProp ?? t("category_select.placeholder", "Select categories");
   const available = options.filter((option) => !value.includes(option.value));
 
   const addCategory = (nextValue: string) => {
@@ -1769,7 +1802,7 @@ export function FormCategoryMultiSelect({
                       type="button"
                       className="form_multi_select_tag_remove"
                       onClick={() => removeCategory(item)}
-                      aria-label={`Remove ${option?.label ?? item}`}
+                      aria-label={t("category_select.remove", "Remove {label}", { label: option?.label ?? item })}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -1780,8 +1813,8 @@ export function FormCategoryMultiSelect({
           </div>
           {available.length > 0 && (
             <Select value="" onValueChange={addCategory}>
-              <SelectTrigger className="form_multi_select_add" aria-label={`Add ${label}`}>
-                <SelectValue placeholder={value.length === 0 ? placeholder : "Add category"} />
+              <SelectTrigger className="form_multi_select_add" aria-label={t("category_select.add_label", "Add {label}", { label })}>
+                <SelectValue placeholder={value.length === 0 ? placeholder : t("category_select.add", "Add category")} />
               </SelectTrigger>
               <SelectContent className="form_field_select_content">
                 {available.map((option) => (
@@ -1841,7 +1874,7 @@ export function FormImageUpload({
   file,
   onChange,
   accept = "image/*",
-  emptyLabel = "No File Chosen",
+  emptyLabel,
   disabled = false,
 }: {
   label: string;
@@ -1851,8 +1884,9 @@ export function FormImageUpload({
   emptyLabel?: string;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
-  const displayName = file?.name || emptyLabel;
+  const displayName = file?.name || emptyLabel || t("image.no_file", "No File Chosen");
 
   return (
     <div className="form_field form_field_image_upload">
@@ -1886,7 +1920,7 @@ export function FormImageUpload({
           className="btn_outline_black form_field_upload_btn"
           onClick={() => inputRef.current?.click()}
         >
-          Upload Image
+          {t("actions.upload_image", "Upload Image")}
         </button>
       </div>
     </div>
@@ -1907,10 +1941,11 @@ export function LogoMark() {
 }
 
 export function FilterIconLabel() {
+  const { t } = useI18n();
   return (
     <span className="inline-flex items-center gap-2 text-sm font-medium text-gray-600">
       <Filter className="h-4 w-4" />
-      Filter
+      {t("filters.filter", "Filter")}
     </span>
   );
 }

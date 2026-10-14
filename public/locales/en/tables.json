@@ -1,0 +1,85 @@
+{
+  "title": "Tables",
+  "breadcrumb": {
+    "operations": "Operations"
+  },
+  "card": {
+    "title": "QR Table Management",
+    "meta_admin": "Customers scan the menu QR (or a table QR) and enter their table number at checkout. Tables turn occupied when they order.",
+    "meta_barista": "Tap a table to see its orders. Clear it once the guests have left."
+  },
+  "actions": {
+    "add_table": "Add table",
+    "clear_table": "Clear table"
+  },
+  "qr": {
+    "menu": "Menu QR",
+    "table": "Table QR",
+    "table_title": "Table {number} QR",
+    "copy_link": "Copy link"
+  },
+  "floor": {
+    "status_counts": "Table status counts",
+    "loading": "Loading tables",
+    "load_error": "Could not load tables.",
+    "empty_admin": "No tables yet. Use Add table, then print each table's QR code.",
+    "empty_barista": "No tables have been set up yet.",
+    "tile_label": "Table {number}, {status}",
+    "calling_staff": "Customer is calling staff"
+  },
+  "detail": {
+    "empty": "Tap a table to see who's seated and what they ordered.",
+    "sheet_title": "Table {number}",
+    "sheet_title_empty": "Table",
+    "heading": "Table #{number}",
+    "seats": "seats {count}",
+    "table_status": "Table status",
+    "guests": "Guests",
+    "fewer_guests": "Fewer guests",
+    "more_guests": "More guests",
+    "calling_staff": "Calling staff",
+    "customer_orders": "Customer orders",
+    "orders_error": "Could not load this table's orders.",
+    "no_orders": "No open orders at this table.",
+    "table_total": "Table total",
+    "delete_disabled": "Clear the table before deleting it"
+  },
+  "order": {
+    "walk_in": "Walk-in",
+    "progress": "Order progress",
+    "print_bill": "Print Bill",
+    "not_paid": "Not paid yet — the bill can be printed once it's paid.",
+    "steps": {
+      "ordered": "Ordered",
+      "paid": "Paid",
+      "preparing": "Preparing",
+      "completed": "Completed"
+    }
+  },
+  "form": {
+    "edit_title": "Edit table {number}",
+    "submit": "Save table",
+    "table_number": "Table number",
+    "table_number_placeholder": "e.g. 01",
+    "size": "Size",
+    "seats": "Seats (optional)",
+    "seats_placeholder": "Uses the size default"
+  },
+  "confirm": {
+    "delete_title": "Delete table",
+    "delete_description": "Delete table {number}? Its printed QR code will stop working."
+  },
+  "toast": {
+    "updated": "Table {number} updated",
+    "added": "Table {number} added",
+    "deleted": "Table {number} deleted",
+    "status_changed": "Table {number} is {status}",
+    "save_error": "Could not save the table.",
+    "delete_error": "Could not delete the table.",
+    "update_error": "Could not update the table.",
+    "qr_draw_error": "Could not draw the QR code.",
+    "popup_blocked": "Allow pop-ups to print the QR code.",
+    "link_copied": "Link copied",
+    "copy_error": "Could not copy the link."
+  }
+}

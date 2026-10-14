@@ -24,6 +24,7 @@ import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { useFeedbackAlerts } from "@/hooks/useFeedbackAlerts";
 import { fulfillmentLabel, humanise, timeAgo, titleCase } from "@/lib/utils";
 import { notify } from "@/components/common/AppToast";
+import { useI18n } from "@/contexts/I18nContext";
 import { Input } from "@/components/ui/input";
 import {
   STAFF_CALL_REPLY_LIMIT,
@@ -99,6 +100,7 @@ function useUnseenCount(count: number | undefined) {
 }
 
 export function useOperationalAlerts() {
+  const { t } = useI18n();
   const { isAdmin, isBarista, isLoading: roleLoading } = useCurrentRole();
   const adminOrders = useListOrdersQuery(
     { status: "PENDING", page: 1, size: 5 },
@@ -206,16 +208,16 @@ export function useOperationalAlerts() {
     async (orderId: string, reply?: string): Promise<boolean> => {
       try {
         await answerStaffCallMutation({ id: orderId, reply: reply?.trim() || undefined }).unwrap();
-        toast.success(reply?.trim() ? "Reply sent to the customer." : "Customer notified that you're on the way.");
+        toast.success(reply?.trim() ? t("alerts.reply_sent", "Reply sent to the customer.") : t("alerts.on_the_way", "Customer notified that you're on the way."));
         return true;
       } catch (err) {
         toast.error(
-          apiErrorMessage(err as never, "Could not answer the call."),
+          apiErrorMessage(err as never, t("alerts.answer_failed", "Could not answer the call.")),
         );
         return false;
       }
     },
-    [answerStaffCallMutation],
+    [answerStaffCallMutation, t],
   );
 
   return {
@@ -246,10 +248,11 @@ export function OperationalAlertsContent({
 }: {
   alerts: ReturnType<typeof useOperationalAlerts>;
 }) {
+  const { t } = useI18n();
   if (alerts.loading)
     return (
       <p role="status" className="p-4 text-sm">
-        Loading current alerts...
+        {t("alerts.loading", "Loading current alerts...")}
       </p>
     );
   if (alerts.error)
@@ -258,7 +261,7 @@ export function OperationalAlertsContent({
         <p>
           {apiErrorMessage(
             alerts.error as never,
-            "Could not load current alerts.",
+            t("alerts.load_failed", "Could not load current alerts."),
           )}
         </p>
         <button
@@ -266,20 +269,18 @@ export function OperationalAlertsContent({
           className="mt-2 underline"
           onClick={alerts.refresh}
         >
-          Retry
+          {t("actions.retry", "Retry")}
         </button>
       </div>
     );
   return (
     <div className="space-y-5 p-4 text-sm">
       <p className="text-muted-foreground">
-        Current staff calls, pending orders and low stock. Updates every 30
-        seconds.
+        {t("alerts.intro", "Current staff calls, pending orders and low stock. Updates every 30 seconds.")}
       </p>
       <section>
         <h3 className="font-semibold flex items-center gap-1.5">
-          <PhoneCall className="h-4 w-4" /> Staff calls (
-          {alerts.staffCalls.data?.length ?? 0})
+          <PhoneCall className="h-4 w-4" /> {t("alerts.staff_calls", "Staff calls ({count})", { count: alerts.staffCalls.data?.length ?? 0 })}
         </h3>
         {alerts.staffCalls.data?.length ? (
           alerts.staffCalls.data.map((call) => (
@@ -291,12 +292,12 @@ export function OperationalAlertsContent({
             />
           ))
         ) : (
-          <p className="mt-2 text-muted-foreground">No open staff calls.</p>
+          <p className="mt-2 text-muted-foreground">{t("alerts.no_staff_calls", "No open staff calls.")}</p>
         )}
       </section>
       <section>
         <h3 className="font-semibold">
-          Pending orders ({alerts.orders.data?.totalElements ?? 0})
+          {t("alerts.pending_orders", "Pending orders ({count})", { count: alerts.orders.data?.totalElements ?? 0 })}
         </h3>
         {alerts.orders.data?.content.length ? (
           alerts.orders.data.content.map((order) => (
@@ -312,28 +313,28 @@ export function OperationalAlertsContent({
                 {order.fulfillmentMethod === "DELIVERY" &&
                   order.deliveryFeeSetAt == null && (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                      Needs delivery fee
+                      {t("alerts.needs_delivery_fee", "Needs delivery fee")}
                     </span>
                   )}
               </span>
               <span className="block">
-                {order.customerName ? titleCase(order.customerName) : "Walk-in"}{" "}
+                {order.customerName ? titleCase(order.customerName) : t("alerts.walk_in", "Walk-in")}{" "}
                 ·{" "}
-                {order.paymentMethod ? humanise(order.paymentMethod) : "Unpaid"}{" "}
+                {order.paymentMethod ? humanise(order.paymentMethod) : t("alerts.unpaid", "Unpaid")}{" "}
                 · ${Number(order.totalAmount).toFixed(2)}
               </span>
             </Link>
           ))
         ) : (
-          <p className="mt-2 text-muted-foreground">No pending orders.</p>
+          <p className="mt-2 text-muted-foreground">{t("alerts.no_pending_orders", "No pending orders.")}</p>
         )}
         <Link href={alerts.ordersHref} className="mt-2 inline-block underline">
-          View all orders
+          {t("alerts.view_all_orders", "View all orders")}
         </Link>
       </section>
       <section>
         <h3 className="font-semibold">
-          Low stock ({alerts.stock.data?.totalElements ?? 0})
+          {t("alerts.low_stock", "Low stock ({count})", { count: alerts.stock.data?.totalElements ?? 0 })}
         </h3>
         {alerts.stock.data?.content.length ? (
           alerts.stock.data.content.map((item) => (
@@ -347,10 +348,10 @@ export function OperationalAlertsContent({
             </Link>
           ))
         ) : (
-          <p className="mt-2 text-muted-foreground">No low-stock items.</p>
+          <p className="mt-2 text-muted-foreground">{t("alerts.no_low_stock", "No low-stock items.")}</p>
         )}
         <Link href="/stock-alerts" className="mt-2 inline-block underline">
-          View stock alerts
+          {t("alerts.view_stock_alerts", "View stock alerts")}
         </Link>
       </section>
     </div>
@@ -366,6 +367,7 @@ function StaffCallItem({
   disabled: boolean;
   onAnswer: (orderId: string, reply?: string) => Promise<boolean>;
 }) {
+  const { t } = useI18n();
   const [replying, setReplying] = useState(false);
   const [reply, setReply] = useState("");
 
@@ -398,7 +400,7 @@ function StaffCallItem({
             </span>
           )}
           <span className="block truncate">
-            {call.customerName ? titleCase(call.customerName) : "Walk-in"}{" "}
+            {call.customerName ? titleCase(call.customerName) : t("alerts.walk_in", "Walk-in")}{" "}
             · {humanise(call.orderStatus)}
             {call.fulfillmentMethod
               ? ` · ${fulfillmentLabel(call)}`
@@ -412,7 +414,7 @@ function StaffCallItem({
             disabled={disabled}
             onClick={() => setReplying(true)}
           >
-            Respond
+            {t("alerts.respond", "Respond")}
           </button>
         )}
       </div>
@@ -438,11 +440,11 @@ function StaffCallItem({
             ))}
           </div>
           <Input
-            aria-label="Reply to customer"
+            aria-label={t("alerts.reply_label", "Reply to customer")}
             value={reply}
             maxLength={STAFF_CALL_REPLY_LIMIT}
             onChange={(event) => setReply(event.target.value)}
-            placeholder="Or type a reply to the customer…"
+            placeholder={t("alerts.reply_placeholder", "Or type a reply to the customer…")}
             disabled={disabled}
             className="bg-white"
           />
@@ -456,14 +458,14 @@ function StaffCallItem({
                 setReply("");
               }}
             >
-              Cancel
+              {t("actions.cancel", "Cancel")}
             </button>
             <button
               type="submit"
               className="rounded bg-black px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
               disabled={disabled}
             >
-              {reply.trim() ? "Send reply" : "Answer without message"}
+              {reply.trim() ? t("alerts.send_reply", "Send reply") : t("alerts.answer_silently", "Answer without message")}
             </button>
           </div>
         </form>

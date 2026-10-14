@@ -4,6 +4,7 @@ import type { JSX } from "react";
 import Link from "next/link";
 import { BellRing, CircleCheck, Info, Loader2, OctagonX, X } from "lucide-react";
 import toast, { resolveValue, type Toast } from "react-hot-toast";
+import { translate, useI18n } from "@/contexts/I18nContext";
 
 const TONE_ICONS = {
   success: CircleCheck,
@@ -15,6 +16,7 @@ const TONE_ICONS = {
 type Tone = keyof typeof TONE_ICONS;
 
 export function AppToast({ t }: { t: Toast }) {
+  const { t: tr } = useI18n();
   const tone: Tone = t.type in TONE_ICONS ? (t.type as Tone) : "blank";
   const Icon = TONE_ICONS[tone];
   const message = resolveValue(t.message, t);
@@ -37,7 +39,7 @@ export function AppToast({ t }: { t: Toast }) {
         <button
           type="button"
           onClick={() => toast.dismiss(t.id)}
-          aria-label="Dismiss notification"
+          aria-label={tr("toast.dismiss", "Dismiss notification")}
           className="app_toast_close"
         >
           <X aria-hidden="true" />
@@ -70,7 +72,7 @@ export function notify({
   tone = "info",
   icon,
   href,
-  actionLabel = "View",
+  actionLabel = translate("actions.view", "View"),
   duration = 8000,
 }: NotifyOptions) {
   const content = (

@@ -18,6 +18,7 @@ import {
 } from "@/components/common/AdminKit";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { useI18n } from "@/contexts/I18nContext";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { orderCode, useOrderInvoice } from "@/hooks/useOrderInvoice";
@@ -68,6 +69,7 @@ type TableForm = { tableNumber: string; size: TableSize; capacity: string };
 const EMPTY_FORM: TableForm = { tableNumber: "", size: "SMALL", capacity: "" };
 
 export default function TableManagementView() {
+  const { t } = useI18n();
   const { isAdmin, isBarista } = useCurrentRole();
   const { confirm, confirmDialog } = useConfirmDialog();
   // Admins use the admin table API; baristas get the same floor (plus open orders and staff calls) from theirs.
@@ -97,7 +99,7 @@ export default function TableManagementView() {
   const showMenuQr = () => {
     if (!menuLink) return;
     setQrTarget({
-      title: "Menu QR",
+      title: t("tables.qr.menu", "Menu QR"),
       heading: "Scan to order",
       caption: "One QR for the whole shop. Customers open the menu and type their table number at checkout.",
       url: menuLink.url,
@@ -107,7 +109,7 @@ export default function TableManagementView() {
 
   const showTableQr = (table: TableResponse) =>
     setQrTarget({
-      title: `Table ${table.tableNumber} QR`,
+      title: t("tables.qr.table_title", "Table {number} QR", { number: table.tableNumber }),
       heading: `Table ${table.tableNumber}`,
       caption: "Scan to see the menu and order — the table number is filled in for you.",
       url: table.scanUrl,
@@ -148,23 +150,25 @@ export default function TableManagementView() {
     try {
       if (editing) {
         await updateTable({ id: editing.id, body: { tableNumber, size: form.size, capacity } }).unwrap();
-        toast.success(`Table ${tableNumber} updated`);
+        toast.success(t("tables.toast.updated", "Table {number} updated", { number: tableNumber }));
       } else {
         const created = await createTable({ tableNumber, size: form.size, capacity }).unwrap();
         setSelectedId(created.id);
-        toast.success(`Table ${created.tableNumber} added`);
+        toast.success(t("tables.toast.added", "Table {number} added", { number: created.tableNumber }));
       }
       setFormOpen(false);
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not save the table."));
+      toast.error(apiErrorMessage(err as never, t("tables.toast.save_error", "Could not save the table.")));
     }
   };
 
   const removeTable = async (table: TableResponse) => {
     const ok = await confirm({
-      title: "Delete table",
-      description: `Delete table ${table.tableNumber}? Its printed QR code will stop working.`,
-      confirmLabel: "Delete",
+      title: t("tables.confirm.delete_title", "Delete table"),
+      description: t("tables.confirm.delete_description", "Delete table {number}? Its printed QR code will stop working.", {
+        number: table.tableNumber,
+      }),
+      confirmLabel: t("actions.delete", "Delete"),
       tone: "danger",
     });
     if (!ok) return;
@@ -172,9 +176,9 @@ export default function TableManagementView() {
       await deleteTable(table.id).unwrap();
       setSelectedId(null);
       setSheetOpen(false);
-      toast.success(`Table ${table.tableNumber} deleted`);
+      toast.success(t("tables.toast.deleted", "Table {number} deleted", { number: table.tableNumber }));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not delete the table."));
+      toast.error(apiErrorMessage(err as never, t("tables.toast.delete_error", "Could not delete the table.")));
     }
   };
 
@@ -192,44 +196,51 @@ export default function TableManagementView() {
   ) : (
     <div className="table_detail_empty">
       <QrCode className="h-8 w-8" />
-      <p>Tap a table to see who&apos;s seated and what they ordered.</p>
+      <p>{t("tables.detail.empty", "Tap a table to see who's seated and what they ordered.")}</p>
     </div>
   );
 
   return (
     <PageShell>
       <PageHeader
-        title="Tables"
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: "Operations" }, { label: "Tables" }]}
+        title={t("tables.title", "Tables")}
+        breadcrumbs={[
+          { label: t("breadcrumb.home", "Home"), href: "/" },
+          { label: t("tables.breadcrumb.operations", "Operations") },
+          { label: t("tables.title", "Tables") },
+        ]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="table_layout">
         <DataCard
-          title="QR Table Management"
+          title={t("tables.card.title", "QR Table Management")}
           meta={
             isAdmin
-              ? "Customers scan the menu QR (or a table QR) and enter their table number at checkout. Tables turn occupied when they order."
-              : "Tap a table to see its orders. Clear it once the guests have left."
+              ? t(
+                  "tables.card.meta_admin",
+                  "Customers scan the menu QR (or a table QR) and enter their table number at checkout. Tables turn occupied when they order."
+                )
+              : t("tables.card.meta_barista", "Tap a table to see its orders. Clear it once the guests have left.")
           }
           actions={
             <div className="flex flex-wrap items-center gap-2">
               {isAdmin ? (
                 <button type="button" className="btn_outline_black" onClick={showMenuQr} disabled={!menuLink}>
                   <QrCode />
-                  Menu QR
+                  {t("tables.qr.menu", "Menu QR")}
                 </button>
               ) : null}
               {isAdmin ? (
                 <button type="button" className="btn_primary_black" onClick={() => openForm()}>
                   <Plus />
-                  Add table
+                  {t("tables.actions.add_table", "Add table")}
                 </button>
               ) : null}
             </div>
           }
         >
-          <div className="table_legend" aria-label="Table status counts">
+          <div className="table_legend" aria-label={t("tables.floor.status_counts", "Table status counts")}>
             {(Object.keys(STATUS_LABEL) as TableStatus[]).map((status) => (
               <span key={status} className="table_legend_item">
                 <span className={cn("table_legend_dot", `is_${status.toLowerCase()}`)} />
@@ -240,19 +251,28 @@ export default function TableManagementView() {
           </div>
 
           {isLoading ? (
-            <div className="table_grid" role="status" aria-label="Loading tables">
+            <div className="table_grid" role="status" aria-label={t("tables.floor.loading", "Loading tables")}>
               {Array.from({ length: 8 }).map((_, i) => (
                 <SkeletonBlock key={i} className="h-24 rounded-2xl" />
               ))}
             </div>
           ) : error ? (
             <div className="p-4">
-              <ErrorState error={error} fallback="Could not load tables." onRetry={refetch} isRetrying={isFetching} />
+              <ErrorState
+                error={error}
+                fallback={t("tables.floor.load_error", "Could not load tables.")}
+                onRetry={refetch}
+                isRetrying={isFetching}
+              />
             </div>
           ) : tables.length === 0 ? (
             <div className="table_detail_empty">
               <QrCode className="h-8 w-8" />
-              <p>{isAdmin ? "No tables yet. Use Add table, then print each table's QR code." : "No tables have been set up yet."}</p>
+              <p>
+                {isAdmin
+                  ? t("tables.floor.empty_admin", "No tables yet. Use Add table, then print each table's QR code.")
+                  : t("tables.floor.empty_barista", "No tables have been set up yet.")}
+              </p>
             </div>
           ) : (
             <div className="table_grid">
@@ -262,12 +282,15 @@ export default function TableManagementView() {
                   type="button"
                   onClick={() => selectTable(table)}
                   aria-pressed={table.id === selectedId}
-                  aria-label={`Table ${table.tableNumber}, ${STATUS_LABEL[table.status]}`}
+                  aria-label={t("tables.floor.tile_label", "Table {number}, {status}", {
+                    number: table.tableNumber,
+                    status: STATUS_LABEL[table.status],
+                  })}
                   className={cn("table_tile", `is_${table.status.toLowerCase()}`, table.id === selectedId && "is_selected")}
                 >
                   <span className="table_tile_number">{table.tableNumber}</span>
                   {(activityById.get(table.id)?.openStaffCallCount ?? 0) > 0 ? (
-                    <span className="table_tile_call" aria-label="Customer is calling staff">
+                    <span className="table_tile_call" aria-label={t("tables.floor.calling_staff", "Customer is calling staff")}>
                       <BellRing />
                     </span>
                   ) : null}
@@ -287,8 +310,12 @@ export default function TableManagementView() {
 
       <Sheet open={!isWide && sheetOpen && selected !== null} onOpenChange={setSheetOpen}>
         <SheetContent side="bottom" className="table_detail_sheet [&>button:last-child]:hidden">
-          <SheetTitle className="sr-only">{selected ? `Table ${selected.tableNumber}` : "Table"}</SheetTitle>
-          <button type="button" className="table_sheet_close" onClick={() => setSheetOpen(false)} aria-label="Close">
+          <SheetTitle className="sr-only">
+            {selected
+              ? t("tables.detail.sheet_title", "Table {number}", { number: selected.tableNumber })
+              : t("tables.detail.sheet_title_empty", "Table")}
+          </SheetTitle>
+          <button type="button" className="table_sheet_close" onClick={() => setSheetOpen(false)} aria-label={t("actions.close", "Close")}>
             <X />
           </button>
           {detail}
@@ -298,29 +325,37 @@ export default function TableManagementView() {
       <FormModal
         open={isAdmin && formOpen}
         onOpenChange={setFormOpen}
-        title={editing ? `Edit table ${editing.tableNumber}` : "Add table"}
-        submitLabel="Save table"
+        title={
+          editing
+            ? t("tables.form.edit_title", "Edit table {number}", { number: editing.tableNumber })
+            : t("tables.actions.add_table", "Add table")
+        }
+        submitLabel={t("tables.form.submit", "Save table")}
         onSubmit={saveTable}
         isLoading={isCreating || isUpdating}
       >
         <div className="grid gap-4 p-4 md:grid-cols-3">
           <FormInput
-            label="Table number"
+            label={t("tables.form.table_number", "Table number")}
             required
-            placeholder="e.g. 01"
+            placeholder={t("tables.form.table_number_placeholder", "e.g. 01")}
             maxLength={20}
             value={form.tableNumber}
             onChange={(e) => setForm({ ...form, tableNumber: e.target.value.toUpperCase() })}
           />
-          <FormSelect label="Size" value={form.size} onChange={(e) => setForm({ ...form, size: e.target.value as TableSize })}>
+          <FormSelect
+            label={t("tables.form.size", "Size")}
+            value={form.size}
+            onChange={(e) => setForm({ ...form, size: e.target.value as TableSize })}
+          >
             {(Object.keys(SIZE_LABEL) as TableSize[]).map((size) => (
               <option key={size} value={size}>{SIZE_LABEL[size]}</option>
             ))}
           </FormSelect>
           <FormInput
-            label="Seats (optional)"
+            label={t("tables.form.seats", "Seats (optional)")}
             inputMode="numeric"
-            placeholder="Uses the size default"
+            placeholder={t("tables.form.seats_placeholder", "Uses the size default")}
             value={form.capacity}
             onChange={(e) => setForm({ ...form, capacity: e.target.value.replace(/\D/g, "") })}
           />
@@ -352,6 +387,7 @@ function TableDetail({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useI18n();
   // Baristas already have this table's orders from the floor request; admins fetch them per table.
   const adminOrders = useListTableOrdersQuery(table.id, { skip: isBarista });
   const orders = isBarista ? activity?.activeOrders : adminOrders.data;
@@ -382,9 +418,16 @@ function TableDetail({
   const setStatus = async (status: TableStatus, guestCount = guests) => {
     try {
       await updateStatus({ id: table.id, body: { status, guestCount: status === "OCCUPIED" ? guestCount : 0 } }).unwrap();
-      if (status !== table.status) toast.success(`Table ${table.tableNumber} is ${STATUS_LABEL[status].toLowerCase()}`);
+      if (status !== table.status) {
+        toast.success(
+          t("tables.toast.status_changed", "Table {number} is {status}", {
+            number: table.tableNumber,
+            status: STATUS_LABEL[status].toLowerCase(),
+          })
+        );
+      }
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not update the table."));
+      toast.error(apiErrorMessage(err as never, t("tables.toast.update_error", "Could not update the table.")));
     }
   };
 
@@ -396,19 +439,19 @@ function TableDetail({
   return (
     <div className="table_detail">
       <div className="table_detail_header">
-        <h2>Table #{table.tableNumber}</h2>
+        <h2>{t("tables.detail.heading", "Table #{number}", { number: table.tableNumber })}</h2>
         <span className="table_status_pill">
           <span className={cn("table_legend_dot", `is_${table.status.toLowerCase()}`)} />
           {STATUS_LABEL[table.status]}
         </span>
       </div>
       <p className="table_detail_sub">
-        {humanise(table.size)} · seats {table.capacity}
+        {humanise(table.size)} · {t("tables.detail.seats", "seats {count}", { count: table.capacity })}
       </p>
 
       <div className="table_detail_section">
-        <span className="table_detail_label">Table status</span>
-        <div className="table_status_switch" role="group" aria-label="Table status">
+        <span className="table_detail_label">{t("tables.detail.table_status", "Table status")}</span>
+        <div className="table_status_switch" role="group" aria-label={t("tables.detail.table_status", "Table status")}>
           {(Object.keys(STATUS_LABEL) as TableStatus[]).map((status) => (
             <button
               key={status}
@@ -423,13 +466,23 @@ function TableDetail({
         </div>
         {table.status === "OCCUPIED" ? (
           <div className="table_guest_row">
-            <span>Guests</span>
+            <span>{t("tables.detail.guests", "Guests")}</span>
             <div className="table_guest_stepper">
-              <button type="button" onClick={() => changeGuests(-1)} disabled={isSaving || guests <= 1} aria-label="Fewer guests">
+              <button
+                type="button"
+                onClick={() => changeGuests(-1)}
+                disabled={isSaving || guests <= 1}
+                aria-label={t("tables.detail.fewer_guests", "Fewer guests")}
+              >
                 <Minus />
               </button>
               <b>{guests}</b>
-              <button type="button" onClick={() => changeGuests(1)} disabled={isSaving || guests >= table.capacity} aria-label="More guests">
+              <button
+                type="button"
+                onClick={() => changeGuests(1)}
+                disabled={isSaving || guests >= table.capacity}
+                aria-label={t("tables.detail.more_guests", "More guests")}
+              >
                 <Plus />
               </button>
             </div>
@@ -439,7 +492,7 @@ function TableDetail({
 
       {openCalls.length > 0 ? (
         <div className="table_detail_section">
-          <span className="table_detail_label">Calling staff</span>
+          <span className="table_detail_label">{t("tables.detail.calling_staff", "Calling staff")}</span>
           <ul className="table_call_list">
             {openCalls.map((call) => (
               <li key={`${call.orderId}-${call.calledAt}`}>
@@ -456,13 +509,18 @@ function TableDetail({
       ) : null}
 
       <div className="table_detail_section">
-        <span className="table_detail_label">Customer orders</span>
+        <span className="table_detail_label">{t("tables.detail.customer_orders", "Customer orders")}</span>
         {isLoading ? (
           <SkeletonBlock className="h-24 w-full rounded-xl" />
         ) : error ? (
-          <ErrorState error={error} fallback="Could not load this table's orders." onRetry={refetch} isRetrying={isFetching} />
+          <ErrorState
+            error={error}
+            fallback={t("tables.detail.orders_error", "Could not load this table's orders.")}
+            onRetry={refetch}
+            isRetrying={isFetching}
+          />
         ) : activeOrders.length === 0 ? (
-          <p className="table_detail_hint">No open orders at this table.</p>
+          <p className="table_detail_hint">{t("tables.detail.no_orders", "No open orders at this table.")}</p>
         ) : (
           <div className="space-y-3">
             {activeOrders.map((order) => (
@@ -475,7 +533,7 @@ function TableDetail({
             ))}
             {activeOrders.length > 1 ? (
               <div className="table_total_row">
-                <span>Table total</span>
+                <span>{t("tables.detail.table_total", "Table total")}</span>
                 <b>{money(tableTotal)}</b>
               </div>
             ) : null}
@@ -485,30 +543,30 @@ function TableDetail({
 
       {table.status === "OCCUPIED" && activeOrders.length === 0 && !isLoading ? (
         <button type="button" className="btn_outline_black w-full justify-center" disabled={isSaving} onClick={() => setStatus("AVAILABLE")}>
-          Clear table
+          {t("tables.actions.clear_table", "Clear table")}
         </button>
       ) : null}
 
       <div className="table_detail_actions">
         <button type="button" className="btn_outline_black" onClick={onShowQr}>
           <QrCode />
-          Table QR
+          {t("tables.qr.table", "Table QR")}
         </button>
         {isAdmin ? (
           <>
             <button type="button" className="btn_outline_black" onClick={onEdit}>
               <Pencil />
-              Edit
+              {t("actions.edit", "Edit")}
             </button>
             <button
               type="button"
               className="btn_outline_black text-red-600"
               onClick={onDelete}
               disabled={table.status === "OCCUPIED"}
-              title={table.status === "OCCUPIED" ? "Clear the table before deleting it" : undefined}
+              title={table.status === "OCCUPIED" ? t("tables.detail.delete_disabled", "Clear the table before deleting it") : undefined}
             >
               <Trash2 />
-              Delete
+              {t("actions.delete", "Delete")}
             </button>
           </>
         ) : null}
@@ -518,11 +576,18 @@ function TableDetail({
 }
 
 function TableOrderCard({ order, onPrint, isPrinting }: { order: OrderResponse; onPrint: () => void; isPrinting: boolean }) {
+  const { t } = useI18n();
+  const stepLabels: Record<string, string> = {
+    Ordered: t("tables.order.steps.ordered", "Ordered"),
+    Paid: t("tables.order.steps.paid", "Paid"),
+    Preparing: t("tables.order.steps.preparing", "Preparing"),
+    Completed: t("tables.order.steps.completed", "Completed"),
+  };
   return (
     <div className="table_order_card">
       <div className="table_order_head">
         <b>#{orderCode(order.id)}</b>
-        <span>{order.customerName ? titleCase(order.customerName) : "Walk-in"}</span>
+        <span>{order.customerName ? titleCase(order.customerName) : t("tables.order.walk_in", "Walk-in")}</span>
       </div>
       <ul className="table_order_items">
         {order.items.map((item) => (
@@ -536,23 +601,23 @@ function TableOrderCard({ order, onPrint, isPrinting }: { order: OrderResponse; 
         ))}
       </ul>
       <div className="table_total_row">
-        <span>Total</span>
+        <span>{t("fields.total", "Total")}</span>
         <b>{money(order.totalAmount)}</b>
       </div>
-      <ol className="table_order_steps" aria-label="Order progress">
+      <ol className="table_order_steps" aria-label={t("tables.order.progress", "Order progress")}>
         {ORDER_STEPS.map((step) => (
           <li key={step.label} className={cn(step.reached(order.status) && "is_reached")}>
-            {step.label}
+            {stepLabels[step.label] ?? step.label}
           </li>
         ))}
       </ol>
       {order.paidAt ? (
         <button type="button" className="btn_primary_black w-full justify-center" onClick={onPrint} disabled={isPrinting}>
           {isPrinting ? <Loader2 className="animate-spin" /> : <Printer />}
-          {isPrinting ? "Preparing..." : "Print Bill"}
+          {isPrinting ? t("states.preparing", "Preparing...") : t("tables.order.print_bill", "Print Bill")}
         </button>
       ) : (
-        <p className="table_detail_hint">Not paid yet — the bill can be printed once it&apos;s paid.</p>
+        <p className="table_detail_hint">{t("tables.order.not_paid", "Not paid yet — the bill can be printed once it's paid.")}</p>
       )}
     </div>
   );
@@ -561,6 +626,7 @@ function TableOrderCard({ order, onPrint, isPrinting }: { order: OrderResponse; 
 type QrTarget = { title: string; heading: string; caption: string; url: string; fileName: string };
 
 function QrDialog({ target, onClose }: { target: QrTarget | null; onClose: () => void }) {
+  const { t } = useI18n();
   const [qr, setQr] = useState<{ url: string; dataUrl: string } | null>(null);
 
   useEffect(() => {
@@ -568,9 +634,9 @@ function QrDialog({ target, onClose }: { target: QrTarget | null; onClose: () =>
     let active = true;
     QRCode.toDataURL(target.url, { errorCorrectionLevel: "M", margin: 2, width: 640 })
       .then((dataUrl) => { if (active) setQr({ url: target.url, dataUrl }); })
-      .catch(() => toast.error("Could not draw the QR code."));
+      .catch(() => toast.error(t("tables.toast.qr_draw_error", "Could not draw the QR code.")));
     return () => { active = false; };
-  }, [target]);
+  }, [target, t]);
 
   const dataUrl = target && qr?.url === target.url ? qr.dataUrl : null;
 
@@ -578,7 +644,7 @@ function QrDialog({ target, onClose }: { target: QrTarget | null; onClose: () =>
     if (!target || !dataUrl) return;
     const win = window.open("", "_blank", "width=480,height=640");
     if (!win) {
-      toast.error("Allow pop-ups to print the QR code.");
+      toast.error(t("tables.toast.popup_blocked", "Allow pop-ups to print the QR code."));
       return;
     }
     const escape = (text: string) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
@@ -609,12 +675,12 @@ function QrDialog({ target, onClose }: { target: QrTarget | null; onClose: () =>
           <div className="flex flex-wrap justify-center gap-2">
             <button type="button" className="btn_primary_black" onClick={printQr} disabled={!dataUrl}>
               <Printer />
-              Print
+              {t("actions.print", "Print")}
             </button>
             {dataUrl ? (
               <a className="btn_outline_black" href={dataUrl} download={target?.fileName}>
                 <Download />
-                Download
+                {t("actions.download", "Download")}
               </a>
             ) : null}
             {target ? (
@@ -623,13 +689,13 @@ function QrDialog({ target, onClose }: { target: QrTarget | null; onClose: () =>
                 className="btn_outline_black"
                 onClick={() => {
                   void navigator.clipboard?.writeText(target.url).then(
-                    () => toast.success("Link copied"),
-                    () => toast.error("Could not copy the link.")
+                    () => toast.success(t("tables.toast.link_copied", "Link copied")),
+                    () => toast.error(t("tables.toast.copy_error", "Could not copy the link."))
                   );
                 }}
               >
                 <Copy />
-                Copy link
+                {t("tables.qr.copy_link", "Copy link")}
               </button>
             ) : null}
           </div>

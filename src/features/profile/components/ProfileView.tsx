@@ -29,6 +29,7 @@ import {
   StatusBadge,
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
+import { useI18n } from "@/contexts/I18nContext";
 import {
   useChangePasswordMutation,
   useGetCurrentUserQuery,
@@ -36,7 +37,7 @@ import {
   useUpdateProfileMutation,
   useUploadAvatarMutation,
 } from "@/store/api/authApi";
-import { parseForm, STRONG_PASSWORD_HINT } from "@/lib/validation";
+import { parseForm } from "@/lib/validation";
 import { changePasswordSchema, profileSchema } from "@/lib/formSchemas";
 import type { Gender, UpdateProfileRequest } from "@/store/api/types";
 import { humanise, statusTone } from "@/features/user/components/UserManagementView";
@@ -50,6 +51,7 @@ const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const EMPTY_PASSWORD_FORM = { current: "", next: "", confirm: "" };
 
 export default function ProfileView() {
+  const { t } = useI18n();
   const { data: user, isLoading, isFetching, error, refetch } = useGetCurrentUserQuery();
 
   const [updateProfile, { isLoading: isSaving }] = useUpdateProfileMutation();
@@ -92,15 +94,15 @@ export default function ProfileView() {
     if (gender && gender !== user.gender) body.gender = gender as Gender;
 
     if (Object.keys(body).length === 0) {
-      toast("Nothing to save.");
+      toast(t("profile.toast.nothing_to_save", "Nothing to save."));
       return;
     }
 
     try {
       await updateProfile(body).unwrap();
-      toast.success("Profile updated");
+      toast.success(t("profile.toast.profile_updated", "Profile updated"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not update your profile."));
+      toast.error(apiErrorMessage(err as never, t("profile.toast.profile_update_failed", "Could not update your profile.")));
     }
   };
 
@@ -120,9 +122,14 @@ export default function ProfileView() {
         newPassword: password.next,
       }).unwrap();
       setPassword(EMPTY_PASSWORD_FORM);
-      toast.success("Password changed. Other devices will need to sign in again.");
+      toast.success(
+        t(
+          "profile.toast.password_changed",
+          "Password changed. Other devices will need to sign in again."
+        )
+      );
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not change your password."));
+      toast.error(apiErrorMessage(err as never, t("profile.toast.password_change_failed", "Could not change your password.")));
     }
   };
 
@@ -131,35 +138,38 @@ export default function ProfileView() {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Choose an image file.");
+      toast.error(t("profile.toast.choose_image", "Choose an image file."));
       return;
     }
     if (file.size > MAX_AVATAR_BYTES) {
-      toast.error("Image must be 5 MB or smaller.");
+      toast.error(t("profile.toast.image_too_large", "Image must be 5 MB or smaller."));
       return;
     }
 
     try {
       await uploadAvatar(file).unwrap();
-      toast.success("Photo updated");
+      toast.success(t("profile.toast.photo_updated", "Photo updated"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not upload your photo."));
+      toast.error(apiErrorMessage(err as never, t("profile.toast.photo_upload_failed", "Could not upload your photo.")));
     }
   };
 
   const handleRemoveAvatar = async () => {
     try {
       await removeAvatar().unwrap();
-      toast.success("Photo removed");
+      toast.success(t("profile.toast.photo_removed", "Photo removed"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not remove your photo."));
+      toast.error(apiErrorMessage(err as never, t("profile.toast.photo_remove_failed", "Could not remove your photo.")));
     }
   };
 
   const header = (
     <PageHeader
-      title="My Profile"
-      breadcrumbs={[{ label: "Home", href: "/" }, { label: "Profile" }]}
+      title={t("profile.title", "My Profile")}
+      breadcrumbs={[
+        { label: t("breadcrumb.home", "Home"), href: "/" },
+        { label: t("profile.breadcrumb.profile", "Profile") },
+      ]}
       rightSlot={<AdminTopActions />}
     />
   );
@@ -179,7 +189,7 @@ export default function ProfileView() {
         {header}
         <ErrorState
           error={error}
-          fallback="Could not load your account."
+          fallback={t("profile.errors.load", "Could not load your account.")}
           onRetry={() => refetch()}
           isRetrying={isFetching}
         />
@@ -197,7 +207,10 @@ export default function ProfileView() {
         <section className="space-y-6 lg:col-span-1">
           {/* Super admin is a system account, so it has no personal photo. */}
           {!isSuperAdmin ? (
-            <DataCard title="Photo" meta="Shown beside your name across the dashboard.">
+            <DataCard
+              title={t("profile.photo.title", "Photo")}
+              meta={t("profile.photo.meta", "Shown beside your name across the dashboard.")}
+            >
               <div className="flex flex-col items-center gap-4 p-2 pb-4">
                 <div className="relative h-28 w-28 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
                   {user.avatarUrl ? (
@@ -221,7 +234,7 @@ export default function ProfileView() {
                 </div>
 
                 <p className="text-center text-xs text-gray-400">
-                  JPG or PNG, up to 5&nbsp;MB.
+                  {t("profile.photo.hint", "JPG or PNG, up to 5\u00a0MB.")}
                 </p>
 
                 <input
@@ -239,7 +252,9 @@ export default function ProfileView() {
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <Upload />
-                    {user.avatarUrl ? "Replace" : "Upload"}
+                    {user.avatarUrl
+                      ? t("profile.photo.replace", "Replace")
+                      : t("profile.photo.upload", "Upload")}
                   </button>
                   {user.avatarUrl ? (
                     <button
@@ -249,7 +264,7 @@ export default function ProfileView() {
                       onClick={handleRemoveAvatar}
                     >
                       <Trash2 />
-                      Remove
+                      {t("actions.remove", "Remove")}
                     </button>
                   ) : null}
                 </div>
@@ -257,11 +272,14 @@ export default function ProfileView() {
             </DataCard>
           ) : null}
 
-          <DataCard title="Account" meta={isSuperAdmin ? undefined : "Managed by a super admin."}>
+          <DataCard
+            title={t("profile.account.title", "Account")}
+            meta={isSuperAdmin ? undefined : t("profile.account.meta", "Managed by a super admin.")}
+          >
             <div className="admin_modal_form_wrap p-2">
               <DetailGrid>
-                <DetailItem label="Role">{humanise(user.role)}</DetailItem>
-                <DetailItem label="Status">
+                <DetailItem label={t("fields.role", "Role")}>{humanise(user.role)}</DetailItem>
+                <DetailItem label={t("fields.status", "Status")}>
                   <StatusBadge
                     label={humanise(user.status)}
                     tone={statusTone(user.status)}
@@ -271,14 +289,16 @@ export default function ProfileView() {
                   <DetailItem label="Telegram">
                     <span className="inline-flex items-center gap-1.5">
                       <Send className="h-3.5 w-3.5 text-gray-400" />
-                      {user.telegramLinked ? "Linked" : "Not linked"}
+                      {user.telegramLinked
+                        ? t("profile.account.linked", "Linked")
+                        : t("profile.account.not_linked", "Not linked")}
                     </span>
                   </DetailItem>
                 ) : null}
-                <DetailItem label="Created By">
+                <DetailItem label={t("fields.created_by", "Created By")}>
                   {user.createdByName
                     ? `${titleCase(user.createdByName)} (${humanise(user.createdByRole ?? "")})`
-                    : "Self-registered"}
+                    : t("profile.account.self_registered", "Self-registered")}
                 </DetailItem>
               </DetailGrid>
             </div>
@@ -287,30 +307,33 @@ export default function ProfileView() {
 
         <section className="space-y-6 lg:col-span-2">
           <DataCard
-            title="Personal Information"
-            meta="Your own details — you don't need a super admin to change these."
+            title={t("profile.personal.title", "Personal Information")}
+            meta={t(
+              "profile.personal.meta",
+              "Your own details — you don't need a super admin to change these."
+            )}
           >
             <div className="space-y-6 p-2">
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <FormInput
-                  label="Full Name"
+                  label={t("fields.full_name", "Full Name")}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Your name"
+                  placeholder={t("profile.personal.name_placeholder", "Your name")}
                   required
                 />
                 <FormInput
-                  label="Email"
+                  label={t("fields.email", "Email")}
                   value={user.email}
                   readOnly
                   placeholder="—"
                 />
                 <FormPhoneInput value={phoneNumber} onChange={setPhoneNumber} />
                 <FormSelect
-                  label="Gender"
+                  label={t("profile.personal.gender", "Gender")}
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
-                  placeholder="Not set"
+                  placeholder={t("profile.personal.gender_placeholder", "Not set")}
                 >
                   {GENDERS.map((option) => (
                     <option key={option} value={option}>
@@ -322,8 +345,10 @@ export default function ProfileView() {
 
               <p className="flex items-start gap-2 text-xs text-gray-400">
                 <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Your email is your sign-in name and cannot be changed here — ask a super admin if
-                it needs to move.
+                {t(
+                  "profile.personal.email_note",
+                  "Your email is your sign-in name and cannot be changed here — ask a super admin if it needs to move."
+                )}
               </p>
 
               <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-6">
@@ -333,7 +358,7 @@ export default function ProfileView() {
                   onClick={handleResetForm}
                   disabled={!isDirty || isSaving}
                 >
-                  Reset
+                  {t("actions.reset", "Reset")}
                 </button>
                 <button
                   type="button"
@@ -342,27 +367,33 @@ export default function ProfileView() {
                   disabled={!isDirty || isSaving}
                 >
                   {isSaving ? <Loader2 className="animate-spin" /> : <Check />}
-                  {isSaving ? "Saving..." : "Save Changes"}
+                  {isSaving ? t("states.saving", "Saving...") : t("actions.save_changes", "Save Changes")}
                 </button>
               </div>
             </div>
           </DataCard>
 
           <DataCard
-            title="Password"
-            meta={isSuperAdmin ? undefined : "Changing it signs your other devices out."}
+            title={t("fields.password", "Password")}
+            meta={
+              isSuperAdmin
+                ? undefined
+                : t("profile.password.meta", "Changing it signs your other devices out.")
+            }
           >
             {isSuperAdmin ? (
               <p className="flex items-start gap-2 p-2 pb-4 text-xs text-gray-400">
                 <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                The super admin password is set in the server configuration and can&apos;t be
-                changed from the dashboard.
+                {t(
+                  "profile.password.super_admin_note",
+                  "The super admin password is set in the server configuration and can't be changed from the dashboard."
+                )}
               </p>
             ) : (
               <div className="space-y-6 p-2">
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <FormInput
-                    label="Current Password"
+                    label={t("profile.password.current", "Current Password")}
                     type="password"
                     value={password.current}
                     onChange={(e) =>
@@ -373,7 +404,7 @@ export default function ProfileView() {
                   />
                   <div className="hidden md:block" aria-hidden />
                   <FormInput
-                    label="New Password"
+                    label={t("profile.password.new", "New Password")}
                     type="password"
                     value={password.next}
                     onChange={(e) => setPassword((prev) => ({ ...prev, next: e.target.value }))}
@@ -381,7 +412,7 @@ export default function ProfileView() {
                     required
                   />
                   <FormInput
-                    label="Confirm New Password"
+                    label={t("profile.password.confirm", "Confirm New Password")}
                     type="password"
                     value={password.confirm}
                     onChange={(e) =>
@@ -394,7 +425,10 @@ export default function ProfileView() {
 
                 <p className="flex items-start gap-2 text-xs text-gray-400">
                   <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  {STRONG_PASSWORD_HINT}
+                  {t(
+                    "profile.password.hint",
+                    "At least 8 characters, including an uppercase letter, a lowercase letter, a number and a symbol."
+                  )}
                 </p>
 
                 <div className="flex justify-end border-t border-gray-100 pt-6">
@@ -410,7 +444,9 @@ export default function ProfileView() {
                     }
                   >
                     {isChangingPassword ? <Loader2 className="animate-spin" /> : <KeyRound />}
-                    {isChangingPassword ? "Changing..." : "Change Password"}
+                    {isChangingPassword
+                      ? t("profile.password.changing", "Changing...")
+                      : t("profile.password.change", "Change Password")}
                   </button>
                 </div>
               </div>
@@ -423,17 +459,22 @@ export default function ProfileView() {
 }
 
 function ProfileSkeleton() {
+  const { t } = useI18n();
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3" role="status" aria-label="Loading your profile">
+    <div
+      className="grid grid-cols-1 gap-6 lg:grid-cols-3"
+      role="status"
+      aria-label={t("profile.loading_aria", "Loading your profile")}
+    >
       <section className="space-y-6 lg:col-span-1">
-        <DataCard title="Photo">
+        <DataCard title={t("profile.photo.title", "Photo")}>
           <div className="flex flex-col items-center gap-4 p-2 pb-4">
             <SkeletonBlock className="h-28 w-28 rounded-full" />
             <SkeletonBlock className="h-3 w-32" />
             <SkeletonBlock className="h-10 w-28" />
           </div>
         </DataCard>
-        <DataCard title="Account">
+        <DataCard title={t("profile.account.title", "Account")}>
           <div className="grid grid-cols-2 gap-5 p-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="space-y-2">
@@ -445,7 +486,10 @@ function ProfileSkeleton() {
         </DataCard>
       </section>
       <section className="space-y-6 lg:col-span-2">
-        {["Personal Information", "Password"].map((title) => (
+        {[
+          t("profile.personal.title", "Personal Information"),
+          t("fields.password", "Password"),
+        ].map((title) => (
           <DataCard key={title} title={title}>
             <div className="grid grid-cols-1 gap-5 p-2 pb-4 md:grid-cols-2">
               {Array.from({ length: 4 }).map((_, i) => (

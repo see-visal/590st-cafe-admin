@@ -9,8 +9,10 @@ import {
   useOperationalAlerts,
 } from "@/components/common/OperationalAlerts";
 import { ContactInbox } from "@/features/notification/ContactInbox";
+import { useI18n } from "@/contexts/I18nContext";
 
 export default function Page() {
+  const { t } = useI18n();
   const alerts = useOperationalAlerts();
   const { markSeen, count } = alerts;
   useEffect(() => {
@@ -19,10 +21,10 @@ export default function Page() {
   return (
     <PageShell>
       <PageHeader
-        title="Current alerts"
+        title={t("notifications.title", "Current alerts")}
         breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "Current alerts" },
+          { label: t("breadcrumb.home", "Home"), href: "/" },
+          { label: t("notifications.title", "Current alerts") },
         ]}
         rightSlot={<AdminTopActions />}
       />

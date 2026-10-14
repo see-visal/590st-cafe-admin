@@ -1,0 +1,21 @@
+{
+  "title": "Current alerts",
+  "contact": {
+    "label": "Customer messages",
+    "heading": "Customer messages ({count})",
+    "status_label": "Message status",
+    "loading": "Loading messages...",
+    "empty": "No messages in this view.",
+    "reply_by_email": "Reply by email",
+    "mark_resolved": "Mark resolved",
+    "reopen": "Reopen",
+    "page_of": "Page {page} of {total}",
+    "toast": {
+      "updated": "Message updated"
+    },
+    "errors": {
+      "load": "Could not load messages.",
+      "update": "Could not update the message."
+    }
+  }
+}

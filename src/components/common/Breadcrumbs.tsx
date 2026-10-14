@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/contexts/I18nContext";
 
 export type BreadcrumbItem = {
   label: string;
@@ -15,9 +16,10 @@ interface BreadcrumbsProps {
 }
 
 export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
+  const { t } = useI18n();
   return (
     <nav
-      aria-label="Breadcrumb"
+      aria-label={t("breadcrumb.label", "Breadcrumb")}
       className={cn("breadcrumbs flex min-w-0 items-center gap-2 text-xs text-gray-500", className)}
     >
       {items.map((item, index) => {

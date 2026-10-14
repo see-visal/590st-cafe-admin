@@ -64,7 +64,7 @@ export function Sidebar() {
       <div className="mobile_header">
         <div className="mobile_header_inner">
           {logo}
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="mobile_menu_trigger" aria-label="Toggle menu">
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="mobile_menu_trigger" aria-label={t("sidebar_toggle.menu", "Toggle menu")}>
             {isMobileMenuOpen ? (
               <X className="mobile_trigger_icon" />
             ) : (

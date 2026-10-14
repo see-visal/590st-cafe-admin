@@ -60,17 +60,7 @@ import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 import { parseForm } from "@/lib/validation";
 import { staffCreateSchema, staffInviteSchema, staffUpdateSchema } from "@/lib/formSchemas";
-
-const STAFF_TABLE_HEADERS = [
-  "No",
-  "Staff",
-  "Phone Number",
-  "Gender",
-  "Role",
-  "Created By",
-  "Status",
-  "Action",
-] as const;
+import { useI18n } from "@/contexts/I18nContext";
 
 type StaffKind = "ADMIN" | "BARISTA";
 
@@ -95,6 +85,7 @@ const EMPTY_FORM: StaffFormFields = {
 };
 
 export default function Staff() {
+  const { t } = useI18n();
   const { role, isAdmin } = useCurrentRole();
   const { confirm, confirmDialog } = useConfirmDialog();
   const canManageAdmins = role === "SUPER_ADMIN";
@@ -148,11 +139,11 @@ export default function Staff() {
   const handlePickImage = (file: File | null) => {
     if (submitting.current) return;
     if (file && !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
-      toast.error("Choose a JPEG, PNG, WebP, or GIF image.");
+      toast.error(t("staff.toast.invalid_image_type", "Choose a JPEG, PNG, WebP, or GIF image."));
       return;
     }
     if (file && (file.size === 0 || file.size > 5 * 1024 * 1024)) {
-      toast.error("Choose a non-empty image of 5 MB or smaller.");
+      toast.error(t("staff.toast.invalid_image_size", "Choose a non-empty image of 5 MB or smaller."));
       return;
     }
     setImageFile(file);
@@ -177,6 +168,17 @@ export default function Staff() {
   const visibleStaff = view.rows;
 
   const activeCount = staff.filter((s) => s.status === "ACTIVE").length;
+
+  const staffTableHeaders = [
+    t("table.no", "No"),
+    t("staff.table.staff", "Staff"),
+    t("fields.phone_number", "Phone Number"),
+    t("staff.fields.gender", "Gender"),
+    t("fields.role", "Role"),
+    t("fields.created_by", "Created By"),
+    t("fields.status", "Status"),
+    t("table.action", "Action"),
+  ];
 
   const handleOpenForm = (member?: UserResponse, createKind: StaffKind = kind) => {
     const targetKind = member?.role === "ADMIN" ? "ADMIN" : member ? "BARISTA" : createKind;
@@ -203,7 +205,7 @@ export default function Staff() {
   const handleSubmit = async () => {
     if (submitting.current) return;
     if (!isAdmin || (formKind === "ADMIN" && !canManageAdmins)) {
-      toast.error("Your account cannot manage this staff role.");
+      toast.error(t("staff.toast.cannot_manage_role", "Your account cannot manage this staff role."));
       return;
     }
     const gender = (form.gender || undefined) as Gender | undefined;
@@ -223,7 +225,7 @@ export default function Staff() {
         setInviteResult(result);
         setInviteResultOpen(true);
       } catch (err) {
-        toast.error(apiErrorMessage(err as never, "Could not send the Telegram invite."));
+        toast.error(apiErrorMessage(err as never, t("staff.toast.invite_failed", "Could not send the Telegram invite.")));
       } finally {
         submitting.current = false;
       }
@@ -259,7 +261,11 @@ export default function Staff() {
       if (imageFile) {
         await uploadAvatar({ id: savedMember.id, role: formKind, file: imageFile }).unwrap();
       }
-      toast.success(selected ? "Staff member updated" : `${formKind === "ADMIN" ? "Admin" : "Barista"} created`);
+      toast.success(selected
+        ? t("staff.toast.updated", "Staff member updated")
+        : formKind === "ADMIN"
+          ? t("staff.toast.admin_created", "Admin created")
+          : t("staff.toast.barista_created", "Barista created"));
       setKind(formKind);
       setPage(1);
       setFormOpen(false);
@@ -268,8 +274,10 @@ export default function Staff() {
       setImageFile(null);
     } catch (err) {
       toast.error(detailsSaved
-        ? `Staff details saved, but the photo was not uploaded. ${apiErrorMessage(err as never, "Please try again.")} Submit again to retry.`
-        : apiErrorMessage(err as never, "Could not save the staff member."));
+        ? t("staff.toast.photo_upload_failed", "Staff details saved, but the photo was not uploaded. {error} Submit again to retry.", {
+            error: apiErrorMessage(err as never, t("staff.toast.please_try_again", "Please try again.")),
+          })
+        : apiErrorMessage(err as never, t("staff.toast.save_failed", "Could not save the staff member.")));
     } finally {
       submitting.current = false;
     }
@@ -284,22 +292,27 @@ export default function Staff() {
       setInviteResult(result);
       setInviteResultOpen(true);
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not resend the Telegram invite."));
+      toast.error(apiErrorMessage(err as never, t("staff.toast.resend_failed", "Could not resend the Telegram invite.")));
     }
   };
 
   const handleDelete = async (member: UserResponse) => {
     if (!isAdmin || (member.role === "ADMIN" && !canManageAdmins)) return;
-    if (!(await confirm({ title: "Remove staff member", description: `Remove ${member.fullName}?`, confirmLabel: "Remove", tone: "danger" }))) return;
+    if (!(await confirm({
+      title: t("staff.confirm.remove_title", "Remove staff member"),
+      description: t("staff.confirm.remove_description", "Remove {name}?", { name: member.fullName }),
+      confirmLabel: t("actions.remove", "Remove"),
+      tone: "danger",
+    }))) return;
     try {
       if (member.role === "ADMIN") {
         await deleteAdmin(member.id).unwrap();
       } else {
         await deleteBarista(member.id).unwrap();
       }
-      toast.success("Staff member removed");
+      toast.success(t("staff.toast.removed", "Staff member removed"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not remove the staff member."));
+      toast.error(apiErrorMessage(err as never, t("staff.toast.remove_failed", "Could not remove the staff member.")));
     }
   };
 
@@ -311,23 +324,23 @@ export default function Staff() {
   return (
     <PageShell>
       <PageHeader
-        title="Staff"
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: "Staff" }]}
+        title={t("staff.title", "Staff")}
+        breadcrumbs={[{ label: t("breadcrumb.home", "Home"), href: "/" }, { label: t("staff.title", "Staff") }]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <StatTile
-          title={kind === "ADMIN" ? "All Admins" : "All Baristas"}
+          title={kind === "ADMIN" ? t("staff.stats.all_admins", "All Admins") : t("staff.stats.all_baristas", "All Baristas")}
           value={String(active.data?.totalElements ?? 0)}
           tone="gray"
         />
-        <StatTile title="Active (this page)" value={String(activeCount)} tone="green" />
+        <StatTile title={t("staff.stats.active_this_page", "Active (this page)")} value={String(activeCount)} tone="green" />
       </div>
 
       <FilterPanel>
         <SelectField
-          label="Staff Type"
+          label={t("staff.filters.staff_type", "Staff Type")}
           value={kind}
           onChange={(e) => {
             if (!e.target.value) return;
@@ -341,14 +354,14 @@ export default function Staff() {
           {canManageAdmins && <option value="ADMIN">Admins</option>}
         </SelectField>
         <TextField
-          label="Name or Email"
-          placeholder="Search staff"
+          label={t("staff.filters.name_or_email", "Name or Email")}
+          placeholder={t("staff.filters.search_placeholder", "Search staff")}
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
         />
         <SelectField
-          label="Status"
-          placeholder="All statuses"
+          label={t("fields.status", "Status")}
+          placeholder={t("staff.filters.all_statuses", "All statuses")}
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
@@ -362,22 +375,28 @@ export default function Staff() {
       </FilterPanel>
 
       <DataCard
-        title={kind === "ADMIN" ? "Admins" : "Baristas"}
-        meta={`Total: ${active.data?.totalElements ?? 0}`}
+        title={kind === "ADMIN" ? t("staff.list.admins", "Admins") : t("staff.list.baristas", "Baristas")}
+        meta={t("staff.list.total", "Total: {count}", { count: active.data?.totalElements ?? 0 })}
         actions={
           <div className="flex flex-wrap gap-2">
-            {canManageAdmins && <TableActions onRegister={() => handleOpenForm(undefined, "ADMIN")} primaryLabel="Add Admin" />}
-            {isAdmin && <TableActions onRegister={() => handleOpenForm(undefined, "BARISTA")} primaryLabel="Add Barista" />}
+            {canManageAdmins && <TableActions onRegister={() => handleOpenForm(undefined, "ADMIN")} primaryLabel={t("staff.list.add_admin", "Add Admin")} />}
+            {isAdmin && <TableActions onRegister={() => handleOpenForm(undefined, "BARISTA")} primaryLabel={t("staff.list.add_barista", "Add Barista")} />}
           </div>
         }
       >
-        <SimpleTable headers={[...STAFF_TABLE_HEADERS]}>
+        <SimpleTable headers={staffTableHeaders}>
           <TableState
-            colSpan={STAFF_TABLE_HEADERS.length}
+            colSpan={staffTableHeaders.length}
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleStaff.length === 0}
-            emptyLabel={isFiltering ? "No staff match these filters." : `No ${kind === "ADMIN" ? "admins" : "baristas"} yet.`}
+            emptyLabel={
+              isFiltering
+                ? t("staff.empty.no_match", "No staff match these filters.")
+                : kind === "ADMIN"
+                  ? t("staff.empty.no_admins", "No admins yet.")
+                  : t("staff.empty.no_baristas", "No baristas yet.")
+            }
             onRetry={active.refetch}
           />
           {list.showRows &&
@@ -433,15 +452,17 @@ export default function Staff() {
         }}
         title={
           selected
-            ? "Modify Staff"
-            : `Register ${formKind === "ADMIN" ? "Admin" : "Barista"}`
+            ? t("staff.form.title_modify", "Modify Staff")
+            : formKind === "ADMIN"
+              ? t("staff.form.title_register_admin", "Register Admin")
+              : t("staff.form.title_register_barista", "Register Barista")
         }
-        submitLabel="Submit"
+        submitLabel={t("actions.submit", "Submit")}
         onSubmit={handleSubmit}
         isLoading={isSaving}
       >
         <ModalGrid>
-          <FormSelect label="Account Role" value={formKind} disabled={Boolean(selected) || isSaving}
+          <FormSelect label={t("staff.form.account_role", "Account Role")} value={formKind} disabled={Boolean(selected) || isSaving}
             onChange={(event) => {
               const nextKind = event.target.value as StaffKind;
               if (nextKind === "BARISTA" || (nextKind === "ADMIN" && canManageAdmins)) setFormKind(nextKind);
@@ -451,34 +472,34 @@ export default function Staff() {
           </FormSelect>
           {!selected && (
             <FormSelect
-              label="Setup Method"
+              label={t("staff.form.setup_method", "Setup Method")}
               value={creationMode}
               disabled={isSaving}
               onChange={(event) => setCreationMode(event.target.value as CreationMode)}
             >
-              <option value="PASSWORD">Email &amp; Password</option>
-              <option value="TELEGRAM">Invite via Telegram</option>
+              <option value="PASSWORD">{t("staff.form.setup_password", "Email & Password")}</option>
+              <option value="TELEGRAM">{t("staff.form.setup_telegram", "Invite via Telegram")}</option>
             </FormSelect>
           )}
           {(selected || creationMode === "PASSWORD") && (
             <div className="md:col-span-3">
-              {(imagePreview || selected?.avatarUrl) && <DetailImage src={imagePreview || selected?.avatarUrl || undefined} alt="Staff profile photo" />}
-              <FormImageUpload label="Profile Photo" file={imageFile} onChange={handlePickImage} disabled={isSaving}
-                accept="image/jpeg,image/png,image/webp,image/gif" emptyLabel={selected?.avatarUrl ? "Choose a photo to replace the current one" : "No photo selected"} />
-              <p className="mt-2 text-sm text-muted-foreground">Optional. JPEG, PNG, WebP, or GIF, up to 5 MB. Saved when you submit.</p>
-              {imageFile && <button type="button" className="mt-2 text-sm underline" disabled={isSaving} onClick={() => setImageFile(null)}>Clear selected photo</button>}
+              {(imagePreview || selected?.avatarUrl) && <DetailImage src={imagePreview || selected?.avatarUrl || undefined} alt={t("staff.form.photo_alt", "Staff profile photo")} />}
+              <FormImageUpload label={t("staff.form.profile_photo", "Profile Photo")} file={imageFile} onChange={handlePickImage} disabled={isSaving}
+                accept="image/jpeg,image/png,image/webp,image/gif" emptyLabel={selected?.avatarUrl ? t("staff.form.photo_replace", "Choose a photo to replace the current one") : t("staff.form.photo_none", "No photo selected")} />
+              <p className="mt-2 text-sm text-muted-foreground">{t("staff.form.photo_hint", "Optional. JPEG, PNG, WebP, or GIF, up to 5 MB. Saved when you submit.")}</p>
+              {imageFile && <button type="button" className="mt-2 text-sm underline" disabled={isSaving} onClick={() => setImageFile(null)}>{t("staff.form.clear_photo", "Clear selected photo")}</button>}
             </div>
           )}
           <FormInput
-            label="Full Name"
-            placeholder="e.g. Sophal Nem"
+            label={t("fields.full_name", "Full Name")}
+            placeholder={t("staff.form.full_name_placeholder", "e.g. Sophal Nem")}
             value={form.fullName}
             onChange={(e) => setForm({ ...form, fullName: e.target.value })}
             required
           />
           {(selected || creationMode === "PASSWORD") && (
             <FormInput
-              label="Email"
+              label={t("fields.email", "Email")}
               type="email"
               placeholder="user@gmail.com"
               value={form.email}
@@ -489,9 +510,9 @@ export default function Staff() {
           )}
           {!selected && creationMode === "PASSWORD" && (
             <FormInput
-              label="Password"
+              label={t("fields.password", "Password")}
               type="password"
-              placeholder="Min 8 chars, mixed case, digit + symbol"
+              placeholder={t("staff.form.password_placeholder", "Min 8 chars, mixed case, digit + symbol")}
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
@@ -504,14 +525,15 @@ export default function Staff() {
           />
           {!selected && creationMode === "TELEGRAM" && (
             <p className="md:col-span-3 text-sm text-muted-foreground">
-              No email or password needed — {formKind === "ADMIN" ? "the admin" : "the barista"} activates
-              their account by opening the Telegram invite link and confirming this phone number, then
-              signs in on the login page under the <span className="font-semibold">Phone number</span> tab.
+              {formKind === "ADMIN"
+                ? t("staff.form.telegram_hint_admin", "No email or password needed — the admin activates their account by opening the Telegram invite link and confirming this phone number, then signs in on the login page under the")
+                : t("staff.form.telegram_hint_barista", "No email or password needed — the barista activates their account by opening the Telegram invite link and confirming this phone number, then signs in on the login page under the")}{" "}
+              <span className="font-semibold">{t("staff.form.phone_tab", "Phone number")}</span>{t("staff.form.telegram_hint_end", " tab.")}
             </p>
           )}
           <FormSelect
-            label="Gender"
-            placeholder="Select gender"
+            label={t("staff.fields.gender", "Gender")}
+            placeholder={t("staff.form.gender_placeholder", "Select gender")}
             value={form.gender}
             onChange={(e) => setForm({ ...form, gender: e.target.value })}
           >
@@ -521,8 +543,8 @@ export default function Staff() {
           </FormSelect>
           {selected ? (
             <FormSelect
-              label="Status"
-              placeholder="Select status"
+              label={t("fields.status", "Status")}
+              placeholder={t("staff.form.status_placeholder", "Select status")}
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as UserStatus })}
             >
@@ -541,7 +563,7 @@ export default function Staff() {
           setDetailOpen(open);
           if (!open) setSelected(null);
         }}
-        title="Staff Detail"
+        title={t("staff.detail.title", "Staff Detail")}
         onEdit={() => {
           const member = selected;
           setDetailOpen(false);
@@ -550,16 +572,16 @@ export default function Staff() {
       >
         {selected && (
           <div className="admin_modal_form_wrap">
-            {selected.avatarUrl && <DetailImage src={selected.avatarUrl} alt={`${selected.fullName}'s profile photo`} />}
+            {selected.avatarUrl && <DetailImage src={selected.avatarUrl} alt={t("staff.detail.photo_alt", "{name}'s profile photo", { name: selected.fullName })} />}
             <DetailGrid>
-              <DetailItem label="Full Name">{titleCase(selected.fullName)}</DetailItem>
-              <DetailItem label="Email">{selected.email}</DetailItem>
-              <DetailItem label="Phone Number">{formatPhone(selected.phoneNumber) || "-"}</DetailItem>
-              <DetailItem label="Gender">
+              <DetailItem label={t("fields.full_name", "Full Name")}>{titleCase(selected.fullName)}</DetailItem>
+              <DetailItem label={t("fields.email", "Email")}>{selected.email}</DetailItem>
+              <DetailItem label={t("fields.phone_number", "Phone Number")}>{formatPhone(selected.phoneNumber) || "-"}</DetailItem>
+              <DetailItem label={t("staff.fields.gender", "Gender")}>
                 {selected.gender ? humanise(selected.gender) : "-"}
               </DetailItem>
-              <DetailItem label="Role">{humanise(selected.role)}</DetailItem>
-              <DetailItem label="Status">
+              <DetailItem label={t("fields.role", "Role")}>{humanise(selected.role)}</DetailItem>
+              <DetailItem label={t("fields.status", "Status")}>
                 <StatusBadge
                   label={humanise(selected.status)}
                   tone={statusTone(selected.status)}
@@ -567,7 +589,7 @@ export default function Staff() {
               </DetailItem>
               <DetailItem label="Telegram">
                 <div className="flex items-center gap-3">
-                  <span>{selected.telegramLinked ? "Linked" : "Not linked"}</span>
+                  <span>{selected.telegramLinked ? t("staff.detail.linked", "Linked") : t("staff.detail.not_linked", "Not linked")}</span>
                   {!selected.telegramLinked && (
                     <button
                       type="button"
@@ -575,12 +597,12 @@ export default function Staff() {
                       disabled={isResendingInvite}
                       onClick={() => handleResendInvite(selected)}
                     >
-                      {isResendingInvite ? "Sending..." : "Send Telegram invite"}
+                      {isResendingInvite ? t("states.sending", "Sending...") : t("staff.detail.send_invite", "Send Telegram invite")}
                     </button>
                   )}
                 </div>
               </DetailItem>
-              <DetailItem label="Created By">
+              <DetailItem label={t("fields.created_by", "Created By")}>
                 {selected.createdByName
                   ? `${titleCase(selected.createdByName)} (${humanise(selected.createdByRole ?? "")})`
                   : "-"}
@@ -596,25 +618,24 @@ export default function Staff() {
           setInviteResultOpen(open);
           if (!open) setInviteResult(null);
         }}
-        title="Telegram Invite Sent"
+        title={t("staff.invite_result.title", "Telegram Invite Sent")}
       >
         {inviteResult && (
           <div className="admin_modal_form_wrap">
             <DetailGrid>
-              <DetailItem label="Invite Link">
+              <DetailItem label={t("staff.invite_result.invite_link", "Invite Link")}>
                 <a href={inviteResult.deepLink} target="_blank" rel="noopener noreferrer" className="underline break-all">
                   {inviteResult.deepLink}
                 </a>
               </DetailItem>
-              <DetailItem label="Code">{inviteResult.code}</DetailItem>
-              <DetailItem label="Expires In">
-                {Math.round(inviteResult.expiresInSeconds / 60)} minute(s)
+              <DetailItem label={t("staff.invite_result.code", "Code")}>{inviteResult.code}</DetailItem>
+              <DetailItem label={t("staff.invite_result.expires_in", "Expires In")}>
+                {t("staff.invite_result.expires_minutes", "{count} minute(s)", { count: Math.round(inviteResult.expiresInSeconds / 60) })}
               </DetailItem>
             </DetailGrid>
             <p className="mt-3 text-sm text-muted-foreground">
-              Share this link with the invitee. After they open it and share their phone number in
-              Telegram, the account is active and they sign in on the login page under{" "}
-              <span className="font-semibold">Phone number</span> — the code arrives in Telegram.
+              {t("staff.invite_result.hint", "Share this link with the invitee. After they open it and share their phone number in Telegram, the account is active and they sign in on the login page under")}{" "}
+              <span className="font-semibold">{t("staff.invite_result.phone_tab", "Phone number")}</span>{t("staff.invite_result.hint_end", " — the code arrives in Telegram.")}
             </p>
             <button
               type="button"
@@ -622,13 +643,13 @@ export default function Staff() {
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(inviteResult.deepLink);
-                  toast.success("Link copied");
+                  toast.success(t("staff.toast.link_copied", "Link copied"));
                 } catch {
-                  toast.error("Could not copy the link.");
+                  toast.error(t("staff.toast.copy_failed", "Could not copy the link."));
                 }
               }}
             >
-              Copy Link
+              {t("staff.invite_result.copy_link", "Copy Link")}
             </button>
           </div>
         )}

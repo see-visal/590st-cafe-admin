@@ -1,20 +1,27 @@
 import { z } from "zod";
 import toast from "react-hot-toast";
 import { PHONE_INVALID_MESSAGE, PHONE_PATTERN } from "@/lib/phone";
+import { translate, type TranslationParams } from "@/contexts/translate";
 
-export const currencySchema = z.enum(["USD", "KHR"], {
-  message: "Select a currency.",
-});
+// Messages are looked up when a form is checked, so they follow the selected language.
+export function message(key: string, fallback: string, params?: () => TranslationParams) {
+  return { error: () => translate(`validation.${key}`, fallback, params?.()) };
+}
+
+/** A field name as it appears inside a message, e.g. "Category name" or "reorder level". */
+export function fieldLabel(label: string): string {
+  return translate(`validation.fields.${label.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`, label);
+}
+
+export const currencySchema = z.enum(["USD", "KHR"], message("select_currency", "Select a currency."));
 
 export function buildCashPaymentSchema(minAmount: number) {
   return z.object({
     currency: currencySchema,
     amountTendered: z.coerce
-      .number({ message: "Enter the amount handed over." })
-      .positive({ message: "Enter the amount handed over." })
-      .min(minAmount, {
-        message: "Amount tendered is less than the total due.",
-      }),
+      .number(message("amount_tendered", "Enter the amount handed over."))
+      .positive(message("amount_tendered", "Enter the amount handed over."))
+      .min(minAmount, message("amount_too_low", "Amount tendered is less than the total due.")),
   });
 }
 
@@ -24,13 +31,13 @@ export type CashPaymentFormValues = z.infer<
 
 export const deliveryFeeSchema = z.object({
   fee: z.coerce
-    .number({ message: "Enter the delivery fee." })
-    .min(0, { message: "Delivery fee cannot be negative." }),
+    .number(message("delivery_fee", "Enter the delivery fee."))
+    .min(0, message("delivery_fee_negative", "Delivery fee cannot be negative.")),
 });
 
 export function firstIssueMessage(
   error: z.ZodError,
-  fallback = "Check the form and try again.",
+  fallback = translate("validation.check_form", "Check the form and try again."),
 ): string {
   return error.issues[0]?.message ?? fallback;
 }
@@ -64,59 +71,59 @@ export const requiredText = (label: string, max = 255) =>
   z
     .string()
     .trim()
-    .min(1, { message: `${label} is required.` })
-    .max(max, { message: `${label} must be ${max} characters or fewer.` });
+    .min(1, message("required", "{label} is required.", () => ({ label: fieldLabel(label) })))
+    .max(max, message("max_length", "{label} must be {max} characters or fewer.", () => ({ label: fieldLabel(label), max })));
 
 /** Optional text, trimmed; blank becomes undefined. */
 export const optionalText = (label: string, max = 255) =>
   z
     .string()
     .trim()
-    .max(max, { message: `${label} must be ${max} characters or fewer.` })
+    .max(max, message("max_length", "{label} must be {max} characters or fewer.", () => ({ label: fieldLabel(label), max })))
     .transform((value) => value || undefined);
 
 export const fullNameField = z
   .string()
   .trim()
-  .min(1, { message: "Full name is required." })
-  .min(2, { message: "Full name must be at least 2 characters." })
-  .max(120, { message: "Full name must be 120 characters or fewer." });
+  .min(1, message("full_name_required", "Full name is required."))
+  .min(2, message("full_name_short", "Full name must be at least 2 characters."))
+  .max(120, message("full_name_long", "Full name must be 120 characters or fewer."));
 
 export const emailField = z
   .string()
   .trim()
-  .min(1, { message: "Email is required." })
-  .pipe(z.email({ message: "Enter a valid email address." }))
+  .min(1, message("email_required", "Email is required."))
+  .pipe(z.email(message("email_invalid", "Enter a valid email address.")))
   .transform((value) => value.toLowerCase());
 
 export const optionalPhoneField = z
   .string()
   .trim()
-  .refine((value) => !value || PHONE_PATTERN.test(value), { message: PHONE_INVALID_MESSAGE })
+  .refine((value) => !value || PHONE_PATTERN.test(value), message("phone_invalid", PHONE_INVALID_MESSAGE))
   .transform((value) => value || undefined);
 
-export const requiredPhoneField = (requiredMessage = "Phone number is required.") =>
+export const requiredPhoneField = (requiredMessage = message("phone_required", "Phone number is required.")) =>
   z
     .string()
     .trim()
-    .min(1, { message: requiredMessage })
-    .regex(PHONE_PATTERN, { message: PHONE_INVALID_MESSAGE });
+    .min(1, requiredMessage)
+    .regex(PHONE_PATTERN, message("phone_invalid", PHONE_INVALID_MESSAGE));
 
 export const strongPasswordField = z
   .string()
-  .min(1, { message: "Password is required." })
-  .regex(STRONG_PASSWORD_PATTERN, { message: STRONG_PASSWORD_HINT });
+  .min(1, message("password_required", "Password is required."))
+  .regex(STRONG_PASSWORD_PATTERN, message("password_hint", STRONG_PASSWORD_HINT));
 
 export const otpField = z
   .string()
   .trim()
-  .regex(OTP_PATTERN, { message: "Enter the 6-digit code." });
+  .regex(OTP_PATTERN, message("otp_invalid", "Enter the 6-digit code."));
 
 /** A select that must have a value; `T` keeps the option's union type after parsing. */
-export const requiredChoice = <T extends string = string>(message: string) =>
+export const requiredChoice = <T extends string = string>(error: ReturnType<typeof message>) =>
   z
     .string()
-    .min(1, { message })
+    .min(1, error)
     .transform((value) => value as T);
 
 type NumberRules = {
@@ -135,24 +142,29 @@ const toNumber = (value: unknown) => {
 };
 
 function numberRules(label: string, rules: NumberRules) {
-  let schema = z.number({ message: `Enter a valid ${label}.` });
-  if (rules.integer) schema = schema.int({ message: `${capitalise(label)} must be a whole number.` });
+  // "{Label}" starts a sentence, "{label}" sits inside one.
+  const labels = () => {
+    const name = fieldLabel(label);
+    return { label: name, Label: capitalise(name), min: rules.min ?? "", max: rules.max ?? "", greaterThan: rules.greaterThan ?? "" };
+  };
+  let schema = z.number(message("number_invalid", "Enter a valid {label}.", labels));
+  if (rules.integer) schema = schema.int(message("number_whole", "{Label} must be a whole number.", labels));
   if (rules.greaterThan !== undefined)
-    schema = schema.gt(rules.greaterThan, { message: `${capitalise(label)} must be greater than ${rules.greaterThan}.` });
+    schema = schema.gt(rules.greaterThan, message("number_greater_than", "{Label} must be greater than {greaterThan}.", labels));
   if (rules.min !== undefined)
-    schema = schema.min(rules.min, {
-      message:
-        rules.max !== undefined
-          ? `${capitalise(label)} must be between ${rules.min} and ${rules.max}.`
-          : `${capitalise(label)} must be ${rules.min} or more.`,
-    });
+    schema = schema.min(
+      rules.min,
+      rules.max !== undefined
+        ? message("number_between", "{Label} must be between {min} and {max}.", labels)
+        : message("number_min", "{Label} must be {min} or more.", labels),
+    );
   if (rules.max !== undefined)
-    schema = schema.max(rules.max, {
-      message:
-        rules.min !== undefined
-          ? `${capitalise(label)} must be between ${rules.min} and ${rules.max}.`
-          : `${capitalise(label)} must be ${rules.max} or less.`,
-    });
+    schema = schema.max(
+      rules.max,
+      rules.min !== undefined
+        ? message("number_between", "{Label} must be between {min} and {max}.", labels)
+        : message("number_max", "{Label} must be {max} or less.", labels),
+    );
   return schema;
 }
 

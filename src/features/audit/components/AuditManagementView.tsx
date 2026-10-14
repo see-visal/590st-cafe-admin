@@ -35,33 +35,14 @@ import {
 import type { OrderResponse, OrderStatus, Role } from "@/store/api/types";
 import { cn, humanise, timeAgo, titleCase } from "@/lib/utils";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { useI18n } from "@/contexts/I18nContext";
 
 type Source = "orders" | "attendance";
 type Tone = "success" | "danger" | "warning" | "info" | "neutral";
 
-const SOURCES: { value: Source; label: string; icon: typeof ReceiptText }[] = [
-  { value: "orders", label: "Orders", icon: ReceiptText },
-  { value: "attendance", label: "Attendance", icon: Clock3 },
-];
-
-const ORDER_HEADERS = [
-  "No",
-  "Order",
-  "Customer",
-  "Total",
-  "Payment",
-  "Placed",
-  "Status",
-  "History",
-];
-const ATTENDANCE_HEADERS = [
-  "No",
-  "Barista",
-  "Check In",
-  "Check Out",
-  "Worked",
-  "Status",
-  "History",
+const SOURCES: { value: Source; icon: typeof ReceiptText }[] = [
+  { value: "orders", icon: ReceiptText },
+  { value: "attendance", icon: Clock3 },
 ];
 
 const ORDER_ACTIONS: Record<string, { label: string; tone: Tone }> = {
@@ -126,6 +107,7 @@ function orderTone(status: OrderStatus): Tone {
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
 
 export default function AuditManagementView() {
+  const { t } = useI18n();
   const polling = useRefreshOptions();
   const [source, setSource] = usePersistentState<Source>(
     "audit:source",
@@ -148,8 +130,32 @@ export default function AuditManagementView() {
   );
   const records = source === "orders" ? orders : attendance;
   const list = listLoadState(records);
-  const headers = source === "orders" ? ORDER_HEADERS : ATTENDANCE_HEADERS;
+  const headers =
+    source === "orders"
+      ? [
+          t("table.no", "No"),
+          t("fields.order", "Order"),
+          t("fields.customer", "Customer"),
+          t("fields.total", "Total"),
+          t("audit.fields.payment", "Payment"),
+          t("audit.fields.placed", "Placed"),
+          t("fields.status", "Status"),
+          t("audit.fields.history", "History"),
+        ]
+      : [
+          t("table.no", "No"),
+          t("audit.fields.barista", "Barista"),
+          t("audit.fields.check_in", "Check In"),
+          t("audit.fields.check_out", "Check Out"),
+          t("audit.fields.worked", "Worked"),
+          t("fields.status", "Status"),
+          t("audit.fields.history", "History"),
+        ];
   const rowNumber = (index: number) => (page - 1) * size + index + 1;
+  const sourceLabel = (value: Source) =>
+    value === "orders"
+      ? t("audit.sources.orders", "Orders")
+      : t("audit.sources.attendance", "Attendance");
 
   const chooseSource = (next: Source) => {
     setSource(next);
@@ -159,21 +165,27 @@ export default function AuditManagementView() {
   return (
     <PageShell>
       <PageHeader
-        title="Audit Trail"
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: "Audit Trail" }]}
+        title={t("audit.title", "Audit Trail")}
+        breadcrumbs={[
+          { label: t("breadcrumb.home", "Home"), href: "/" },
+          { label: t("audit.title", "Audit Trail") },
+        ]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-sm text-muted-foreground">
-          Every step taken on an order or a shift, with who did it and when.
+          {t(
+            "audit.description",
+            "Every step taken on an order or a shift, with who did it and when.",
+          )}
         </p>
         <div
           role="tablist"
-          aria-label="History source"
+          aria-label={t("audit.sources.aria_label", "History source")}
           className="inline-flex gap-1 rounded-lg bg-gray-100 p-1"
         >
-          {SOURCES.map(({ value, label, icon: Icon }) => (
+          {SOURCES.map(({ value, icon: Icon }) => (
             <button
               key={value}
               type="button"
@@ -188,17 +200,19 @@ export default function AuditManagementView() {
               )}
             >
               <Icon className="h-4 w-4" />
-              {label}
+              {sourceLabel(value)}
             </button>
           ))}
         </div>
       </div>
 
       <DataCard
-        title={source === "orders" ? "Orders" : "Attendance"}
+        title={sourceLabel(source)}
         meta={
           records.currentData
-            ? `${records.currentData.totalElements} records`
+            ? t("audit.meta.records", "{count} records", {
+                count: records.currentData.totalElements,
+              })
             : undefined
         }
       >
@@ -209,7 +223,9 @@ export default function AuditManagementView() {
             error={list.error}
             isEmpty={list.showRows && !records.currentData?.content.length}
             emptyLabel={
-              source === "orders" ? "No orders yet." : "No shifts recorded yet."
+              source === "orders"
+                ? t("audit.empty.orders", "No orders yet.")
+                : t("audit.empty.shifts", "No shifts recorded yet.")
             }
             onRetry={records.refetch}
           />
@@ -225,7 +241,7 @@ export default function AuditManagementView() {
                   <Cell>
                     {order.customerName
                       ? titleCase(order.customerName)
-                      : "Walk-in"}
+                      : t("audit.walk_in", "Walk-in")}
                   </Cell>
                   <Cell>{money(order.totalAmount)}</Cell>
                   <Cell>
@@ -265,7 +281,11 @@ export default function AuditManagementView() {
                   <Cell>{formatWorked(shift.workedMinutes)}</Cell>
                   <Cell>
                     <StatusBadge
-                      label={shift.open ? "On shift" : "Closed"}
+                      label={
+                        shift.open
+                          ? t("audit.shift.on_shift", "On shift")
+                          : t("audit.shift.closed", "Closed")
+                      }
                       tone={shift.open ? "info" : "neutral"}
                     />
                   </Cell>
@@ -304,10 +324,11 @@ export default function AuditManagementView() {
 }
 
 function ViewHistoryButton({ onClick }: { onClick: () => void }) {
+  const { t } = useI18n();
   return (
     <button type="button" className="btn_outline_black" onClick={onClick}>
       <History />
-      View
+      {t("actions.view", "View")}
     </button>
   );
 }
@@ -319,28 +340,37 @@ function OrderHistoryModal({
   order: OrderResponse | null;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const history = useGetOrderHistoryQuery(order?.id ?? "", { skip: !order });
 
   return (
     <DetailModal
       open={order !== null}
       onOpenChange={(open) => !open && onClose()}
-      title={order ? `Order #${shortId(order.id)}` : "Order history"}
+      title={
+        order
+          ? t("audit.modal.order_title", "Order #{id}", { id: shortId(order.id) })
+          : t("audit.modal.order_history", "Order history")
+      }
     >
       {order && (
         <div className="admin_modal_form_wrap">
           <DetailGrid>
-            <DetailItem label="Customer">
-              {order.customerName ? titleCase(order.customerName) : "Walk-in"}
+            <DetailItem label={t("fields.customer", "Customer")}>
+              {order.customerName
+                ? titleCase(order.customerName)
+                : t("audit.walk_in", "Walk-in")}
             </DetailItem>
-            <DetailItem label="Status">
+            <DetailItem label={t("fields.status", "Status")}>
               <StatusBadge
                 label={humanise(order.status)}
                 tone={orderTone(order.status)}
               />
             </DetailItem>
-            <DetailItem label="Total">{money(order.totalAmount)}</DetailItem>
-            <DetailItem label="Placed">
+            <DetailItem label={t("fields.total", "Total")}>
+              {money(order.totalAmount)}
+            </DetailItem>
+            <DetailItem label={t("audit.fields.placed", "Placed")}>
               {formatDateTime(order.createdAt)}
             </DetailItem>
           </DetailGrid>
@@ -371,6 +401,7 @@ function ShiftHistoryModal({
   shift: AttendanceResponse | null;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const history = useGetAttendanceHistoryQuery(shift?.id ?? "", {
     skip: !shift,
   });
@@ -380,26 +411,34 @@ function ShiftHistoryModal({
       open={shift !== null}
       onOpenChange={(open) => !open && onClose()}
       title={
-        shift ? `${titleCase(shift.baristaName)}'s shift` : "Shift history"
+        shift
+          ? t("audit.modal.shift_title", "{name}'s shift", {
+              name: titleCase(shift.baristaName),
+            })
+          : t("audit.modal.shift_history", "Shift history")
       }
     >
       {shift && (
         <div className="admin_modal_form_wrap">
           <DetailGrid>
-            <DetailItem label="Check In">
+            <DetailItem label={t("audit.fields.check_in", "Check In")}>
               {formatDateTime(shift.checkInAt)}
             </DetailItem>
-            <DetailItem label="Check Out">
+            <DetailItem label={t("audit.fields.check_out", "Check Out")}>
               {shift.checkOutAt
                 ? formatDateTime(shift.checkOutAt)
-                : "Still on shift"}
+                : t("audit.shift.still_on_shift", "Still on shift")}
             </DetailItem>
-            <DetailItem label="Worked">
+            <DetailItem label={t("audit.fields.worked", "Worked")}>
               {formatWorked(shift.workedMinutes)}
             </DetailItem>
-            <DetailItem label="Status">
+            <DetailItem label={t("fields.status", "Status")}>
               <StatusBadge
-                label={shift.open ? "On shift" : "Closed"}
+                label={
+                  shift.open
+                    ? t("audit.shift.on_shift", "On shift")
+                    : t("audit.shift.closed", "Closed")
+                }
                 tone={shift.open ? "info" : "neutral"}
               />
             </DetailItem>
@@ -444,6 +483,7 @@ function Timeline({
   };
   entries: TimelineEntry[] | undefined;
 }) {
+  const { t } = useI18n();
   const state = listLoadState(query);
   const sorted = [...(entries ?? [])].sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
@@ -453,11 +493,15 @@ function Timeline({
     <section className="mt-6">
       <h4 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900">
         <ClipboardList className="h-4 w-4 text-gray-400" />
-        Activity
+        {t("audit.timeline.title", "Activity")}
       </h4>
 
       {state.isLoading ? (
-        <ol className="space-y-5" role="status" aria-label="Loading history">
+        <ol
+          className="space-y-5"
+          role="status"
+          aria-label={t("audit.timeline.loading", "Loading history")}
+        >
           {[0, 1, 2].map((i) => (
             <li key={i} className="flex gap-3">
               <SkeletonBlock className="mt-1 h-3 w-3 shrink-0 rounded-full" />
@@ -471,13 +515,13 @@ function Timeline({
       ) : state.error ? (
         <ErrorState
           error={state.error}
-          fallback="Could not load the history."
+          fallback={t("audit.timeline.error", "Could not load the history.")}
           onRetry={() => query.refetch()}
           isRetrying={query.isFetching}
         />
       ) : sorted.length === 0 ? (
         <p className="rounded-lg bg-gray-50 p-4 text-center text-sm text-gray-500">
-          Nothing has been recorded for this yet.
+          {t("audit.timeline.empty", "Nothing has been recorded for this yet.")}
         </p>
       ) : (
         <ol className="relative space-y-5 border-l border-gray-200 pl-5">
@@ -502,8 +546,15 @@ function Timeline({
               </div>
               <p className="mt-0.5 text-xs text-gray-500">
                 {entry.actorName
-                  ? `by ${titleCase(entry.actorName)}${entry.actorRole ? ` · ${humanise(entry.actorRole)}` : ""}`
-                  : "Automatic"}
+                  ? entry.actorRole
+                    ? t("audit.timeline.by_role", "by {name} · {role}", {
+                        name: titleCase(entry.actorName),
+                        role: humanise(entry.actorRole),
+                      })
+                    : t("audit.timeline.by", "by {name}", {
+                        name: titleCase(entry.actorName),
+                      })
+                  : t("audit.timeline.automatic", "Automatic")}
               </p>
               {entry.note ? (
                 <p className="mt-1 rounded-md bg-gray-50 px-2.5 py-1.5 text-xs text-gray-600">

@@ -13,6 +13,7 @@ import {
 } from "@/lib/welcomeToast";
 import { humanise } from "@/lib/utils";
 import { useGetCurrentUserQuery } from "@/store/api/authApi";
+import { translate, useI18n } from "@/contexts/I18nContext";
 
 const WELCOME_DURATION = 5000;
 
@@ -33,6 +34,7 @@ function WelcomeToastCard({
   initials,
   avatarUrl,
 }: WelcomeToastCardProps) {
+  const { t: tr } = useI18n();
   return (
     <div
       role="status"
@@ -60,7 +62,7 @@ function WelcomeToastCard({
       <button
         type="button"
         onClick={() => toast.dismiss(t.id)}
-        aria-label="Dismiss"
+        aria-label={tr("toast.dismiss_short", "Dismiss")}
         className="welcome_toast_close"
       >
         <X aria-hidden="true" />
@@ -85,8 +87,8 @@ export function LoginWelcome() {
         <WelcomeToastCard
           t={t}
           greeting={timeOfDayGreeting()}
-          title={name ? `Welcome back, ${name}` : "Welcome back"}
-          description={`Signed in as ${humanise(user.role)}`}
+          title={name ? translate("welcome.back_name", "Welcome back, {name}", { name }) : translate("welcome.back", "Welcome back")}
+          description={translate("welcome.signed_in_as", "Signed in as {role}", { role: humanise(user.role) })}
           initials={initials(user.fullName)}
           avatarUrl={user.avatarUrl}
         />

@@ -1,0 +1,92 @@
+{
+  "title": "POS",
+  "breadcrumb": {
+    "point_of_sale": "Point of Sale"
+  },
+  "pending": {
+    "awaiting_payment": "Order #{id} is awaiting payment. Retry payment or clear the order to cancel it.",
+    "resume_payment": "Resume payment"
+  },
+  "catalog": {
+    "aria_label": "Product catalog",
+    "categories_aria_label": "Product categories",
+    "all": "All",
+    "search_placeholder": "Search product by name or SKU",
+    "loading_aria_label": "Loading products",
+    "load_error": "Could not load products.",
+    "empty": "No active products in this category."
+  },
+  "product": {
+    "discount_off": "{amount} off",
+    "in_stock": "In stock: {count}"
+  },
+  "quantity": {
+    "decrease": "Decrease quantity",
+    "increase": "Increase quantity"
+  },
+  "order": {
+    "aria_label": "Order summary",
+    "title": "Order Summary",
+    "clear_aria_label": "Clear order",
+    "note_label": "Order note",
+    "note_placeholder": "No note",
+    "note_dine_in": "Dine in",
+    "note_takeaway": "Takeaway",
+    "note_delivery": "Delivery",
+    "table_label": "Table",
+    "table_placeholder": "No table",
+    "table_option": "Table {number}",
+    "walk_in": "Walk-in",
+    "item_count_one": "{count} item",
+    "item_count_other": "{count} items"
+  },
+  "cart": {
+    "empty": "Cart is empty. Tap a product to add it.",
+    "remove_item": "Remove {name}"
+  },
+  "totals": {
+    "subtotal": "Subtotal:",
+    "items_one": "{count} Item",
+    "items_other": "{count} Items",
+    "total_discount": "Total Discount:",
+    "grand_total": "Grand Total:"
+  },
+  "actions": {
+    "make_payment": "Make a Payment",
+    "view_order": "View order"
+  },
+  "payment": {
+    "title": "Checkout Order Payment",
+    "method_aria_label": "Payment method",
+    "calculator_aria_label": "Payment calculator",
+    "payable_amount": "Payable Amount (Grand Total)",
+    "cash_currency_aria_label": "Cash currency",
+    "exact": "Exact",
+    "backspace": "Backspace",
+    "qr_currency_aria_label": "QR currency",
+    "qr_alt": "Bakong KHQR for this order",
+    "no_qr": "No QR generated yet.",
+    "scan_hint": "Have the customer scan this on their banking app — this screen is for the counter, not their phone.",
+    "expires_in": "Expires in {time}",
+    "waiting": "Waiting for payment — confirms automatically",
+    "new_qr": "Get a new QR",
+    "generate_qr": "Generate QR",
+    "qty": "QTY: {quantity}",
+    "credit": "Credit:",
+    "balance": "Balance:",
+    "confirm": "Confirm Payment",
+    "total": "Total:"
+  },
+  "toast": {
+    "finish_payment_first": "Finish or cancel the payment before editing the order.",
+    "not_enough_stock": "{name} does not have enough stock.",
+    "out_of_stock": "{name} is out of stock.",
+    "order_cancelled": "Order #{id} was cancelled. The cart is kept — take payment again to start a new order."
+  },
+  "errors": {
+    "cancel_pending": "Could not cancel the pending order. Check its payment status.",
+    "complete_sale": "Could not complete the sale.",
+    "generate_qr": "Could not generate the payment QR.",
+    "check_payment": "Could not check the payment."
+  }
+}

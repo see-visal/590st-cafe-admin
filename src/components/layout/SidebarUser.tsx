@@ -8,6 +8,7 @@ import { LogOut } from "lucide-react";
 import { useGetCurrentUserQuery, useLogoutMutation } from "@/store/api/authApi";
 import { humanise, titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useI18n } from "@/contexts/I18nContext";
 
 export function SidebarUser({ onNavigate }: { onNavigate?: () => void } = {}) {
   const router = useRouter();
@@ -15,22 +16,25 @@ export function SidebarUser({ onNavigate }: { onNavigate?: () => void } = {}) {
   const { data: user, isLoading } = useGetCurrentUserQuery();
   const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
   const { confirm, confirmDialog } = useConfirmDialog();
+  const { t } = useI18n();
 
   const name = user?.fullName
     ? titleCase(user.fullName)
     : isLoading
-      ? "Loading..."
-      : "Account";
+      ? t("states.loading", "Loading...")
+      : t("account.account", "Account");
   const role = user?.role ? humanise(user.role) : (user?.email ?? "");
   const isOnProfile = pathname === "/profile";
 
   const handleLogout = async () => {
     if (
       !(await confirm({
-        title: "Sign out?",
-        description:
+        title: t("account.sign_out_title", "Sign out?"),
+        description: t(
+          "account.sign_out_description",
           "You'll need to log in again to access the admin dashboard.",
-        confirmLabel: "Sign out",
+        ),
+        confirmLabel: t("actions.sign_out", "Sign out"),
         tone: "danger",
       }))
     ) {
@@ -49,7 +53,7 @@ export function SidebarUser({ onNavigate }: { onNavigate?: () => void } = {}) {
         href="/profile"
         onClick={onNavigate}
         aria-current={isOnProfile ? "page" : undefined}
-        title="View and edit your profile"
+        title={t("account.view_profile", "View and edit your profile")}
         className="sidebar_user_link flex min-w-0 flex-1 items-center gap-3 rounded-lg transition hover:opacity-80"
       >
         <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-sm font-semibold text-black">
@@ -76,8 +80,8 @@ export function SidebarUser({ onNavigate }: { onNavigate?: () => void } = {}) {
         type="button"
         onClick={handleLogout}
         disabled={isLoggingOut}
-        aria-label="Sign out"
-        title="Sign out"
+        aria-label={t("actions.sign_out", "Sign out")}
+        title={t("actions.sign_out", "Sign out")}
         className="sidebar_user_logout shrink-0 text-white/65 transition hover:text-white disabled:opacity-50"
       >
         <LogOut className="h-4 w-4" />

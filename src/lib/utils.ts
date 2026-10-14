@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { parseShopDateTime } from "@/lib/estimate";
+import { translate } from "@/contexts/translate";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -94,10 +95,10 @@ export function timeAgo(value: string): string {
   const then = parseShopDateTime(value).getTime();
   if (Number.isNaN(then)) return "";
   const minutes = Math.max(0, Math.round((Date.now() - then) / 60000));
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 60) return translate("time.minutes_ago", "{count} min ago", { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hr ago`;
-  return `${Math.floor(hours / 24)} d ago`;
+  if (hours < 24) return translate("time.hours_ago", "{count} hr ago", { count: hours });
+  return translate("time.days_ago", "{count} d ago", { count: Math.floor(hours / 24) });
 }
 
 export function productPriceLabel(
@@ -106,7 +107,7 @@ export function productPriceLabel(
   const active = variants
     .filter((v) => v.status === "ACTIVE")
     .map((v) => Number(v.finalPrice));
-  if (active.length === 0) return "No price set";
+  if (active.length === 0) return translate("price.none", "No price set");
   const min = Math.min(...active);
   const max = Math.max(...active);
   return min === max

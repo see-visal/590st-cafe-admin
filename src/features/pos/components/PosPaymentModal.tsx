@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn, formatByCurrency } from "@/lib/utils";
 import type { Currency } from "@/store/api/types";
+import { useI18n } from "@/contexts/I18nContext";
 
 export type PosCartItem = {
   id: string;
@@ -87,6 +88,7 @@ export function PosPaymentModal({
   cash,
   bakong,
 }: PosPaymentModalProps) {
+  const { t } = useI18n();
   const payable = useMemo(() => {
     if (cash.currency === "USD" || !cash.khrPerUsdRate) return total;
     return total * cash.khrPerUsdRate;
@@ -135,11 +137,11 @@ export function PosPaymentModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="admin_modal is_pos_payment">
         <DialogHeader className="admin_modal_header">
-          <DialogTitle className="admin_modal_title">Checkout Order Payment</DialogTitle>
+          <DialogTitle className="admin_modal_title">{t("pos.payment.title", "Checkout Order Payment")}</DialogTitle>
         </DialogHeader>
 
         <div className="pos_payment_modal_body">
-          <div className="pos_payment_method_tabs" role="tablist" aria-label="Payment method">
+          <div className="pos_payment_method_tabs" role="tablist" aria-label={t("pos.payment.method_aria_label", "Payment method")}>
             <button
               type="button"
               role="tab"
@@ -161,9 +163,9 @@ export function PosPaymentModal({
           </div>
 
           <div className="pos_payment_modal_layout">
-            <section className="pos_payment_left" aria-label="Payment calculator">
+            <section className="pos_payment_left" aria-label={t("pos.payment.calculator_aria_label", "Payment calculator")}>
               <div className="pos_payment_payable">
-                <p>Payable Amount (Grand Total)</p>
+                <p>{t("pos.payment.payable_amount", "Payable Amount (Grand Total)")}</p>
                 <strong>{formatByCurrency(payable, isBakong ? "USD" : cash.currency)}</strong>
               </div>
 
@@ -171,7 +173,7 @@ export function PosPaymentModal({
                 <div className="pos_payment_cash">
                   <div className="pos_payment_cash_head">
                     <span className="pos_payment_cash_label">Cash</span>
-                    <div className="pos_payment_currency_tabs" role="tablist" aria-label="Cash currency">
+                    <div className="pos_payment_currency_tabs" role="tablist" aria-label={t("pos.payment.cash_currency_aria_label", "Cash currency")}>
                       {(["USD", "KHR"] as const).map((option) => (
                         <button
                           key={option}
@@ -201,7 +203,7 @@ export function PosPaymentModal({
                       className="pos_payment_quick_btn"
                       onClick={() => setCashInput(formatForInput(payable, cash.currency))}
                     >
-                      Exact
+                      {t("pos.payment.exact", "Exact")}
                     </button>
                     {QUICK_AMOUNTS[cash.currency].map((amount) => (
                       <button
@@ -224,7 +226,7 @@ export function PosPaymentModal({
                               key={key}
                               type="button"
                               className="pos_payment_key is_icon"
-                              aria-label="Backspace"
+                              aria-label={t("pos.payment.backspace", "Backspace")}
                               onClick={handleBackspace}
                             >
                               <Delete />
@@ -258,13 +260,13 @@ export function PosPaymentModal({
                       className="pos_payment_key col-span-2 is_cancel"
                       onClick={() => setCashInput("0")}
                     >
-                      Clear
+                      {t("actions.clear", "Clear")}
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="pos_payment_bakong">
-                  <div className="pos_payment_currency_tabs" role="tablist" aria-label="QR currency">
+                  <div className="pos_payment_currency_tabs" role="tablist" aria-label={t("pos.payment.qr_currency_aria_label", "QR currency")}>
                     {(["USD", "KHR"] as const).map((option) => (
                       <button
                         key={option}
@@ -287,7 +289,7 @@ export function PosPaymentModal({
                     {bakong.qrDataUrl ? (
                       <Image
                         src={bakong.qrDataUrl}
-                        alt="Bakong KHQR for this order"
+                        alt={t("pos.payment.qr_alt", "Bakong KHQR for this order")}
                         width={220}
                         height={220}
                         unoptimized
@@ -296,7 +298,7 @@ export function PosPaymentModal({
                       <Loader2 className="h-8 w-8 animate-spin text-gray-300" />
                     ) : (
                       <p className="px-4 text-center text-xs font-semibold text-gray-500">
-                        {bakong.failure ?? "No QR generated yet."}
+                        {bakong.failure ?? t("pos.payment.no_qr", "No QR generated yet.")}
                       </p>
                     )}
                   </div>
@@ -307,11 +309,13 @@ export function PosPaymentModal({
                         {formatByCurrency(Number(bakong.amount ?? 0), bakong.currency)}
                       </p>
                       <p className="pos_payment_bakong_hint">
-                        Have the customer scan this on their banking app — this screen is for
-                        the counter, not their phone.
+                        {t(
+                          "pos.payment.scan_hint",
+                          "Have the customer scan this on their banking app — this screen is for the counter, not their phone."
+                        )}
                       </p>
                       <p className="pos_payment_bakong_timer">
-                        Expires in {formatCountdown(bakong.secondsLeft)}
+                        {t("pos.payment.expires_in", "Expires in {time}", { time: formatCountdown(bakong.secondsLeft) })}
                       </p>
                     </>
                   )}
@@ -324,7 +328,7 @@ export function PosPaymentModal({
                     {bakong.qrDataUrl && (bakong.secondsLeft ?? 0) > 0 ? (
                       <p className="pos_payment_bakong_status" role="status" aria-live="polite">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                        Waiting for payment — confirms automatically
+                        {t("pos.payment.waiting", "Waiting for payment — confirms automatically")}
                       </p>
                     ) : (
                       <button
@@ -334,7 +338,9 @@ export function PosPaymentModal({
                         onClick={bakong.onRetry}
                       >
                         <RefreshCw className="mr-1 inline h-3.5 w-3.5" />
-                        {bakong.qrDataUrl ? "Get a new QR" : "Generate QR"}
+                        {bakong.qrDataUrl
+                          ? t("pos.payment.new_qr", "Get a new QR")
+                          : t("pos.payment.generate_qr", "Generate QR")}
                       </button>
                     )}
                   </div>
@@ -342,9 +348,9 @@ export function PosPaymentModal({
               )}
             </section>
 
-            <section className="pos_payment_right" aria-label="Order summary">
+            <section className="pos_payment_right" aria-label={t("pos.order.aria_label", "Order summary")}>
               <div className="pos_payment_summary_head">
-                <h2>Order Summary</h2>
+                <h2>{t("pos.order.title", "Order Summary")}</h2>
                 <div>
                   <strong>{orderTable}</strong>
                   <span>{orderId}</span>
@@ -359,7 +365,7 @@ export function PosPaymentModal({
                       {item.note ? <p>{item.note}</p> : null}
                     </div>
                     <div className="pos_payment_item_meta">
-                      <strong>QTY: {item.quantity}</strong>
+                      <strong>{t("pos.payment.qty", "QTY: {quantity}", { quantity: item.quantity })}</strong>
                       <div className="pos_cart_price">
                         {item.originalPrice ? (
                           <span className="is_struck">${item.originalPrice.toFixed(2)}</span>
@@ -374,9 +380,9 @@ export function PosPaymentModal({
               {!isBakong ? (
                 <>
                   <dl className="pos_payment_totals">
-                    <dt>Credit:</dt>
+                    <dt>{t("pos.payment.credit", "Credit:")}</dt>
                     <dd>{formatByCurrency(credit, cash.currency)}</dd>
-                    <dt className="is_balance">Balance:</dt>
+                    <dt className="is_balance">{t("pos.payment.balance", "Balance:")}</dt>
                     <dd className={cn("is_balance", balance < 0 && "is_negative")}>
                       {balance < 0 ? "-" : ""}
                       {formatByCurrency(Math.abs(balance), cash.currency)}
@@ -389,12 +395,14 @@ export function PosPaymentModal({
                     disabled={isLoading || balance < 0 || items.length === 0}
                     onClick={() => onConfirm?.(cash.currency, credit)}
                   >
-                    {isLoading ? "Processing..." : "Confirm Payment"}
+                    {isLoading
+                      ? t("states.processing", "Processing...")
+                      : t("pos.payment.confirm", "Confirm Payment")}
                   </button>
                 </>
               ) : (
                 <dl className="pos_payment_totals">
-                  <dt>Total:</dt>
+                  <dt>{t("pos.payment.total", "Total:")}</dt>
                   <dd>${total.toFixed(2)}</dd>
                 </dl>
               )}

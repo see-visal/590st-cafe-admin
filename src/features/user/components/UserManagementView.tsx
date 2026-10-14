@@ -31,6 +31,7 @@ import {
   Thumbnail,
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
+import { useI18n } from "@/contexts/I18nContext";
 import { usePageSize, useRefreshOptions } from "@/contexts/AdminPreferencesContext";
 import { useListUsersQuery, useUpdateUserStatusMutation, useUpdateUserMutation, useDeleteUserMutation } from "@/store/api/userApi";
 import type { Gender, Role, UserResponse, UserStatus } from "@/store/api/types";
@@ -43,18 +44,6 @@ import { parseForm } from "@/lib/validation";
 import { userAccountSchema } from "@/lib/formSchemas";
 
 export { humanise };
-
-const USER_TABLE_HEADERS = [
-  "No",
-  "Avatar",
-  "Full Name",
-  "Email",
-  "Phone Number",
-  "Role",
-  "Telegram",
-  "Status",
-  "Action",
-] as const;
 
 const USER_STATUSES: UserStatus[] = [
   "ACTIVE",
@@ -76,13 +65,27 @@ export function statusTone(
 
 export default function UserManagementView({
   role,
-  title = "Users",
-  emptyLabel = "No user accounts found.",
+  title: titleProp,
+  emptyLabel: emptyLabelProp,
 }: {
   role?: Role;
   title?: string;
   emptyLabel?: string;
 } = {}) {
+  const { t } = useI18n();
+  const title = titleProp ?? t("users.title", "Users");
+  const emptyLabel = emptyLabelProp ?? t("users.empty.default", "No user accounts found.");
+  const userTableHeaders = [
+    t("table.no", "No"),
+    t("users.table.avatar", "Avatar"),
+    t("fields.full_name", "Full Name"),
+    t("fields.email", "Email"),
+    t("fields.phone_number", "Phone Number"),
+    t("fields.role", "Role"),
+    "Telegram",
+    t("fields.status", "Status"),
+    t("table.action", "Action"),
+  ];
   const { confirm, confirmDialog } = useConfirmDialog();
   const [page, setPage] = usePersistentState(`users-${role ?? "all"}:page`, 1);
   const [size, setSize] = usePageSize();
@@ -147,26 +150,30 @@ export default function UserManagementView({
       await updateUser({ id: selected.id, body: {
         fullName: parsed.fullName, phoneNumber: parsed.phoneNumber ?? "", ...(gender ? { gender } : {}),
       } }).unwrap();
-      toast.success("Account updated");
+      toast.success(t("users.toast.updated", "Account updated"));
       setEditOpen(false);
       setSelected(null);
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not update the account."));
+      toast.error(apiErrorMessage(err as never, t("users.toast.update_failed", "Could not update the account.")));
     }
   };
 
   const handleDelete = async (user: UserResponse) => {
     if (!(await confirm({
-      title: "Delete user account",
-      description: `Delete ${user.fullName}'s account? They will lose access. Past orders and attendance will be retained.`,
-      confirmLabel: "Delete",
+      title: t("users.confirm.delete_title", "Delete user account"),
+      description: t(
+        "users.confirm.delete_description",
+        "Delete {name}'s account? They will lose access. Past orders and attendance will be retained.",
+        { name: user.fullName }
+      ),
+      confirmLabel: t("actions.delete", "Delete"),
       tone: "danger",
     }))) return;
     try {
       await deleteUser(user.id).unwrap();
-      toast.success("Account deleted");
+      toast.success(t("users.toast.deleted", "Account deleted"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not delete the account."));
+      toast.error(apiErrorMessage(err as never, t("users.toast.delete_failed", "Could not delete the account.")));
     }
   };
 
@@ -174,11 +181,16 @@ export default function UserManagementView({
     if (!selected) return;
     try {
       await updateStatus({ id: selected.id, status: nextStatus }).unwrap();
-      toast.success(`${selected.fullName} is now ${humanise(nextStatus)}`);
+      toast.success(
+        t("users.toast.status_updated", "{name} is now {status}", {
+          name: selected.fullName,
+          status: humanise(nextStatus),
+        })
+      );
       setStatusOpen(false);
       setSelected(null);
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not update the account status."));
+      toast.error(apiErrorMessage(err as never, t("users.toast.status_failed", "Could not update the account status.")));
     }
   };
 
@@ -186,26 +198,26 @@ export default function UserManagementView({
     <PageShell>
       <PageHeader
         title={title}
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: title }]}
+        breadcrumbs={[{ label: t("breadcrumb.home", "Home"), href: "/" }, { label: title }]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <StatTile title={`All ${title}`} value={String(userPage?.totalElements ?? 0)} tone="gray" />
-        <StatTile title="Active (this page)" value={String(activeCount)} tone="green" />
+        <StatTile title={t("users.stats.all", "All {title}", { title })} value={String(userPage?.totalElements ?? 0)} tone="gray" />
+        <StatTile title={t("users.stats.active_page", "Active (this page)")} value={String(activeCount)} tone="green" />
       </div>
 
       <FilterPanel>
         <TextField
-          label="Name or Email"
-          placeholder="Search accounts"
+          label={t("users.filters.name_or_email", "Name or Email")}
+          placeholder={t("users.filters.search_placeholder", "Search accounts")}
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
         />
         {role ? null : (
           <SelectField
-            label="Role"
-            placeholder="All roles"
+            label={t("fields.role", "Role")}
+            placeholder={t("users.filters.all_roles", "All roles")}
             value={roleFilter}
             onChange={(e) => {
               setRoleFilter(e.target.value);
@@ -218,8 +230,8 @@ export default function UserManagementView({
           </SelectField>
         )}
         <SelectField
-          label="Status"
-          placeholder="All statuses"
+          label={t("fields.status", "Status")}
+          placeholder={t("users.filters.all_statuses", "All statuses")}
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
@@ -232,14 +244,14 @@ export default function UserManagementView({
         <FilterActions onClear={() => { setSearchTerm(""); setStatusFilter(""); setRoleFilter(role ?? ""); setPage(1); }} onSearch={refetch} />
       </FilterPanel>
 
-      <DataCard title={title} meta={`Total: ${userPage?.totalElements ?? 0}`}>
-        <SimpleTable headers={[...USER_TABLE_HEADERS]}>
+      <DataCard title={title} meta={t("users.meta.total", "Total: {count}", { count: userPage?.totalElements ?? 0 })}>
+        <SimpleTable headers={userTableHeaders}>
           <TableState
-            colSpan={USER_TABLE_HEADERS.length}
+            colSpan={userTableHeaders.length}
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleUsers.length === 0}
-            emptyLabel={isFiltering ? "No accounts match these filters." : emptyLabel}
+            emptyLabel={isFiltering ? t("users.empty.filtered", "No accounts match these filters.") : emptyLabel}
             onRetry={refetch}
           />
           {list.showRows &&
@@ -255,12 +267,12 @@ export default function UserManagementView({
                 <Cell>{humanise(user.role)}</Cell>
                 <Cell>
                   <StatusBadge
-                    label={user.telegramLinked ? "Linked" : "Not linked"}
+                    label={user.telegramLinked ? t("users.telegram.linked", "Linked") : t("users.telegram.not_linked", "Not linked")}
                     tone={user.telegramLinked ? "success" : "neutral"}
                   />
                 </Cell>
                 <Cell>
-                  <button type="button" aria-label={`Change status for ${user.fullName}`} disabled={isUpdating || isDeleting}
+                  <button type="button" aria-label={t("users.table.change_status_aria", "Change status for {name}", { name: user.fullName })} disabled={isUpdating || isDeleting}
                     onClick={() => { setSelected(user); setNextStatus(user.status); setStatusOpen(true); }}>
                     <StatusBadge label={humanise(user.status)} tone={statusTone(user.status)} />
                   </button>
@@ -298,11 +310,11 @@ export default function UserManagementView({
         />
       </DataCard>
 
-      <FormModal open={editOpen} onOpenChange={setEditOpen} title="Edit Account" submitLabel="Save" onSubmit={handleSaveProfile} isLoading={isSavingProfile}>
+      <FormModal open={editOpen} onOpenChange={setEditOpen} title={t("users.form.edit_title", "Edit Account")} submitLabel={t("actions.save", "Save")} onSubmit={handleSaveProfile} isLoading={isSavingProfile}>
         <ModalGrid>
-          <FormInput label="Full Name" value={fullName} onChange={(event) => setFullName(event.target.value)} required />
+          <FormInput label={t("fields.full_name", "Full Name")} value={fullName} onChange={(event) => setFullName(event.target.value)} required />
           <FormPhoneInput value={phoneNumber} onChange={setPhoneNumber} />
-          <FormSelect label="Gender" value={gender} onChange={(event) => setGender(event.target.value as Gender | "")}>
+          <FormSelect label={t("users.fields.gender", "Gender")} value={gender} onChange={(event) => setGender(event.target.value as Gender | "")}>
             <option value="MALE">Male</option>
             <option value="FEMALE">Female</option>
             <option value="OTHER">Other</option>
@@ -313,15 +325,15 @@ export default function UserManagementView({
       <FormModal
         open={statusOpen}
         onOpenChange={setStatusOpen}
-        title="Change Account Status"
-        submitLabel="Save"
+        title={t("users.status_form.title", "Change Account Status")}
+        submitLabel={t("actions.save", "Save")}
         onSubmit={handleSubmitStatus}
         isLoading={isUpdating}
       >
         <ModalGrid>
           <FormSelect
-            label={`Status for ${selected?.fullName ?? ""}`}
-            placeholder="Select status"
+            label={t("users.status_form.status_for", "Status for {name}", { name: selected?.fullName ?? "" })}
+            placeholder={t("users.status_form.placeholder", "Select status")}
             value={nextStatus}
             onChange={(e) => setNextStatus(e.target.value as UserStatus)}
             required
@@ -341,31 +353,31 @@ export default function UserManagementView({
           setDetailOpen(open);
           if (!open) setSelected(null);
         }}
-        title="Account Detail"
+        title={t("users.detail.title", "Account Detail")}
       >
         {selected && (
           <div className="admin_modal_form_wrap">
             <DetailGrid>
-              <DetailItem label="Full Name">{titleCase(selected.fullName)}</DetailItem>
-              <DetailItem label="Email">{selected.email}</DetailItem>
-              <DetailItem label="Phone Number">{formatPhone(selected.phoneNumber) || "-"}</DetailItem>
-              <DetailItem label="Gender">
+              <DetailItem label={t("fields.full_name", "Full Name")}>{titleCase(selected.fullName)}</DetailItem>
+              <DetailItem label={t("fields.email", "Email")}>{selected.email}</DetailItem>
+              <DetailItem label={t("fields.phone_number", "Phone Number")}>{formatPhone(selected.phoneNumber) || "-"}</DetailItem>
+              <DetailItem label={t("users.fields.gender", "Gender")}>
                 {selected.gender ? humanise(selected.gender) : "-"}
               </DetailItem>
-              <DetailItem label="Role">{humanise(selected.role)}</DetailItem>
-              <DetailItem label="Status">
+              <DetailItem label={t("fields.role", "Role")}>{humanise(selected.role)}</DetailItem>
+              <DetailItem label={t("fields.status", "Status")}>
                 <StatusBadge
                   label={humanise(selected.status)}
                   tone={statusTone(selected.status)}
                 />
               </DetailItem>
               <DetailItem label="Telegram">
-                {selected.telegramLinked ? "Linked" : "Not linked"}
+                {selected.telegramLinked ? t("users.telegram.linked", "Linked") : t("users.telegram.not_linked", "Not linked")}
               </DetailItem>
-              <DetailItem label="Created By">
+              <DetailItem label={t("fields.created_by", "Created By")}>
                 {selected.createdByName
                   ? `${titleCase(selected.createdByName)} (${humanise(selected.createdByRole ?? "")})`
-                  : "Self-registered"}
+                  : t("users.detail.self_registered", "Self-registered")}
               </DetailItem>
             </DetailGrid>
           </div>

@@ -46,10 +46,10 @@ const LANGUAGES = [
   { code: "kh", label: "ខ្មែរ" },
 ] as const;
 
-function refreshLabel(seconds: number) {
-  if (seconds === 0) return "Off";
-  if (seconds < 60) return `${seconds}s`;
-  return `${seconds / 60} min`;
+function refreshLabel(seconds: number, t: ReturnType<typeof useI18n>["t"]) {
+  if (seconds === 0) return t("settings.refresh.off", "Off");
+  if (seconds < 60) return t("settings.refresh.seconds", "{count}s", { count: seconds });
+  return t("settings.refresh.minutes", "{count} min", { count: seconds / 60 });
 }
 
 export default function Settings() {
@@ -61,7 +61,7 @@ export default function Settings() {
     refetch: refetchUser,
   } = useGetCurrentUserQuery();
   const { isAdmin } = useCurrentRole();
-  const { locale, setLocale } = useI18n();
+  const { locale, setLocale, t } = useI18n();
   const { preferences, setPreferences, resetPreferences } = useAdminPreferences();
 
   const rateQuery = useGetExchangeRateQuery(undefined, { skip: !isAdmin });
@@ -85,11 +85,21 @@ export default function Settings() {
 
     try {
       await updateRate({ khrPerUsdRate: parsed.khrPerUsd, marketRate: parsed.marketRate }).unwrap();
-      toast.success("Exchange rate updated");
+      toast.success(t("settings.exchange.updated", "Exchange rate updated"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not update the exchange rate."));
+      toast.error(apiErrorMessage(err as never, t("settings.exchange.update_failed", "Could not update the exchange rate.")));
     }
   };
+
+  const rateUpdatedAt = rate
+    ? new Date(rate.updatedAt).toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
 
   const isDefaultPreferences =
     preferences.pageSize === DEFAULT_PREFERENCES.pageSize &&
@@ -99,16 +109,19 @@ export default function Settings() {
   return (
     <PageShell>
       <PageHeader
-        title="Settings"
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: "Settings" }]}
+        title={t("settings.title", "Settings")}
+        breadcrumbs={[
+          { label: t("breadcrumb.home", "Home"), href: "/" },
+          { label: t("settings.title", "Settings") },
+        ]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="space-y-6 lg:col-span-1">
-          <DataCard title="Signed-in Account">
+          <DataCard title={t("settings.account.title", "Signed-in Account")}>
             {isLoadingUser ? (
-              <div className="space-y-4 p-2 pb-4" role="status" aria-label="Loading your account">
+              <div className="space-y-4 p-2 pb-4" role="status" aria-label={t("settings.account.loading_aria", "Loading your account")}>
                 <div className="flex items-start gap-3">
                   <SkeletonBlock className="h-10 w-10 shrink-0 rounded-full" />
                   <div className="flex-1 space-y-2">
@@ -125,7 +138,7 @@ export default function Settings() {
             ) : userError || !currentUser ? (
               <ErrorState
                 error={userError}
-                fallback="Could not load your account."
+                fallback={t("settings.account.load_failed", "Could not load your account.")}
                 onRetry={() => refetchUser()}
                 isRetrying={isFetchingUser}
               />
@@ -144,7 +157,7 @@ export default function Settings() {
                 </div>
                 <Link href="/profile" className="btn_outline_black w-full">
                   <UserRound />
-                  Edit my profile
+                  {t("settings.account.edit_profile", "Edit my profile")}
                 </Link>
               </div>
             )}
@@ -153,17 +166,25 @@ export default function Settings() {
 
         <section className="space-y-6 lg:col-span-2">
           <DataCard
-            title="Display Preferences"
-            meta="Saved for your account in this browser, and applied the next time a screen loads."
+            title={t("settings.display.title", "Display Preferences")}
+            meta={t(
+              "settings.display.meta",
+              "Saved for your account in this browser, and applied the next time a screen loads."
+            )}
           >
             <div className="space-y-7 p-2 pb-4">
               <div>
                 <div className="flex items-center gap-2">
                   <Languages className="h-4 w-4 text-gray-500" />
-                  <label className="text-sm font-medium text-gray-700">Language</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    {t("settings.language.label", "Language")}
+                  </label>
                 </div>
                 <p className="mt-1 text-xs text-gray-400">
-                  Same setting as the flag in the header — changes the sidebar and page labels.
+                  {t(
+                    "settings.language.help",
+                    "Same setting as the flag in the header — changes the sidebar and page labels."
+                  )}
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   {LANGUAGES.map((language) => (
@@ -185,11 +206,15 @@ export default function Settings() {
               <div>
                 <div className="flex items-center gap-2">
                   <Rows3 className="h-4 w-4 text-gray-500" />
-                  <label className="text-sm font-medium text-gray-700">Rows per page</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    {t("settings.page_size.label", "Rows per page")}
+                  </label>
                 </div>
                 <p className="mt-1 text-xs text-gray-400">
-                  What the Products, Orders, Inventory, Staff and Users tables open with. Each
-                  screen&apos;s own footer still overrides it while you are on that screen.
+                  {t(
+                    "settings.page_size.help",
+                    "What the Products, Orders, Inventory, Staff and Users tables open with. Each screen's own footer still overrides it while you are on that screen."
+                  )}
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   {PAGE_SIZE_OPTIONS.map((option) => (
@@ -213,11 +238,15 @@ export default function Settings() {
               <div>
                 <div className="flex items-center gap-2">
                   <Gauge className="h-4 w-4 text-gray-500" />
-                  <label className="text-sm font-medium text-gray-700">Live refresh</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    {t("settings.refresh.label", "Live refresh")}
+                  </label>
                 </div>
                 <p className="mt-1 text-xs text-gray-400">
-                  How often the Dashboard, Orders, Payments, Users and Audit screens re-poll the
-                  API. The barista queue keeps its own faster cadence so orders are never missed.
+                  {t(
+                    "settings.refresh.help",
+                    "How often the Dashboard, Orders, Payments, Users and Audit screens re-poll the API. The barista queue keeps its own faster cadence so orders are never missed."
+                  )}
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   {REFRESH_SECONDS_OPTIONS.map((option) => (
@@ -232,7 +261,7 @@ export default function Settings() {
                           : "btn_outline_black"
                       }
                     >
-                      {refreshLabel(option)}
+                      {refreshLabel(option, t)}
                     </button>
                   ))}
                 </div>
@@ -247,9 +276,15 @@ export default function Settings() {
                     className="mt-0.5 h-4 w-4 shrink-0 accent-black"
                   />
                   <span className="text-sm text-gray-700">
-                    Pause refreshing while this tab is in the background
+                    {t(
+                      "settings.refresh.pause",
+                      "Pause refreshing while this tab is in the background"
+                    )}
                     <span className="mt-0.5 block text-xs text-gray-400">
-                      Saves API calls on a terminal left open all day.
+                      {t(
+                        "settings.refresh.pause_help",
+                        "Saves API calls on a terminal left open all day."
+                      )}
                     </span>
                   </span>
                 </label>
@@ -261,12 +296,12 @@ export default function Settings() {
                   className="btn_outline_black"
                   onClick={() => {
                     resetPreferences();
-                    toast.success("Preferences reset to defaults");
+                    toast.success(t("settings.display.reset_toast", "Preferences reset to defaults"));
                   }}
                   disabled={isDefaultPreferences}
                 >
                   <RotateCcw />
-                  Reset to defaults
+                  {t("settings.display.reset", "Reset to defaults")}
                 </button>
               </div>
             </div>
@@ -274,11 +309,14 @@ export default function Settings() {
 
           {isAdmin ? (
             <DataCard
-              title="Bakong Exchange Rate"
-              meta="Used to price KHR QR payments. Stored on the server and shared by all staff."
+              title={t("settings.exchange.title", "Bakong Exchange Rate")}
+              meta={t(
+                "settings.exchange.meta",
+                "Used to price KHR QR payments. Stored on the server and shared by all staff."
+              )}
             >
               {rateQuery.isLoading ? (
-                <div className="space-y-6 p-2 pb-4" role="status" aria-label="Loading the exchange rate">
+                <div className="space-y-6 p-2 pb-4" role="status" aria-label={t("settings.exchange.loading_aria", "Loading the exchange rate")}>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {[0, 1].map((i) => (
                       <div key={i} className="space-y-2">
@@ -292,7 +330,7 @@ export default function Settings() {
               ) : rateQuery.error ? (
                 <ErrorState
                   error={rateQuery.error}
-                  fallback="Could not load the exchange rate."
+                  fallback={t("settings.exchange.load_failed", "Could not load the exchange rate.")}
                   onRetry={() => rateQuery.refetch()}
                   isRetrying={rateQuery.isFetching}
                 />
@@ -301,7 +339,7 @@ export default function Settings() {
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <label className="block">
                       <span className="text-sm font-medium text-gray-700">
-                        KHR per USD (applied)
+                        {t("settings.exchange.applied", "KHR per USD (applied)")}
                       </span>
                       <MoneyInput
                         currency="KHR"
@@ -314,7 +352,7 @@ export default function Settings() {
                     </label>
                     <label className="block">
                       <span className="text-sm font-medium text-gray-700">
-                        Market rate (reference only)
+                        {t("settings.exchange.market", "Market rate (reference only)")}
                       </span>
                       <MoneyInput
                         currency="KHR"
@@ -329,15 +367,14 @@ export default function Settings() {
 
                   {rate ? (
                     <p className="text-xs text-gray-400">
-                      Last updated{" "}
-                      {new Date(rate.updatedAt).toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                      {rate.updatedByAdminName ? ` by ${rate.updatedByAdminName}` : ""}
+                      {rate.updatedByAdminName
+                        ? t("settings.exchange.last_updated_by", "Last updated {date} by {name}", {
+                            date: rateUpdatedAt,
+                            name: rate.updatedByAdminName,
+                          })
+                        : t("settings.exchange.last_updated", "Last updated {date}", {
+                            date: rateUpdatedAt,
+                          })}
                     </p>
                   ) : null}
 
@@ -349,7 +386,7 @@ export default function Settings() {
                       className="btn_primary_black"
                     >
                       {isSavingRate ? <Loader2 className="animate-spin" /> : null}
-                      {isSavingRate ? "Saving..." : "Save Rate"}
+                      {isSavingRate ? t("states.saving", "Saving...") : t("settings.exchange.save", "Save Rate")}
                     </button>
                   </div>
                 </div>

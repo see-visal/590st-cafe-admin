@@ -9,18 +9,20 @@ import { useDownloadBaristaOrderInvoiceMutation } from "@/store/api/baristaOrder
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import {
   invoiceFilename,
-  invoiceTitle,
+  orderCode,
 } from "@/hooks/useOrderInvoice";
 import { downloadBlob } from "@/lib/utils";
+import { translate, useI18n } from "@/contexts/I18nContext";
 
 export default function InvoiceViewerView({ orderId }: { orderId: string }) {
+  const { t } = useI18n();
   const { isAdmin } = useCurrentRole();
   const [adminDownload] = useDownloadOrderInvoiceMutation();
   const [baristaDownload] = useDownloadBaristaOrderInvoiceMutation();
   const [pdf, setPdf] = useState<{ blob: Blob; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
-  const title = invoiceTitle(orderId);
+  const title = t("orders.invoice.title", "Invoice #{code}", { code: orderCode(orderId) });
 
   useEffect(() => {
     document.title = title;
@@ -38,7 +40,7 @@ export default function InvoiceViewerView({ orderId }: { orderId: string }) {
       })
       .catch((err: FetchBaseQueryError) => {
         if (!cancelled)
-          setError(apiErrorMessage(err, "Could not load the invoice."));
+          setError(apiErrorMessage(err, translate("orders.invoice.load_error", "Could not load the invoice.")));
       });
     return () => {
       cancelled = true;
@@ -58,7 +60,7 @@ export default function InvoiceViewerView({ orderId }: { orderId: string }) {
             className="btn_primary_black"
           >
             <Printer />
-            Print
+            {t("actions.print", "Print")}
           </button>
           <button
             type="button"
@@ -67,7 +69,7 @@ export default function InvoiceViewerView({ orderId }: { orderId: string }) {
             className="btn_outline_black"
           >
             <Download />
-            Download
+            {t("actions.download", "Download")}
           </button>
         </div>
       </header>

@@ -6,6 +6,7 @@ import { fulfillmentLabel, titleCase } from "@/lib/utils";
 import { deliveryFeeSchema, parseForm } from "@/lib/validation";
 import { formatPhone } from "@/lib/phone";
 import { MoneyInput } from "@/components/forms/MoneyInput";
+import { useI18n } from "@/contexts/I18nContext";
 
 function formatDistance(meters: number): string {
   return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
@@ -20,6 +21,7 @@ export function OrderFulfillmentDetails({
   onSetDeliveryFee?: (fee: number) => void;
   isSettingFee?: boolean;
 }) {
+  const { t } = useI18n();
   const [feeInput, setFeeInput] = useState(() => (order.deliveryFee != null ? String(order.deliveryFee) : ""));
   if (!order.fulfillmentMethod && !order.contactName) return null;
   const isDelivery = order.fulfillmentMethod === "DELIVERY";
@@ -32,9 +34,9 @@ export function OrderFulfillmentDetails({
   };
 
   return <div className="my-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
-    <p className="font-semibold">{fulfillmentLabel(order) || "Pickup"}
+    <p className="font-semibold">{fulfillmentLabel(order) || t("fulfillment.pickup", "Pickup")}
       {order.contactName ? ` · ${titleCase(order.contactName)}` : ""}</p>
-    {order.contactPhone && <p className="mt-1 tabular-nums">Phone: {formatPhone(order.contactPhone)}</p>}
+    {order.contactPhone && <p className="mt-1 tabular-nums">{t("fulfillment.phone", "Phone: {phone}", { phone: formatPhone(order.contactPhone) })}</p>}
     {order.deliveryAddress && <p className="mt-1 whitespace-pre-wrap">{order.deliveryAddress}</p>}
     {isDelivery && hasPin && (
       <p className="mt-1">
@@ -44,24 +46,24 @@ export function OrderFulfillmentDetails({
           rel="noopener noreferrer"
           className="underline"
         >
-          View pinned location on map
+          {t("fulfillment.view_pin", "View pinned location on map")}
         </a>
-        {order.distanceMeters != null ? ` · ${formatDistance(Number(order.distanceMeters))} from the shop` : ""}
+        {order.distanceMeters != null ? ` · ${t("fulfillment.distance", "{distance} from the shop", { distance: formatDistance(Number(order.distanceMeters)) })}` : ""}
       </p>
     )}
     {isDelivery && order.deliveryFee != null && (
-      <p className="mt-1">Delivery fee included: ${Number(order.deliveryFee).toFixed(2)}</p>
+      <p className="mt-1">{t("fulfillment.fee_included", "Delivery fee included: {fee}", { fee: `$${Number(order.deliveryFee).toFixed(2)}` })}</p>
     )}
     {isDelivery && onSetDeliveryFee && (
       <div className="mt-2 flex items-center gap-2">
         <label className="flex items-center gap-1">
-          <span className="text-gray-500">{order.deliveryFee != null ? "Revise fee" : "Set fee"} (USD)</span>
+          <span className="text-gray-500">{order.deliveryFee != null ? t("fulfillment.revise_fee", "Revise fee") : t("fulfillment.set_fee", "Set fee")} (USD)</span>
           <MoneyInput
             value={feeInput}
             onValueChange={setFeeInput}
             wrapperClassName="w-24"
             className="w-full rounded border border-gray-300 py-1 pr-2 text-xs"
-            aria-label="Delivery fee in USD"
+            aria-label={t("fulfillment.fee_label", "Delivery fee in USD")}
           />
         </label>
         <button
@@ -70,7 +72,7 @@ export function OrderFulfillmentDetails({
           disabled={isSettingFee || !feeInput.trim()}
           className="rounded border border-gray-400 px-2 py-1 text-xs font-medium hover:bg-gray-100 disabled:opacity-50"
         >
-          {isSettingFee ? "Saving..." : "Save"}
+          {isSettingFee ? t("states.saving", "Saving...") : t("actions.save", "Save")}
         </button>
       </div>
     )}

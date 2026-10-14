@@ -31,6 +31,7 @@ import {
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import { usePageSize } from "@/contexts/AdminPreferencesContext";
+import { useI18n } from "@/contexts/I18nContext";
 import {
   useCreateCategoryMutation,
   useDeleteCategoryMutation,
@@ -49,17 +50,6 @@ import { parseForm } from "@/lib/validation";
 import { categorySchema } from "@/lib/formSchemas";
 
 const CATEGORY_GROUPS: CategoryGroup[] = ["FRESH_DRINK", "BEVERAGE", "SNACK"];
-
-const CATEGORY_TABLE_HEADERS = [
-  "No",
-  "Category Name",
-  "Description",
-  "Total Products",
-  "Created Date",
-  "Created By",
-  "Status",
-  "Action",
-] as const;
 
 type CategoryFormFields = {
   name: string;
@@ -93,6 +83,7 @@ function statusLabel(status: Status) {
 }
 
 export default function Categories() {
+  const { t } = useI18n();
   const { isAdmin } = useCurrentRole();
   const { confirm, confirmDialog } = useConfirmDialog();
   const [page, setPage] = usePersistentState("categories:page", 1);
@@ -129,6 +120,17 @@ export default function Categories() {
   const [formFields, setFormFields] = usePersistentState<CategoryFormFields>("categories:formFields", EMPTY_FORM);
 
   const categories = useMemo(() => categoryPage?.content ?? [], [categoryPage]);
+
+  const categoryTableHeaders = [
+    t("table.no", "No"),
+    t("categories.fields.category_name", "Category Name"),
+    t("fields.description", "Description"),
+    t("categories.fields.total_products", "Total Products"),
+    t("fields.created_date", "Created Date"),
+    t("fields.created_by", "Created By"),
+    t("fields.status", "Status"),
+    t("table.action", "Action"),
+  ];
 
   const productCountByCategory = useMemo(() => {
     const counts = new Map<string, number>();
@@ -189,25 +191,25 @@ export default function Categories() {
           id: selected.id,
           body: { name, description, status: formFields.status, categoryGroup },
         }).unwrap();
-        toast.success("Category updated");
+        toast.success(t("categories.toast.updated", "Category updated"));
       } else {
         await createCategory({ name, description, categoryGroup }).unwrap();
-        toast.success("Category created");
+        toast.success(t("categories.toast.created", "Category created"));
       }
       handleCloseForm();
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not save the category."));
+      toast.error(apiErrorMessage(err as never, t("categories.errors.save", "Could not save the category.")));
     }
   };
 
   const handleDelete = async (category: CategoryResponse) => {
     if (!isAdmin) return;
-    if (!(await confirm({ title: "Delete category", description: `Delete category "${category.name}"?`, confirmLabel: "Delete", tone: "danger" }))) return;
+    if (!(await confirm({ title: t("categories.confirm.delete_title", "Delete category"), description: t("categories.confirm.delete_description", "Delete category \"{name}\"?", { name: category.name }), confirmLabel: t("actions.delete", "Delete"), tone: "danger" }))) return;
     try {
       await deleteCategory(category.id).unwrap();
-      toast.success("Category deleted");
+      toast.success(t("categories.toast.deleted", "Category deleted"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not delete the category."));
+      toast.error(apiErrorMessage(err as never, t("categories.errors.delete", "Could not delete the category.")));
     }
   };
 
@@ -219,24 +221,24 @@ export default function Categories() {
   return (
     <PageShell>
       <PageHeader
-        title="Categories List"
+        title={t("categories.title", "Categories List")}
         breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "Categories" },
-          { label: "Categories List" },
+          { label: t("breadcrumb.home", "Home"), href: "/" },
+          { label: t("categories.breadcrumb.categories", "Categories") },
+          { label: t("categories.breadcrumb.list", "Categories List") },
         ]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatTile
-          title="All Categories"
+          title={t("categories.stats.all", "All Categories")}
           value={String(categoryPage?.totalElements ?? 0)}
           tone="gray"
         />
-        <StatTile title="Active (this page)" value={String(activeCount)} tone="gray" />
+        <StatTile title={t("categories.stats.active_page", "Active (this page)")} value={String(activeCount)} tone="gray" />
         <StatTile
-          title="Products Categorised"
+          title={t("categories.stats.products_categorised", "Products Categorised")}
           value={String(productPage?.totalElements ?? 0)}
           tone="gray"
         />
@@ -244,14 +246,14 @@ export default function Categories() {
 
       <FilterPanel>
         <TextField
-          label="Category Name"
-          placeholder="Search by name"
+          label={t("categories.fields.category_name", "Category Name")}
+          placeholder={t("categories.filters.search_by_name", "Search by name")}
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
         />
         <SelectField
-          label="Status"
-          placeholder="All statuses"
+          label={t("fields.status", "Status")}
+          placeholder={t("categories.filters.all_statuses", "All statuses")}
           value={filterStatus}
           onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
         >
@@ -262,19 +264,19 @@ export default function Categories() {
       </FilterPanel>
 
       <DataCard
-        title="Categories"
-        meta={`Total Categories: ${categoryPage?.totalElements ?? 0}`}
+        title={t("categories.card.title", "Categories")}
+        meta={t("categories.card.meta", "Total Categories: {count}", { count: categoryPage?.totalElements ?? 0 })}
         actions={
-          isAdmin ? <TableActions onRegister={() => handleOpenForm()} primaryLabel="Register" /> : undefined
+          isAdmin ? <TableActions onRegister={() => handleOpenForm()} primaryLabel={t("actions.register", "Register")} /> : undefined
         }
       >
-        <SimpleTable headers={[...CATEGORY_TABLE_HEADERS]}>
+        <SimpleTable headers={categoryTableHeaders}>
           <TableState
-            colSpan={CATEGORY_TABLE_HEADERS.length}
+            colSpan={categoryTableHeaders.length}
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleCategories.length === 0}
-            emptyLabel={isFiltering ? "No categories match these filters." : isAdmin ? "No categories yet. Use Register to add the first one." : "No categories found."}
+            emptyLabel={isFiltering ? t("categories.empty.filtered", "No categories match these filters.") : isAdmin ? t("categories.empty.admin", "No categories yet. Use Register to add the first one.") : t("categories.empty.none", "No categories found.")}
             onRetry={refetch}
           />
           {list.showRows &&
@@ -319,30 +321,30 @@ export default function Categories() {
       <FormModal
         open={isAdmin && formOpen}
         onOpenChange={handleCloseForm}
-        title={selected ? "Modify Category" : "Register Category"}
-        submitLabel="Submit"
+        title={selected ? t("categories.form.modify_title", "Modify Category") : t("categories.form.register_title", "Register Category")}
+        submitLabel={t("actions.submit", "Submit")}
         onSubmit={handleSubmitForm}
         isLoading={isCreating || isUpdating}
       >
         <ModalGrid>
           <FormInput
-            label="Category Name"
-            placeholder="e.g. Coffee"
+            label={t("categories.fields.category_name", "Category Name")}
+            placeholder={t("categories.form.category_name_placeholder", "e.g. Coffee")}
             value={formFields.name}
             onChange={(e) => setFormFields({ ...formFields, name: e.target.value })}
             required
           />
           <FormInput
-            label="Description"
-            placeholder="Short description"
+            label={t("fields.description", "Description")}
+            placeholder={t("categories.form.description_placeholder", "Short description")}
             value={formFields.description}
             onChange={(e) =>
               setFormFields({ ...formFields, description: e.target.value })
             }
           />
           <FormSelect
-            label="Menu Group"
-            placeholder="Internal (not on the customer menu)"
+            label={t("categories.fields.menu_group", "Menu Group")}
+            placeholder={t("categories.form.menu_group_internal", "Internal (not on the customer menu)")}
             value={formFields.categoryGroup}
             onChange={(e) =>
               setFormFields({ ...formFields, categoryGroup: e.target.value as CategoryGroup })
@@ -356,8 +358,8 @@ export default function Categories() {
           </FormSelect>
           {selected ? (
             <FormSelect
-              label="Status"
-              placeholder="Select status"
+              label={t("fields.status", "Status")}
+              placeholder={t("categories.form.select_status", "Select status")}
               value={formFields.status}
               onChange={(e) =>
                 setFormFields({ ...formFields, status: e.target.value as Status })
@@ -376,7 +378,7 @@ export default function Categories() {
           setDetailOpen(open);
           if (!open) setSelected(null);
         }}
-        title="Category Detail"
+        title={t("categories.detail.title", "Category Detail")}
         onEdit={isAdmin ? () => {
           const category = selected;
           setDetailOpen(false);
@@ -386,27 +388,27 @@ export default function Categories() {
         {selected && (
           <div className="admin_modal_form_wrap">
             <DetailGrid>
-              <DetailItem label="Category Name">{titleCase(selected.name)}</DetailItem>
-              <DetailItem label="Description">{selected.description || "-"}</DetailItem>
-              <DetailItem label="Menu Group">
-                {selected.categoryGroup ? humanise(selected.categoryGroup) : "Internal (not on the customer menu)"}
+              <DetailItem label={t("categories.fields.category_name", "Category Name")}>{titleCase(selected.name)}</DetailItem>
+              <DetailItem label={t("fields.description", "Description")}>{selected.description || "-"}</DetailItem>
+              <DetailItem label={t("categories.fields.menu_group", "Menu Group")}>
+                {selected.categoryGroup ? humanise(selected.categoryGroup) : t("categories.form.menu_group_internal", "Internal (not on the customer menu)")}
               </DetailItem>
-              <DetailItem label="Total Products">
+              <DetailItem label={t("categories.fields.total_products", "Total Products")}>
                 {productCountByCategory.get(selected.id) ?? 0}
               </DetailItem>
-              <DetailItem label="Status">
+              <DetailItem label={t("fields.status", "Status")}>
                 <StatusBadge
                   label={statusLabel(selected.status)}
                   tone={statusTone(selected.status)}
                 />
               </DetailItem>
-              <DetailItem label="Created">
+              <DetailItem label={t("fields.created", "Created")}>
                 {formatCreatedDate(selected.createdAt)}
-                {selected.createdByName ? ` by ${titleCase(selected.createdByName)}` : ""}
+                {selected.createdByName ? ` ${t("categories.detail.by_name", "by {name}", { name: titleCase(selected.createdByName) })}` : ""}
               </DetailItem>
-              <DetailItem label="Last Updated">
+              <DetailItem label={t("fields.last_updated", "Last Updated")}>
                 {formatCreatedDate(selected.updatedAt)}
-                {selected.updatedByName ? ` by ${titleCase(selected.updatedByName)}` : ""}
+                {selected.updatedByName ? ` ${t("categories.detail.by_name", "by {name}", { name: titleCase(selected.updatedByName) })}` : ""}
               </DetailItem>
             </DetailGrid>
           </div>

@@ -22,19 +22,11 @@ import {
 } from "@/store/api/inventoryApi";
 import { useGetProductQuery } from "@/store/api/productApi";
 import { usePageSize } from "@/contexts/AdminPreferencesContext";
+import { useI18n } from "@/contexts/I18nContext";
 import type { StockMovementType } from "@/store/api/types";
 import { cn, formatSku, humanise, productPriceLabel, titleCase } from "@/lib/utils";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
-
-const MOVEMENT_TABLE_HEADERS = [
-  "Date",
-  "Type",
-  "Strategy",
-  "Quantity",
-  "Performed By",
-  "Note",
-] as const;
 
 function MovementTypeBadge({ type }: { type: StockMovementType }) {
   return (
@@ -78,6 +70,7 @@ function formatDateTime(value: string) {
 }
 
 export default function InventoryDetailView({ productId }: { productId: string }) {
+  const { t } = useI18n();
   const [page, setPage] = usePersistentState(`inventory-${productId}:page`, 1);
   const [size, setSize] = usePageSize();
 
@@ -105,25 +98,34 @@ export default function InventoryDetailView({ productId }: { productId: string }
     )
   );
 
+  const movementTableHeaders = [
+    t("fields.date", "Date"),
+    t("fields.type", "Type"),
+    t("inventory.detail.table.strategy", "Strategy"),
+    t("fields.quantity", "Quantity"),
+    t("inventory.detail.table.performed_by", "Performed By"),
+    t("fields.note", "Note"),
+  ];
+
   const breadcrumbs = [
-    { label: "Home", href: "/" },
-    { label: "Inventory", href: "/inventory" },
-    { label: item?.productName ? titleCase(item.productName) : "Detail" },
+    { label: t("breadcrumb.home", "Home"), href: "/" },
+    { label: t("inventory.breadcrumb.inventory", "Inventory"), href: "/inventory" },
+    { label: item?.productName ? titleCase(item.productName) : t("inventory.breadcrumb.detail", "Detail") },
   ];
 
   if (itemError) {
     return (
       <PageShell>
         <PageHeader
-          title="Inventory Detail"
+          title={t("inventory.detail.title", "Inventory Detail")}
           breadcrumbs={breadcrumbs}
           rightSlot={<AdminTopActions />}
         />
-        <DataCard title="Not Found">
+        <DataCard title={t("inventory.detail.not_found.title", "Not Found")}>
           <p className="py-8 text-center text-sm text-muted-foreground">
-            No inventory record for this product.{" "}
+            {t("inventory.detail.not_found.message", "No inventory record for this product.")}{" "}
             <Link href="/inventory" className="underline">
-              Back to inventory
+              {t("inventory.detail.not_found.back", "Back to inventory")}
             </Link>
           </p>
         </DataCard>
@@ -138,53 +140,57 @@ export default function InventoryDetailView({ productId }: { productId: string }
   return (
     <PageShell>
       <PageHeader
-        title={item?.productName ? titleCase(item.productName) : "Inventory Detail"}
+        title={item?.productName ? titleCase(item.productName) : t("inventory.detail.title", "Inventory Detail")}
         breadcrumbs={breadcrumbs}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <StatTile
-          title="On Hand"
+          title={t("inventory.detail.stats.on_hand", "On Hand")}
           value={isLoadingItem ? "..." : `${onHand} ${item?.unit ? humanise(item.unit) : ""}`}
           tone={level === "OK" ? "green" : level === "LOW" ? "orange" : "red"}
         />
         <StatTile
-          title="Reorder Level"
+          title={t("inventory.fields.reorder_level", "Reorder Level")}
           value={isLoadingItem ? "..." : `${reorder} ${item?.unit ? humanise(item.unit) : ""}`}
           tone="gray"
         />
         <StatTile
-          title="Price"
+          title={t("fields.price", "Price")}
           value={product ? productPriceLabel(product.variants) : "-"}
           tone="gray"
         />
         <StatTile
-          title="SKU"
+          title={t("fields.sku", "SKU")}
           value={product?.sku ? formatSku(product.sku) : "-"}
           tone="gray"
         />
       </div>
 
       <DataCard
-        title="Stock Movements"
-        meta={`Total Movements: ${movementPage?.totalElements ?? 0}`}
+        title={t("inventory.detail.movements.title", "Stock Movements")}
+        meta={t("inventory.detail.movements.meta", "Total Movements: {count}", { count: movementPage?.totalElements ?? 0 })}
         actions={
           <StatusBadge
             label={
-              level === "OK" ? "In Stock" : level === "LOW" ? "Low Stock" : "Out of Stock"
+              level === "OK"
+                ? t("inventory.levels.ok", "In Stock")
+                : level === "LOW"
+                  ? t("inventory.levels.low", "Low Stock")
+                  : t("inventory.levels.out", "Out of Stock")
             }
             tone={level === "OK" ? "success" : level === "LOW" ? "warning" : "danger"}
           />
         }
       >
-        <SimpleTable headers={[...MOVEMENT_TABLE_HEADERS]}>
+        <SimpleTable headers={movementTableHeaders}>
           <TableState
-            colSpan={MOVEMENT_TABLE_HEADERS.length}
+            colSpan={movementTableHeaders.length}
             isLoading={movements.isLoading}
             error={movements.error}
             isEmpty={(movementPage?.content.length ?? 0) === 0}
-            emptyLabel="No stock movements recorded for this product yet."
+            emptyLabel={t("inventory.detail.movements.empty", "No stock movements recorded for this product yet.")}
             onRetry={refetch}
           />
           {movements.showRows &&

@@ -40,6 +40,7 @@ import { apiErrorMessage } from "@/store/api/baseApi";
 import { usePageSize } from "@/contexts/AdminPreferencesContext";
 import { useListCategoriesQuery } from "@/store/api/categoryApi";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
+import { useI18n } from "@/contexts/I18nContext";
 import {
   useCreateProductMutation,
   useCreateVariantMutation,
@@ -58,19 +59,7 @@ import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 import { parseForm } from "@/lib/validation";
-import { productSchema, SKU_FORMAT_HINT, SKU_MAX_LENGTH } from "@/lib/formSchemas";
-
-const PRODUCT_TABLE_HEADERS = [
-  "No",
-  "Image",
-  "Name",
-  "SKU",
-  "Category",
-  "Price",
-  "Stock",
-  "Status",
-  "Action",
-] as const;
+import { productSchema, SKU_MAX_LENGTH } from "@/lib/formSchemas";
 
 const STOCK_UNITS: StockUnit[] = ["PACK", "BOX", "CARTON", "PIECE"];
 const SELL_UNITS: SellUnit[] = ["PLATE", "BOTTLE", "CAN", "CUP", "CARTON", "PACKAGE", "TANK", "PIECE"];
@@ -112,6 +101,7 @@ const money = (value: number | null | undefined) =>
   value == null ? "-" : `$${Number(value).toFixed(2)}`;
 
 export default function Products() {
+  const { t } = useI18n();
   const { isAdmin } = useCurrentRole();
   const { confirm, confirmDialog } = useConfirmDialog();
   const [page, setPage] = usePersistentState("products:page", 1);
@@ -230,7 +220,7 @@ export default function Products() {
   const handleGenerateSku = async () => {
     const name = formFields.name.trim();
     if (!name || !formFields.categoryId) {
-      toast.error("Enter a product name and choose a category to generate a SKU.");
+      toast.error(t("products.toast.sku_needs_name_category", "Enter a product name and choose a category to generate a SKU."));
       return;
     }
     try {
@@ -241,7 +231,7 @@ export default function Products() {
       }).unwrap();
       setFormFields({ ...formFields, sku: suggestion.sku, skuMode: "GENERATE" });
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not generate a SKU."));
+      toast.error(apiErrorMessage(err as never, t("products.errors.generate_sku", "Could not generate a SKU.")));
     }
   };
 
@@ -304,56 +294,68 @@ export default function Products() {
         await uploadImage({ id: productId, file: imageFile }).unwrap();
       }
 
-      toast.success(selected ? "Product updated" : "Product created");
+      toast.success(selected ? t("products.toast.updated", "Product updated") : t("products.toast.created", "Product created"));
       handleCloseForm();
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not save the product."));
+      toast.error(apiErrorMessage(err as never, t("products.errors.save", "Could not save the product.")));
     }
   };
 
   const handleDelete = async (product: ProductResponse) => {
     if (!isAdmin) return;
-    if (!(await confirm({ title: "Delete product", description: `Delete product "${product.name}"?`, confirmLabel: "Delete", tone: "danger" }))) return;
+    if (!(await confirm({ title: t("products.confirm.delete_title", "Delete product"), description: t("products.confirm.delete_description", "Delete product \"{name}\"?", { name: product.name }), confirmLabel: t("actions.delete", "Delete"), tone: "danger" }))) return;
     try {
       await deleteProduct(product.id).unwrap();
-      toast.success("Product deleted");
+      toast.success(t("products.toast.deleted", "Product deleted"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not delete the product."));
+      toast.error(apiErrorMessage(err as never, t("products.errors.delete", "Could not delete the product.")));
     }
   };
 
   const isSaving = isCreating || isCreatingVariant || isUpdating || isUploading;
 
+  const productTableHeaders = [
+    t("table.no", "No"),
+    t("fields.image", "Image"),
+    t("fields.name", "Name"),
+    t("fields.sku", "SKU"),
+    t("fields.category", "Category"),
+    t("fields.price", "Price"),
+    t("products.fields.stock", "Stock"),
+    t("fields.status", "Status"),
+    t("table.action", "Action"),
+  ];
+
   return (
     <PageShell>
       <PageHeader
-        title="Products List"
+        title={t("products.title", "Products List")}
         breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "Products" },
-          { label: "Products List" },
+          { label: t("breadcrumb.home", "Home"), href: "/" },
+          { label: t("products.breadcrumb.products", "Products") },
+          { label: t("products.title", "Products List") },
         ]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatTile
-          title="All Products"
+          title={t("products.stats.all", "All Products")}
           value={String(productPage?.totalElements ?? 0)}
           tone="gray"
         />
         <StatTile
-          title="Low Stock (this page)"
+          title={t("products.stats.low_stock_page", "Low Stock (this page)")}
           value={String(lowStockCount)}
           tone={lowStockCount > 0 ? "red" : "gray"}
         />
-        <StatTile title="On Discount" value={String(discountedCount)} tone="green" />
+        <StatTile title={t("products.stats.on_discount", "On Discount")} value={String(discountedCount)} tone="green" />
       </div>
 
       <FilterPanel>
         <TextField
-          label="Name or SKU"
-          placeholder="Search products"
+          label={t("products.filters.name_or_sku", "Name or SKU")}
+          placeholder={t("products.filters.search_placeholder", "Search products")}
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
@@ -361,8 +363,8 @@ export default function Products() {
           }}
         />
         <SelectField
-          label="Category"
-          placeholder="All categories"
+          label={t("fields.category", "Category")}
+          placeholder={t("products.filters.all_categories", "All categories")}
           value={categoryFilter}
           onChange={(e) => {
             setCategoryFilter(e.target.value);
@@ -376,8 +378,8 @@ export default function Products() {
           ))}
         </SelectField>
         <SelectField
-          label="Status"
-          placeholder="All statuses"
+          label={t("fields.status", "Status")}
+          placeholder={t("products.filters.all_statuses", "All statuses")}
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value);
@@ -391,36 +393,36 @@ export default function Products() {
       </FilterPanel>
 
       <DataCard
-        title="Products"
-        meta={`Total Products: ${productPage?.totalElements ?? 0}`}
+        title={t("products.card.title", "Products")}
+        meta={t("products.card.meta", "Total Products: {count}", { count: productPage?.totalElements ?? 0 })}
         actions={
           isAdmin ? (
             <div className="flex flex-wrap items-center gap-3">
               <ExcelImportButton
-                label="Import Excel"
-                columnsHint="Name, Category, Price, Stock Unit, plus optional Name (Khmer), Description, SKU (blank = auto-generate), Large Price, Sell Unit, Units Per Stock, Reorder Level"
+                label={t("actions.import_excel", "Import Excel")}
+                columnsHint={t("products.import.columns_hint", "Name, Category, Price, Stock Unit, plus optional Name (Khmer), Description, SKU (blank = auto-generate), Large Price, Sell Unit, Units Per Stock, Reorder Level")}
                 onImport={(file) => importProducts(file).unwrap()}
                 template={{
                   filename: "product-import-template.xlsx",
                   download: () => downloadProductTemplate().unwrap(),
                 }}
               />
-              <TableActions onRegister={() => handleOpenForm()} primaryLabel="Register" />
+              <TableActions onRegister={() => handleOpenForm()} primaryLabel={t("actions.register", "Register")} />
             </div>
           ) : undefined
         }
       >
-        <SimpleTable headers={[...PRODUCT_TABLE_HEADERS]}>
+        <SimpleTable headers={productTableHeaders}>
           <TableState
-            colSpan={PRODUCT_TABLE_HEADERS.length}
+            colSpan={productTableHeaders.length}
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleProducts.length === 0}
             emptyLabel={
-              isFiltering ? "No products match these filters."
-              : !isAdmin ? "No products found." : hasNoCategories
-                ? "No products yet — and no categories to file one under. Create a category first, then Register a product."
-                : "No products yet. Use Register to add the first one."
+              isFiltering ? t("products.empty.filtered", "No products match these filters.")
+              : !isAdmin ? t("products.empty.none", "No products found.") : hasNoCategories
+                ? t("products.empty.no_categories", "No products yet — and no categories to file one under. Create a category first, then Register a product.")
+                : t("products.empty.admin", "No products yet. Use Register to add the first one.")
             }
             onRetry={refetch}
           />
@@ -482,8 +484,8 @@ export default function Products() {
       <FormModal
         open={isAdmin && formOpen}
         onOpenChange={handleCloseForm}
-        title={selected ? "Modify Product" : "Register Product"}
-        submitLabel="Submit"
+        title={selected ? t("products.form.modify_title", "Modify Product") : t("products.form.register_title", "Register Product")}
+        submitLabel={t("actions.submit", "Submit")}
         onSubmit={handleSubmitForm}
         isLoading={isSaving}
       >
@@ -494,24 +496,24 @@ export default function Products() {
           >
             <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             <p className="text-sm text-amber-900">
-              There are no categories yet, and every product belongs to one.{" "}
+              {t("products.form.no_categories_before", "There are no categories yet, and every product belongs to one.")}{" "}
               <Link href="/categories" className="font-semibold underline">
-                Create a category
+                {t("products.form.no_categories_link", "Create a category")}
               </Link>{" "}
-              first, then come back here.
+              {t("products.form.no_categories_after", "first, then come back here.")}
             </p>
           </div>
         ) : null}
         <ModalGrid>
           <FormInput
-            label="Product Name"
-            placeholder="e.g. Iced Latte"
+            label={t("products.form.name", "Product Name")}
+            placeholder={t("products.form.name_placeholder", "e.g. Iced Latte")}
             value={formFields.name}
             onChange={(e) => updateSkuSource({ name: e.target.value })}
             required
           />
           <div className="form_field">
-            <span className="form_field_label">SKU</span>
+            <span className="form_field_label">{t("fields.sku", "SKU")}</span>
             <div className="flex gap-2">
               <input
                 value={formFields.sku}
@@ -519,10 +521,12 @@ export default function Products() {
                   setFormFields({ ...formFields, sku: e.target.value.toUpperCase(), skuMode: "MANUAL" })
                 }
                 placeholder={
-                  formFields.skuMode === "GENERATE" ? "Auto-generated on save" : "e.g. FD-COF-IL-001"
+                  formFields.skuMode === "GENERATE"
+                    ? t("products.form.sku_auto_placeholder", "Auto-generated on save")
+                    : t("products.form.sku_placeholder", "e.g. FD-COF-IL-001")
                 }
                 maxLength={SKU_MAX_LENGTH}
-                aria-label="SKU"
+                aria-label={t("fields.sku", "SKU")}
                 className="form_field_control min-w-0 flex-1"
               />
               <button
@@ -530,21 +534,21 @@ export default function Products() {
                 onClick={handleGenerateSku}
                 disabled={isGeneratingSku}
                 className="btn_outline_black shrink-0"
-                title="Generate from category and name (GROUP-CATEGORY-NAME-###)"
+                title={t("products.form.sku_generate_title", "Generate from category and name (GROUP-CATEGORY-NAME-###)")}
               >
-                {selected ? "Regenerate" : "Generate"}
+                {selected ? t("products.form.regenerate", "Regenerate") : t("products.form.generate", "Generate")}
                 <RefreshCw className={isGeneratingSku ? "animate-spin" : undefined} />
               </button>
             </div>
             <span className="text-xs text-muted-foreground">
               {formFields.skuMode === "GENERATE"
-                ? "Generated from category and name. Type to enter your own."
-                : SKU_FORMAT_HINT}
+                ? t("products.form.sku_generated_hint", "Generated from category and name. Type to enter your own.")
+                : t("validation.sku_hint", "Letters, digits and single - _ . separators, e.g. FD-COF-IL-001")}
             </span>
           </div>
           <FormSelect
-            label="Stock Unit"
-            placeholder="Select stock unit"
+            label={t("products.fields.stock_unit", "Stock Unit")}
+            placeholder={t("products.form.stock_unit_placeholder", "Select stock unit")}
             value={formFields.stockUnit}
             onChange={(e) => setFormFields({ ...formFields, stockUnit: e.target.value as StockUnit })}
             required
@@ -556,8 +560,8 @@ export default function Products() {
             ))}
           </FormSelect>
           <FormSelect
-            label="Sell Unit"
-            placeholder="Select sell unit"
+            label={t("products.fields.sell_unit", "Sell Unit")}
+            placeholder={t("products.form.sell_unit_placeholder", "Select sell unit")}
             value={formFields.sellUnit}
             onChange={(e) => setFormFields({ ...formFields, sellUnit: e.target.value as SellUnit })}
             required
@@ -569,15 +573,15 @@ export default function Products() {
             ))}
           </FormSelect>
           <FormInput
-            label="Units per Stock"
+            label={t("products.fields.units_per_stock", "Units per Stock")}
             type="number"
-            placeholder="e.g. 24 cans per carton"
+            placeholder={t("products.form.units_per_stock_placeholder", "e.g. 24 cans per carton")}
             value={formFields.unitsPerStock}
             onChange={(e) => setFormFields({ ...formFields, unitsPerStock: e.target.value })}
           />
           <FormSelect
-            label="Category"
-            placeholder="Select category"
+            label={t("fields.category", "Category")}
+            placeholder={t("products.form.category_placeholder", "Select category")}
             value={formFields.categoryId}
             onChange={(e) => updateSkuSource({ categoryId: e.target.value })}
             required
@@ -589,9 +593,9 @@ export default function Products() {
             ))}
           </FormSelect>
           <FormInput
-            label="Reorder Level"
+            label={t("products.fields.reorder_level", "Reorder Level")}
             type="number"
-            placeholder="e.g. 10"
+            placeholder={t("products.form.reorder_level_placeholder", "e.g. 10")}
             value={formFields.reorderLevel}
             onChange={(e) =>
               setFormFields({ ...formFields, reorderLevel: e.target.value })
@@ -599,8 +603,8 @@ export default function Products() {
           />
           {!selected ? (
             <FormSelect
-              label="Variant"
-              placeholder="Select variant"
+              label={t("products.fields.variant", "Variant")}
+              placeholder={t("products.form.variant_placeholder", "Select variant")}
               value={formFields.variantName}
               onChange={(e) => setFormFields({ ...formFields, variantName: e.target.value as VariantLabel })}
               required
@@ -614,7 +618,7 @@ export default function Products() {
           ) : null}
           {!selected ? (
             <MoneyField
-              label="Starting Price (USD)"
+              label={t("products.form.starting_price", "Starting Price (USD)")}
               value={formFields.variantPrice}
               onValueChange={(variantPrice) => setFormFields({ ...formFields, variantPrice })}
               required
@@ -622,42 +626,46 @@ export default function Products() {
           ) : null}
           {!selected ? (
             <p className="text-sm text-muted-foreground md:col-span-3">
-              More variants, extras and a discount can be added afterward on the configuration screen.
+              {t("products.form.more_config_hint", "More variants, extras and a discount can be added afterward on the configuration screen.")}
             </p>
           ) : null}
           {selected ? (
             <p className="text-sm text-muted-foreground md:col-span-3">
-              Price: {productPriceLabel(selected.variants)}
+              {t("products.form.price_line", "Price: {price}", { price: productPriceLabel(selected.variants) })}
               {" — "}
               <Link
                 href={`/products/${selected.id}/configuration`}
                 className="font-semibold underline"
               >
-                manage variants, extras and discount
+                {t("products.form.manage_variants_link", "manage variants, extras and discount")}
               </Link>
             </p>
           ) : null}
           {selected ? (
             <p className="text-sm text-muted-foreground md:col-span-3">
-              Discount:{" "}
-              {selected.discountValue != null
-                ? `${Number(selected.discountValue)}${
-                    selected.discountType === "PERCENTAGE" ? "%" : " USD"
-                  } off`
-                : "none"}{" "}
+              {t("products.form.discount_line", "Discount: {discount}", {
+                discount:
+                  selected.discountValue != null
+                    ? t("products.discount_off", "{value} off", {
+                        value: `${Number(selected.discountValue)}${
+                          selected.discountType === "PERCENTAGE" ? "%" : " USD"
+                        }`,
+                      })
+                    : t("products.form.discount_none", "none"),
+              })}{" "}
               —{" "}
               <Link
                 href={`/products/${selected.id}/configuration`}
                 className="font-semibold underline"
               >
-                manage discount and sizes
+                {t("products.form.manage_discount_link", "manage discount and sizes")}
               </Link>
             </p>
           ) : null}
           {selected ? (
             <FormSelect
-              label="Status"
-              placeholder="Select status"
+              label={t("fields.status", "Status")}
+              placeholder={t("products.form.status_placeholder", "Select status")}
               value={formFields.status}
               onChange={(e) =>
                 setFormFields({ ...formFields, status: e.target.value as Status })
@@ -668,8 +676,8 @@ export default function Products() {
             </FormSelect>
           ) : null}
           <FormInput
-            label="Description"
-            placeholder="Short description"
+            label={t("fields.description", "Description")}
+            placeholder={t("products.form.description_placeholder", "Short description")}
             value={formFields.description}
             onChange={(e) =>
               setFormFields({ ...formFields, description: e.target.value })
@@ -677,7 +685,7 @@ export default function Products() {
           />
           <div className="md:col-span-3">
             <FormImageUpload
-              label="Product Image"
+              label={t("products.form.image", "Product Image")}
               file={imageFile}
               onChange={setImageFile}
             />
@@ -691,7 +699,7 @@ export default function Products() {
           setDetailOpen(open);
           if (!open) setSelected(null);
         }}
-        title="Product Detail"
+        title={t("products.detail.title", "Product Detail")}
         onEdit={isAdmin ? () => {
           const product = selected;
           setDetailOpen(false);
@@ -700,47 +708,49 @@ export default function Products() {
       >
         {selected && (
           <div className="admin_modal_form_wrap">
-            {isAdmin && <Link href={`/products/${selected.id}/configuration`} className="mb-4 inline-block underline">Manage variants, extras and discount</Link>}
+            {isAdmin && <Link href={`/products/${selected.id}/configuration`} className="mb-4 inline-block underline">{t("products.detail.manage_link", "Manage variants, extras and discount")}</Link>}
             <DetailGrid>
-              <DetailItem label="Name">{titleCase(selected.name)}</DetailItem>
-              <DetailItem label="SKU">{formatSku(selected.sku)}</DetailItem>
-              <DetailItem label="Category">{titleCase(selected.categoryName)}</DetailItem>
-              <DetailItem label="Discount">
+              <DetailItem label={t("fields.name", "Name")}>{titleCase(selected.name)}</DetailItem>
+              <DetailItem label={t("fields.sku", "SKU")}>{formatSku(selected.sku)}</DetailItem>
+              <DetailItem label={t("fields.category", "Category")}>{titleCase(selected.categoryName)}</DetailItem>
+              <DetailItem label={t("products.fields.discount", "Discount")}>
                 {selected.discountActive
-                  ? `${selected.discountValue}${
-                      selected.discountType === "PERCENTAGE" ? "%" : " USD"
-                    } off`
-                  : "None"}
+                  ? t("products.discount_off", "{value} off", {
+                      value: `${selected.discountValue}${
+                        selected.discountType === "PERCENTAGE" ? "%" : " USD"
+                      }`,
+                    })
+                  : t("products.detail.none", "None")}
               </DetailItem>
-              <DetailItem label="Stock">
+              <DetailItem label={t("products.fields.stock", "Stock")}>
                 {Number(selected.quantityOnHand)} {humanise(selected.stockUnit)}
               </DetailItem>
-              <DetailItem label="Reorder Level">
+              <DetailItem label={t("products.fields.reorder_level", "Reorder Level")}>
                 {Number(selected.reorderLevel)} {humanise(selected.stockUnit)}
               </DetailItem>
-              <DetailItem label="Status">
+              <DetailItem label={t("fields.status", "Status")}>
                 <StatusBadge
                   label={selected.status === "ACTIVE" ? "Active" : "Inactive"}
                   tone={selected.status === "ACTIVE" ? "success" : "danger"}
                 />
               </DetailItem>
-              <DetailItem label="Variants">
+              <DetailItem label={t("products.fields.variants", "Variants")}>
                 {selected.variants.length > 0
                   ? selected.variants
                       .map((variant) => `${humanise(variant.name)}: ${money(variant.finalPrice)}`)
                       .join(", ")
-                  : "None yet"}
+                  : t("products.detail.none_yet", "None yet")}
               </DetailItem>
-              <DetailItem label="Extras">
+              <DetailItem label={t("products.fields.extras", "Extras")}>
                 {selected.extras.length > 0
                   ? selected.extras
                       .map((extra) => `${titleCase(extra.name)} (+${money(extra.price)})`)
                       .join(", ")
-                  : "None"}
+                  : t("products.detail.none", "None")}
               </DetailItem>
-              <DetailItem label="Description">{selected.description || "-"}</DetailItem>
+              <DetailItem label={t("fields.description", "Description")}>{selected.description || "-"}</DetailItem>
               <div className="detail_item">
-                <p className="detail_item_label">Image :</p>
+                <p className="detail_item_label">{t("products.detail.image", "Image :")}</p>
                 <DetailImage src={selected.imageUrl ?? undefined} alt={selected.name} kind="product" />
               </div>
             </DetailGrid>

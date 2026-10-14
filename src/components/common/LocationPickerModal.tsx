@@ -43,6 +43,15 @@ const PLACE_ZOOM = 17;
 
 type Notice = { tone: "info" | "error"; text: string } | null;
 
+// geoSearch is shared word-for-word with the customer site, so its English errors are translated here.
+const LOCATION_ERROR_KEYS: Record<string, string> = {
+  "Your location only works on a secure (https) page.": "map.location_insecure",
+  "This browser can't share your location.": "map.location_unsupported",
+  "Location is blocked. Allow location for this site in your browser settings, then try again.": "map.location_blocked",
+  "Finding your location took too long. Move closer to a window or try again.": "map.location_timeout",
+  "Your location isn't available right now. Turn on location services and try again.": "map.location_unavailable",
+};
+
 export function LocationPickerModal({
   open,
   onOpenChange,
@@ -114,7 +123,9 @@ export function LocationPickerModal({
         ),
       });
     } catch (err) {
-      setNotice({ tone: "error", text: (err as Error).message });
+      const { message } = err as Error;
+      const key = LOCATION_ERROR_KEYS[message];
+      setNotice({ tone: "error", text: key ? t(key, message) : message });
     } finally {
       setIsLocating(false);
     }

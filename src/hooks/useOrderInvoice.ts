@@ -7,6 +7,7 @@ import { useDownloadOrderInvoiceMutation } from "@/store/api/orderApi";
 import { useDownloadBaristaOrderInvoiceMutation } from "@/store/api/baristaOrderApi";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import { downloadBlob, printPdfBlob } from "@/lib/utils";
+import { translate } from "@/contexts/translate";
 
 type InvoiceMode = "print" | "view" | "download";
 
@@ -14,13 +15,13 @@ export const orderCode = (orderId: string) =>
   orderId.slice(0, 8).toUpperCase();
 
 export const invoiceTitle = (orderId: string) =>
-  `Invoice #${orderCode(orderId)}`;
+  translate("invoice.title", "Invoice #{code}", { code: orderCode(orderId) });
 export const invoiceFilename = (orderId: string) =>
   `invoice-${orderCode(orderId)}.pdf`;
 
-const FAILURE: Record<Exclude<InvoiceMode, "view">, string> = {
-  print: "Could not print the invoice.",
-  download: "Could not download the invoice.",
+const FAILURE: Record<Exclude<InvoiceMode, "view">, () => string> = {
+  print: () => translate("invoice.print_failed", "Could not print the invoice."),
+  download: () => translate("invoice.download_failed", "Could not download the invoice."),
 };
 
 export function useOrderInvoice() {
@@ -42,7 +43,7 @@ export function useOrderInvoice() {
       if (mode === "print") printPdfBlob(blob);
       else downloadBlob(blob, invoiceFilename(orderId));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, FAILURE[mode]));
+      toast.error(apiErrorMessage(err as never, FAILURE[mode]()));
     } finally {
       setBusy(null);
     }

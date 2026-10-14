@@ -53,18 +53,6 @@ import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
 import { parseForm } from "@/lib/validation";
 import { eventSchema } from "@/lib/formSchemas";
 
-const EVENT_TABLE_HEADERS = [
-  "No",
-  "Image",
-  "Title",
-  "Venue",
-  "Starts",
-  "Ends",
-  "Window",
-  "Status",
-  "Action",
-] as const;
-
 type EventFormFields = {
   title: string;
   description: string;
@@ -150,6 +138,18 @@ export default function EventManagementView() {
   const venueIsShop = hasVenue && isShopLocation(Number(form.latitude), Number(form.longitude));
   const [imageFile, setImageFile] = useState<File | null>(null);
 
+  const eventTableHeaders = [
+    t("table.no", "No"),
+    t("fields.image", "Image"),
+    t("fields.title", "Title"),
+    t("venue.label", "Venue"),
+    t("events.table.starts", "Starts"),
+    t("events.table.ends", "Ends"),
+    t("events.table.window", "Window"),
+    t("fields.status", "Status"),
+    t("table.action", "Action"),
+  ];
+
   const events = useMemo(() => eventPage?.content ?? [], [eventPage]);
 
   const matchingEvents = useMemo(
@@ -223,23 +223,23 @@ export default function EventManagementView() {
         await uploadImage({ id: eventId, file: imageFile }).unwrap();
       }
 
-      toast.success(selected ? "Event updated" : "Event created");
+      toast.success(selected ? t("events.toast.updated", "Event updated") : t("events.toast.created", "Event created"));
       setFormOpen(false);
       setSelected(null);
       setForm(EMPTY_FORM);
       setImageFile(null);
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not save the event."));
+      toast.error(apiErrorMessage(err as never, t("events.errors.save", "Could not save the event.")));
     }
   };
 
   const handleDelete = async (event: EventResponse) => {
-    if (!(await confirm({ title: "Delete event", description: `Delete event "${event.title}"?`, confirmLabel: "Delete", tone: "danger" }))) return;
+    if (!(await confirm({ title: t("events.confirm.delete_title", "Delete event"), description: t("events.confirm.delete_description", "Delete event \"{title}\"?", { title: event.title }), confirmLabel: t("actions.delete", "Delete"), tone: "danger" }))) return;
     try {
       await deleteEvent(event.id).unwrap();
-      toast.success("Event deleted");
+      toast.success(t("events.toast.deleted", "Event deleted"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not delete the event."));
+      toast.error(apiErrorMessage(err as never, t("events.errors.delete", "Could not delete the event.")));
     }
   };
 
@@ -248,19 +248,19 @@ export default function EventManagementView() {
   return (
     <PageShell>
       <PageHeader
-        title="Events"
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: "Events" }]}
+        title={t("events.title", "Events")}
+        breadcrumbs={[{ label: t("breadcrumb.home", "Home"), href: "/" }, { label: t("events.title", "Events") }]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <StatTile
-          title="All Events"
+          title={t("events.stats.all", "All Events")}
           value={String(eventPage?.totalElements ?? 0)}
           tone="gray"
         />
         <StatTile
-          title="Running Now (this page)"
+          title={t("events.stats.running_now", "Running Now (this page)")}
           value={String(runningCount)}
           tone={runningCount > 0 ? "green" : "gray"}
         />
@@ -268,14 +268,14 @@ export default function EventManagementView() {
 
       <FilterPanel>
         <TextField
-          label="Title"
-          placeholder="Search events"
+          label={t("fields.title", "Title")}
+          placeholder={t("events.filters.search_placeholder", "Search events")}
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
         />
         <SelectField
-          label="Status"
-          placeholder="All statuses"
+          label={t("fields.status", "Status")}
+          placeholder={t("events.filters.all_statuses", "All statuses")}
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
@@ -286,19 +286,19 @@ export default function EventManagementView() {
       </FilterPanel>
 
       <DataCard
-        title="Events"
-        meta={`Total Events: ${eventPage?.totalElements ?? 0}`}
+        title={t("events.title", "Events")}
+        meta={t("events.meta.total", "Total Events: {count}", { count: eventPage?.totalElements ?? 0 })}
         actions={
-          <TableActions onRegister={() => handleOpenForm()} primaryLabel="Add Event" />
+          <TableActions onRegister={() => handleOpenForm()} primaryLabel={t("events.add_event", "Add Event")} />
         }
       >
-        <SimpleTable headers={[...EVENT_TABLE_HEADERS]}>
+        <SimpleTable headers={eventTableHeaders}>
           <TableState
-            colSpan={EVENT_TABLE_HEADERS.length}
+            colSpan={eventTableHeaders.length}
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleEvents.length === 0}
-            emptyLabel={isFiltering ? "No events match these filters." : "No events yet. Use Add Event to create the first one."}
+            emptyLabel={isFiltering ? t("events.empty.filtered", "No events match these filters.") : t("events.empty.none", "No events yet. Use Add Event to create the first one.")}
             onRetry={refetch}
           />
           {list.showRows &&
@@ -340,10 +340,10 @@ export default function EventManagementView() {
                     <StatusBadge
                       label={
                         win === "RUNNING"
-                          ? "Running"
+                          ? t("events.window.running", "Running")
                           : win === "UPCOMING"
-                          ? "Upcoming"
-                          : "Ended"
+                          ? t("events.window.upcoming", "Upcoming")
+                          : t("events.window.ended", "Ended")
                       }
                       tone={WINDOW_TONE[win]}
                     />
@@ -385,15 +385,15 @@ export default function EventManagementView() {
       <FormModal
         open={formOpen}
         onOpenChange={setFormOpen}
-        title={selected ? "Modify Event" : "Add Event"}
-        submitLabel="Submit"
+        title={selected ? t("events.form.modify_title", "Modify Event") : t("events.add_event", "Add Event")}
+        submitLabel={t("actions.submit", "Submit")}
         onSubmit={handleSubmit}
         isLoading={isSaving}
       >
         <ModalGrid>
           <FormInput
-            label="Title"
-            placeholder="e.g. Latte Art Workshop"
+            label={t("fields.title", "Title")}
+            placeholder={t("events.form.title_placeholder", "e.g. Latte Art Workshop")}
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
             required
@@ -460,14 +460,14 @@ export default function EventManagementView() {
             </div>
           </div>
           <FormInput
-            label="Starts At"
+            label={t("events.form.starts_at", "Starts At")}
             type="datetime-local"
             value={form.startAt}
             onChange={(e) => setForm({ ...form, startAt: e.target.value })}
             required
           />
           <FormInput
-            label="Ends At"
+            label={t("events.form.ends_at", "Ends At")}
             type="datetime-local"
             value={form.endAt}
             onChange={(e) => setForm({ ...form, endAt: e.target.value })}
@@ -475,8 +475,8 @@ export default function EventManagementView() {
           />
           {selected ? (
             <FormSelect
-              label="Status"
-              placeholder="Select status"
+              label={t("fields.status", "Status")}
+              placeholder={t("events.form.select_status", "Select status")}
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as Status })}
             >
@@ -485,14 +485,14 @@ export default function EventManagementView() {
             </FormSelect>
           ) : null}
           <FormInput
-            label="Description"
-            placeholder="What is happening?"
+            label={t("fields.description", "Description")}
+            placeholder={t("events.form.description_placeholder", "What is happening?")}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
           <div className="md:col-span-3">
             <FormImageUpload
-              label="Event Image"
+              label={t("events.form.image", "Event Image")}
               file={imageFile}
               onChange={setImageFile}
             />
@@ -516,7 +516,7 @@ export default function EventManagementView() {
           setDetailOpen(open);
           if (!open) setSelected(null);
         }}
-        title="Event Detail"
+        title={t("events.detail.title", "Event Detail")}
         onEdit={() => {
           const event = selected;
           setDetailOpen(false);
@@ -526,8 +526,8 @@ export default function EventManagementView() {
         {selected && (
           <div className="admin_modal_form_wrap">
             <DetailGrid>
-              <DetailItem label="Title">{titleCase(selected.title)}</DetailItem>
-              <DetailItem label="Description">{selected.description || "-"}</DetailItem>
+              <DetailItem label={t("fields.title", "Title")}>{titleCase(selected.title)}</DetailItem>
+              <DetailItem label={t("fields.description", "Description")}>{selected.description || "-"}</DetailItem>
               <DetailItem label={t("venue.label", "Venue")}>
                 {selected.latitude != null && selected.longitude != null ? (
                   <a
@@ -544,19 +544,19 @@ export default function EventManagementView() {
                   t("venue.none", "No fixed venue")
                 )}
               </DetailItem>
-              <DetailItem label="Starts At">{formatDateTime(selected.startAt)}</DetailItem>
-              <DetailItem label="Ends At">{formatDateTime(selected.endAt)}</DetailItem>
-              <DetailItem label="Status">
+              <DetailItem label={t("events.form.starts_at", "Starts At")}>{formatDateTime(selected.startAt)}</DetailItem>
+              <DetailItem label={t("events.form.ends_at", "Ends At")}>{formatDateTime(selected.endAt)}</DetailItem>
+              <DetailItem label={t("fields.status", "Status")}>
                 <StatusBadge
                   label={selected.status === "ACTIVE" ? "Active" : "Inactive"}
                   tone={selected.status === "ACTIVE" ? "success" : "danger"}
                 />
               </DetailItem>
-              <DetailItem label="Created By">
+              <DetailItem label={t("fields.created_by", "Created By")}>
                 {selected.createdByName ? titleCase(selected.createdByName) : "-"}
               </DetailItem>
               <div className="detail_item">
-                <p className="detail_item_label">Image :</p>
+                <p className="detail_item_label">{t("fields.image", "Image")} :</p>
                 <DetailImage src={selected.imageUrl ?? undefined} alt={selected.title} />
               </div>
             </DetailGrid>

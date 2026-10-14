@@ -11,6 +11,7 @@ import { useGetCurrentUserQuery, useLogoutMutation } from "@/store/api/authApi";
 import { adminHome, canAccessAdminPage } from "@/lib/adminAccess";
 import { clearTokens, isAuthenticated } from "@/lib/authStorage";
 import { useMounted } from "@/hooks/useMounted";
+import { useI18n } from "@/contexts/I18nContext";
 
 const AUTO_RETRY_MS = 5000;
 
@@ -22,6 +23,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const mounted = useMounted();
+  const { t } = useI18n();
   const checked = mounted && isAuthenticated();
   const profile = useGetCurrentUserQuery(undefined, { skip: !checked });
   const home = adminHome(profile.data?.role);
@@ -71,20 +73,20 @@ export function AuthGuard({ children }: { children: ReactNode }) {
           icon={<ShieldAlert className="h-7 w-7 text-amber-600" />}
           title={
             isCustomer
-              ? "This is a customer account"
-              : "This page needs a different staff role"
+              ? t("guard.customer_title", "This is a customer account")
+              : t("guard.role_title", "This page needs a different staff role")
           }
           message={
             isCustomer
-              ? "Customer accounts can't open the staff dashboard. Sign in with an admin or barista account."
-              : "Your account doesn't have access to this page."
+              ? t("guard.customer_message", "Customer accounts can't open the staff dashboard. Sign in with an admin or barista account.")
+              : t("guard.role_message", "Your account doesn't have access to this page.")
           }
         >
           {isCustomer ? (
             <SignOutButton primary />
           ) : (
             <Link href={home} className="btn_primary_black">
-              Back to your dashboard
+              {t("guard.back_to_dashboard", "Back to your dashboard")}
             </Link>
           )}
         </GuardCard>
@@ -119,15 +121,15 @@ export function AuthGuard({ children }: { children: ReactNode }) {
       }
       title={
         serverUnreachable
-          ? "Can't reach the server"
-          : "We couldn't load your account"
+          ? t("guard.unreachable_title", "Can't reach the server")
+          : t("guard.load_failed_title", "We couldn't load your account")
       }
       message={
         serverUnreachable
-          ? "The system is unavailable right now. This page will try again automatically."
+          ? t("guard.unreachable_message", "The system is unavailable right now. This page will try again automatically.")
           : apiErrorMessage(
               profile.error as FetchBaseQueryError,
-              "Something went wrong while loading your account.",
+              t("guard.load_failed_message", "Something went wrong while loading your account."),
             )
       }
     >
@@ -137,7 +139,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
         onClick={() => profile.refetch()}
       >
         <RotateCcw />
-        Try again
+        {t("actions.try_again", "Try again")}
       </button>
       <SignOutButton />
     </GuardCard>
@@ -179,6 +181,7 @@ function GuardCard({
 
 function SignOutButton({ primary = false }: { primary?: boolean }) {
   const [logout, { isLoading }] = useLogoutMutation();
+  const { t } = useI18n();
   return (
     <button
       type="button"
@@ -193,7 +196,7 @@ function SignOutButton({ primary = false }: { primary?: boolean }) {
       }}
     >
       {isLoading ? <Loader2 className="animate-spin" /> : <LogOut />}
-      Sign out
+      {t("actions.sign_out", "Sign out")}
     </button>
   );
 }

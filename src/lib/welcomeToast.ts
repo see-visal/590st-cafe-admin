@@ -1,3 +1,5 @@
+import { translate } from "@/contexts/translate";
+
 const WELCOME_KEY = "welcomePending";
 
 export function markWelcomePending(): void {
@@ -21,9 +23,9 @@ export function consumeWelcomePending(): boolean {
 
 export function timeOfDayGreeting(date = new Date()): string {
   const hour = date.getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return translate("welcome.morning", "Good morning");
+  if (hour < 18) return translate("welcome.afternoon", "Good afternoon");
+  return translate("welcome.evening", "Good evening");
 }
 
 export function firstName(fullName: string): string {

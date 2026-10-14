@@ -34,6 +34,7 @@ import {
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import { usePageSize } from "@/contexts/AdminPreferencesContext";
+import { useI18n } from "@/contexts/I18nContext";
 import {
   useDownloadMonthlyStockExpenseReportMutation,
   useDownloadStockInImportTemplateMutation,
@@ -54,16 +55,6 @@ import { Download } from "lucide-react";
 import { parseForm } from "@/lib/validation";
 import { stockMovementSchema } from "@/lib/formSchemas";
 
-const INVENTORY_TABLE_HEADERS = [
-  "No",
-  "Product Name",
-  "Current Stock",
-  "Unit",
-  "Reorder Level",
-  "Status",
-  "Action",
-] as const;
-
 type MovementKind = "STOCK_IN" | "STOCK_CUT";
 
 type StockLevel = "OUT" | "LOW" | "OK";
@@ -75,12 +66,6 @@ function stockLevel(item: InventoryResponse): StockLevel {
   return "OK";
 }
 
-const LEVEL_LABEL: Record<StockLevel, string> = {
-  OUT: "Out of Stock",
-  LOW: "Low Stock",
-  OK: "In Stock",
-};
-
 const LEVEL_TONE: Record<StockLevel, "success" | "warning" | "danger"> = {
   OUT: "danger",
   LOW: "warning",
@@ -88,8 +73,25 @@ const LEVEL_TONE: Record<StockLevel, "success" | "warning" | "danger"> = {
 };
 
 export default function Inventory() {
+  const { t } = useI18n();
   const { isAdmin } = useCurrentRole();
   const router = useRouter();
+
+  const inventoryTableHeaders = [
+    t("table.no", "No"),
+    t("inventory.fields.product_name", "Product Name"),
+    t("inventory.table.current_stock", "Current Stock"),
+    t("fields.unit", "Unit"),
+    t("inventory.fields.reorder_level", "Reorder Level"),
+    t("fields.status", "Status"),
+    t("table.action", "Action"),
+  ];
+
+  const levelLabel: Record<StockLevel, string> = {
+    OUT: t("inventory.levels.out", "Out of Stock"),
+    LOW: t("inventory.levels.low", "Low Stock"),
+    OK: t("inventory.levels.ok", "In Stock"),
+  };
 
   const [page, setPage] = usePersistentState("inventory:page", 1);
   const [size, setSize] = usePageSize();
@@ -123,7 +125,7 @@ export default function Inventory() {
       const blob = await downloadExpenseReport({ month: expenseMonth }).unwrap();
       downloadBlob(blob, `stock-expenses-${expenseMonth}.xlsx`);
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not download the expense report."));
+      toast.error(apiErrorMessage(err as never, t("inventory.errors.download_expense_report", "Could not download the expense report.")));
     }
   };
 
@@ -204,7 +206,7 @@ export default function Inventory() {
           unitCost: parsed.unitCost ?? 0,
           note: parsed.note,
         }).unwrap();
-        toast.success(`Stocked in ${qty} ${selectedProduct.unit}`);
+        toast.success(t("inventory.toast.stocked_in", "Stocked in {quantity} {unit}", { quantity: qty, unit: selectedProduct.unit }));
       } else {
         await stockCut({
           productId: selectedProduct.id,
@@ -212,11 +214,11 @@ export default function Inventory() {
           strategy,
           note: parsed.note,
         }).unwrap();
-        toast.success(`Cut ${qty} ${selectedProduct.unit}`);
+        toast.success(t("inventory.toast.stock_cut", "Cut {quantity} {unit}", { quantity: qty, unit: selectedProduct.unit }));
       }
       setFormOpen(false);
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not record the stock movement."));
+      toast.error(apiErrorMessage(err as never, t("inventory.errors.record_movement", "Could not record the stock movement.")));
     }
   };
 
@@ -225,28 +227,28 @@ export default function Inventory() {
   return (
     <PageShell>
       <PageHeader
-        title="Inventory"
+        title={t("inventory.title", "Inventory")}
         breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "Inventory" },
-          { label: "Stock List" },
+          { label: t("breadcrumb.home", "Home"), href: "/" },
+          { label: t("inventory.breadcrumb.inventory", "Inventory") },
+          { label: t("inventory.breadcrumb.stock_list", "Stock List") },
         ]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatTile
-          title="Tracked Products"
+          title={t("inventory.stats.tracked_products", "Tracked Products")}
           value={String(inventoryPage?.totalElements ?? 0)}
           tone="gray"
         />
         <StatTile
-          title="Low Stock (this page)"
+          title={t("inventory.stats.low_stock_page", "Low Stock (this page)")}
           value={String(lowCount)}
           tone={lowCount > 0 ? "orange" : "gray"}
         />
         <StatTile
-          title="Out of Stock (this page)"
+          title={t("inventory.stats.out_of_stock_page", "Out of Stock (this page)")}
           value={String(outCount)}
           tone={outCount > 0 ? "red" : "gray"}
         />
@@ -254,27 +256,27 @@ export default function Inventory() {
 
       <FilterPanel>
         <TextField
-          label="Product Name"
-          placeholder="Search products"
+          label={t("inventory.fields.product_name", "Product Name")}
+          placeholder={t("inventory.filters.search_products", "Search products")}
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
         />
         <SelectField
-          label="Stock Level"
-          placeholder="All levels"
+          label={t("inventory.filters.stock_level", "Stock Level")}
+          placeholder={t("inventory.filters.all_levels", "All levels")}
           value={levelFilter}
           onChange={(e) => { setLevelFilter(e.target.value); setPage(1); }}
         >
-          <option value="OK">In Stock</option>
-          <option value="LOW">Low Stock</option>
-          <option value="OUT">Out of Stock</option>
+          <option value="OK">{levelLabel.OK}</option>
+          <option value="LOW">{levelLabel.LOW}</option>
+          <option value="OUT">{levelLabel.OUT}</option>
         </SelectField>
         <FilterActions onClear={() => { setSearchTerm(""); setLevelFilter(""); setPage(1); }} onSearch={refetch} />
       </FilterPanel>
 
       <DataCard
-        title="Stock Levels"
-        meta={`Tracked Products: ${inventoryPage?.totalElements ?? 0}`}
+        title={t("inventory.card.title", "Stock Levels")}
+        meta={t("inventory.card.meta", "Tracked Products: {count}", { count: inventoryPage?.totalElements ?? 0 })}
         actions={
           isAdmin ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -285,7 +287,7 @@ export default function Inventory() {
                     value={expenseMonth}
                     onChange={setExpenseMonth}
                     className="sm:min-w-[160px]"
-                    aria-label="Stock expense report month"
+                    aria-label={t("inventory.expense.month_aria", "Stock expense report month")}
                   />
                 </label>
                 <button
@@ -293,33 +295,33 @@ export default function Inventory() {
                   onClick={handleDownloadExpenseReport}
                   disabled={isDownloadingExpenseReport || !expenseMonth}
                   className="btn_outline_black shrink-0"
-                  title="Every stock-purchase (stock-in) cost recorded this month, as an Excel file"
+                  title={t("inventory.expense.export_tooltip", "Every stock-purchase (stock-in) cost recorded this month, as an Excel file")}
                 >
-                  {isDownloadingExpenseReport ? "Exporting..." : "Export expenses"}
+                  {isDownloadingExpenseReport ? t("inventory.expense.exporting", "Exporting...") : t("inventory.expense.export", "Export expenses")}
                   <Download />
                 </button>
               </div>
               <ExcelImportButton
-                label="Import Stock-In"
-                columnsHint="SKU, Quantity, Unit Cost, Note (optional)"
+                label={t("inventory.import.label", "Import Stock-In")}
+                columnsHint={t("inventory.import.columns_hint", "SKU, Quantity, Unit Cost, Note (optional)")}
                 onImport={(file) => stockInFromExcel(file).unwrap()}
                 template={{
                   filename: "stock-in-import-template.xlsx",
                   download: () => downloadStockInTemplate().unwrap(),
                 }}
               />
-              <TableActions onRegister={() => handleOpenForm()} primaryLabel="Adjust Stock" />
+              <TableActions onRegister={() => handleOpenForm()} primaryLabel={t("inventory.actions.adjust_stock", "Adjust Stock")} />
             </div>
           ) : undefined
         }
       >
-        <SimpleTable headers={[...INVENTORY_TABLE_HEADERS]}>
+        <SimpleTable headers={inventoryTableHeaders}>
           <TableState
-            colSpan={INVENTORY_TABLE_HEADERS.length}
+            colSpan={inventoryTableHeaders.length}
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={visibleInventory.length === 0}
-            emptyLabel={isFiltering ? "No stock records match these filters." : "No inventory records. Products get a stock row when they are created."}
+            emptyLabel={isFiltering ? t("inventory.empty.filtered", "No stock records match these filters.") : t("inventory.empty.none", "No inventory records. Products get a stock row when they are created.")}
             onRetry={refetch}
           />
           {list.showRows &&
@@ -333,7 +335,7 @@ export default function Inventory() {
                   <Cell>{humanise(item.unit)}</Cell>
                   <Cell>{Number(item.reorderLevel).toLocaleString()}</Cell>
                   <Cell>
-                    <StatusBadge label={LEVEL_LABEL[level]} tone={LEVEL_TONE[level]} />
+                    <StatusBadge label={levelLabel[level]} tone={LEVEL_TONE[level]} />
                   </Cell>
                   <Cell>
                     <RowActions
@@ -362,15 +364,15 @@ export default function Inventory() {
       <FormModal
         open={isAdmin && formOpen}
         onOpenChange={setFormOpen}
-        title="Stock Movement"
-        submitLabel="Submit"
+        title={t("inventory.form.title", "Stock Movement")}
+        submitLabel={t("actions.submit", "Submit")}
         onSubmit={handleSubmit}
         isLoading={isSaving}
       >
         <ModalGrid>
           <div className="md:col-span-3">
             <FormProductSelect
-              label="Product"
+              label={t("fields.product", "Product")}
               required
               options={productOptions}
               value={selectedProduct}
@@ -378,8 +380,8 @@ export default function Inventory() {
             />
           </div>
           <FormSelect
-            label="Movement"
-            placeholder="Select movement"
+            label={t("inventory.form.movement", "Movement")}
+            placeholder={t("inventory.form.select_movement", "Select movement")}
             value={movementKind}
             onChange={(e) => setMovementKind(e.target.value as MovementKind)}
             required
@@ -388,7 +390,7 @@ export default function Inventory() {
             <option value="STOCK_CUT">Stock Cut (draw-down)</option>
           </FormSelect>
           <FormInput
-            label="Quantity"
+            label={t("fields.quantity", "Quantity")}
             type="number"
             placeholder="0"
             value={quantity}
@@ -397,15 +399,15 @@ export default function Inventory() {
           />
           {movementKind === "STOCK_IN" ? (
             <MoneyField
-              label="Unit Cost (USD)"
+              label={t("inventory.form.unit_cost", "Unit Cost (USD)")}
               value={unitCost}
               onValueChange={setUnitCost}
               required
             />
           ) : (
             <FormSelect
-              label="Costing Strategy"
-              placeholder="Select strategy"
+              label={t("inventory.form.costing_strategy", "Costing Strategy")}
+              placeholder={t("inventory.form.select_strategy", "Select strategy")}
               value={strategy}
               onChange={(e) => setStrategy(e.target.value as StockStrategy)}
               required
@@ -416,15 +418,15 @@ export default function Inventory() {
           )}
           <div className="md:col-span-3">
             <FormTextarea
-              label="Note"
-              placeholder="Optional reason or reference"
+              label={t("fields.note", "Note")}
+              placeholder={t("inventory.form.note_placeholder", "Optional reason or reference")}
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
           </div>
           {selectedProduct ? (
             <p className="md:col-span-3 text-sm text-muted-foreground">
-              Current stock: {selectedProduct.currentStock} {selectedProduct.unit}
+              {t("inventory.form.current_stock", "Current stock: {quantity} {unit}", { quantity: selectedProduct.currentStock, unit: selectedProduct.unit })}
             </p>
           ) : null}
         </ModalGrid>

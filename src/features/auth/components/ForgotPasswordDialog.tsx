@@ -11,8 +11,9 @@ import {
   useResendOtpMutation,
   useResetPasswordMutation,
 } from "@/store/api/authApi";
-import { parseForm, STRONG_PASSWORD_HINT } from "@/lib/validation";
+import { parseForm } from "@/lib/validation";
 import { forgotPasswordSchema, resetPasswordSchema } from "@/lib/formSchemas";
+import { useI18n } from "@/contexts/I18nContext";
 import {
   AUTH_DIALOG_BADGE_CLASS,
   AUTH_DIALOG_CLASS,
@@ -35,6 +36,7 @@ export function ForgotPasswordDialog({
   initialEmail: string;
   onReset: (email: string) => void;
 }) {
+  const { t } = useI18n();
   const [step, setStep] = useState<Step>("REQUEST");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -71,7 +73,12 @@ export function ForgotPasswordDialog({
       setEmail(parsed.email);
       setStep("RESET");
     } catch (err) {
-      toast.error(apiErrorMessage(err as ApiError, "Could not send a reset code. Please try again."));
+      toast.error(
+        apiErrorMessage(
+          err as ApiError,
+          t("auth.forgot.errors.send_failed", "Could not send a reset code. Please try again."),
+        ),
+      );
     }
   };
 
@@ -84,16 +91,31 @@ export function ForgotPasswordDialog({
       onReset(email);
       onOpenChange(false);
     } catch (err) {
-      toast.error(apiErrorMessage(err as ApiError, "That code was not accepted. Check it and try again."));
+      toast.error(
+        apiErrorMessage(
+          err as ApiError,
+          t("auth.errors.code_not_accepted", "That code was not accepted. Check it and try again."),
+        ),
+      );
     }
   };
 
   const handleResend = async () => {
     try {
       await resendOtp({ purpose: "RESET_PASSWORD", email }).unwrap();
-      toast.success("A new code is on its way. Codes from earlier emails no longer work.");
+      toast.success(
+        t(
+          "auth.forgot.toast.code_resent",
+          "A new code is on its way. Codes from earlier emails no longer work.",
+        ),
+      );
     } catch (err) {
-      toast.error(apiErrorMessage(err as ApiError, "Could not resend the code. Please try again."));
+      toast.error(
+        apiErrorMessage(
+          err as ApiError,
+          t("auth.forgot.errors.resend_failed", "Could not resend the code. Please try again."),
+        ),
+      );
     }
   };
 
@@ -103,6 +125,11 @@ export function ForgotPasswordDialog({
     setNewPassword("");
     setConfirmPassword("");
   };
+
+  const [resetIntroBefore, resetIntroAfter] = t(
+    "auth.forgot.reset_intro",
+    "If an account exists for {email}, we sent it a 6-digit code. Enter it below with your new password.",
+  ).split("{email}");
 
   return (
     <Dialog
@@ -120,14 +147,17 @@ export function ForgotPasswordDialog({
             </div>
 
             <div className="text-center">
-              <h1 className="text-xl font-bold">Forgot your password?</h1>
+              <h1 className="text-xl font-bold">{t("auth.forgot.heading", "Forgot your password?")}</h1>
               <p className="mt-3 text-sm text-gray-500">
-                Enter the email of your staff account and we&apos;ll email you a 6-digit code to set a new password.
+                {t(
+                  "auth.forgot.intro",
+                  "Enter the email of your staff account and we'll email you a 6-digit code to set a new password.",
+                )}
               </p>
             </div>
 
             <label className="mt-8 block text-sm font-medium">
-              Email
+              {t("fields.email", "Email")}
               <span className="relative mt-2 block">
                 <input
                   type="email"
@@ -144,12 +174,14 @@ export function ForgotPasswordDialog({
             </label>
 
             <button type="submit" disabled={isRequesting} className={AUTH_SUBMIT_CLASS}>
-              {isRequesting ? "Sending code..." : "Send reset code"}
+              {isRequesting
+                ? t("auth.shared.sending_code", "Sending code...")
+                : t("auth.forgot.send_reset_code", "Send reset code")}
             </button>
 
             <div className="mt-6 text-center text-sm">
               <button type="button" onClick={() => onOpenChange(false)} className="text-gray-600 underline">
-                Back to login
+                {t("auth.forgot.back_to_login", "Back to login")}
               </button>
             </div>
           </form>
@@ -160,15 +192,16 @@ export function ForgotPasswordDialog({
             </div>
 
             <div className="text-center">
-              <h1 className="text-xl font-bold">Set a new password</h1>
+              <h1 className="text-xl font-bold">{t("auth.forgot.reset_heading", "Set a new password")}</h1>
               <p className="mt-3 text-sm text-gray-500">
-                If an account exists for <span className="font-medium text-gray-700">{email}</span>, we sent it a
-                6-digit code. Enter it below with your new password.
+                {resetIntroBefore}
+                <span className="font-medium text-gray-700">{email}</span>
+                {resetIntroAfter}
               </p>
             </div>
 
             <label className="mt-8 block text-sm font-medium">
-              Verification code
+              {t("auth.shared.verification_code", "Verification code")}
               <input
                 className={`${AUTH_FIELD_CLASS} mt-2 h-12 text-center text-2xl tracking-[0.5em]`}
                 placeholder="000000"
@@ -182,12 +215,12 @@ export function ForgotPasswordDialog({
             </label>
 
             <label className="mt-6 block text-sm font-medium">
-              New password
+              {t("auth.forgot.new_password", "New password")}
               <span className="relative mt-2 block">
                 <input
                   type={showPassword ? "text" : "password"}
                   className={`${AUTH_FIELD_CLASS} px-4 pr-11`}
-                  placeholder="New password"
+                  placeholder={t("auth.forgot.new_password", "New password")}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   autoComplete="new-password"
@@ -197,20 +230,29 @@ export function ForgotPasswordDialog({
                   type="button"
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-700"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={
+                    showPassword
+                      ? t("auth.shared.hide_password", "Hide password")
+                      : t("auth.shared.show_password", "Show password")
+                  }
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </span>
             </label>
-            <p className="mt-2 text-xs text-gray-500">{STRONG_PASSWORD_HINT}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              {t(
+                "auth.forgot.password_hint",
+                "At least 8 characters, including an uppercase letter, a lowercase letter, a number and a symbol.",
+              )}
+            </p>
 
             <label className="mt-6 block text-sm font-medium">
-              Confirm new password
+              {t("auth.forgot.confirm_new_password", "Confirm new password")}
               <input
                 type={showPassword ? "text" : "password"}
                 className={`${AUTH_FIELD_CLASS} mt-2 px-4`}
-                placeholder="Confirm new password"
+                placeholder={t("auth.forgot.confirm_new_password", "Confirm new password")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
@@ -223,7 +265,9 @@ export function ForgotPasswordDialog({
               disabled={isResetting || otp.length !== 6 || !newPassword || !confirmPassword}
               className={AUTH_SUBMIT_CLASS}
             >
-              {isResetting ? "Resetting..." : "Reset password"}
+              {isResetting
+                ? t("auth.forgot.resetting", "Resetting...")
+                : t("auth.forgot.reset_password", "Reset password")}
             </button>
 
             <div className="mt-6 flex items-center justify-between text-sm">
@@ -233,10 +277,10 @@ export function ForgotPasswordDialog({
                 disabled={isResending}
                 className="text-gray-600 underline disabled:opacity-60"
               >
-                {isResending ? "Sending..." : "Resend code"}
+                {isResending ? t("states.sending", "Sending...") : t("auth.shared.resend_code", "Resend code")}
               </button>
               <button type="button" onClick={backToEmail} className="text-gray-600 underline">
-                Use a different email
+                {t("auth.forgot.different_email", "Use a different email")}
               </button>
             </div>
           </form>

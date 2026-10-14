@@ -8,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/contexts/I18nContext";
 
 // Same string formats the native <input type="..."> used, so callers keep their state as-is.
 const VALUE_FORMAT = {
@@ -23,9 +24,9 @@ const DISPLAY_FORMAT = {
 } as const;
 
 const PLACEHOLDER = {
-  date: "Select date",
-  "datetime-local": "Select date & time",
-  month: "Select month",
+  date: ["date_picker.select_date", "Select date"],
+  "datetime-local": ["date_picker.select_date_time", "Select date & time"],
+  month: ["date_picker.select_month", "Select month"],
 } as const;
 
 export type DatePickerType = keyof typeof VALUE_FORMAT;
@@ -73,6 +74,7 @@ export function DatePickerInput({
   id?: string;
   "aria-label"?: string;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const selected = parseValue(type, value);
   const minDate = parseValue(type, min);
@@ -148,7 +150,7 @@ export function DatePickerInput({
           )}
         >
           <span className="truncate">
-            {selected ? format(selected, DISPLAY_FORMAT[type]) : placeholder ?? PLACEHOLDER[type]}
+            {selected ? format(selected, DISPLAY_FORMAT[type]) : placeholder ?? t(PLACEHOLDER[type][0], PLACEHOLDER[type][1])}
           </span>
           <CalendarDays className="form_field_icon" />
         </button>
@@ -157,11 +159,11 @@ export function DatePickerInput({
         {type === "month" ? (
           <div className="date_picker_months">
             <div className="date_picker_months_header">
-              <button type="button" className="date_picker_nav" onClick={() => setViewYear(viewYear - 1)} aria-label="Previous year">
+              <button type="button" className="date_picker_nav" onClick={() => setViewYear(viewYear - 1)} aria-label={t("date_picker.previous_year", "Previous year")}>
                 <ChevronLeft />
               </button>
               <span>{viewYear}</span>
-              <button type="button" className="date_picker_nav" onClick={() => setViewYear(viewYear + 1)} aria-label="Next year">
+              <button type="button" className="date_picker_nav" onClick={() => setViewYear(viewYear + 1)} aria-label={t("date_picker.next_year", "Next year")}>
                 <ChevronRight />
               </button>
             </div>
@@ -201,10 +203,10 @@ export function DatePickerInput({
 
         {type === "datetime-local" ? (
           <div className="date_picker_time">
-            <span className="date_picker_time_label">Time</span>
+            <span className="date_picker_time_label">{t("fields.time", "Time")}</span>
             <div className="date_picker_time_controls">
               <Select value={hour12} onValueChange={(next) => setTime("hour", next)}>
-                <SelectTrigger className="date_picker_time_select" aria-label="Hour">
+                <SelectTrigger className="date_picker_time_select" aria-label={t("date_picker.hour", "Hour")}>
                   <SelectValue placeholder="--" />
                 </SelectTrigger>
                 <SelectContent className="form_field_select_content max-h-60">
@@ -217,7 +219,7 @@ export function DatePickerInput({
               </Select>
               <span className="text-[var(--ink-muted)]">:</span>
               <Select value={minute} onValueChange={(next) => setTime("minute", next)}>
-                <SelectTrigger className="date_picker_time_select" aria-label="Minute">
+                <SelectTrigger className="date_picker_time_select" aria-label={t("date_picker.minute", "Minute")}>
                   <SelectValue placeholder="--" />
                 </SelectTrigger>
                 <SelectContent className="form_field_select_content max-h-60">
@@ -228,7 +230,7 @@ export function DatePickerInput({
                   ))}
                 </SelectContent>
               </Select>
-              <div className="date_picker_period" role="group" aria-label="AM or PM">
+              <div className="date_picker_period" role="group" aria-label={t("date_picker.am_pm", "AM or PM")}>
                 {(["AM", "PM"] as const).map((p) => (
                   <button
                     key={p}
@@ -253,7 +255,7 @@ export function DatePickerInput({
               setOpen(false);
             }}
           >
-            Clear
+            {t("actions.clear", "Clear")}
           </button>
           <div className="flex items-center gap-2">
             <button
@@ -264,11 +266,11 @@ export function DatePickerInput({
                 if (type !== "datetime-local") setOpen(false);
               }}
             >
-              {type === "datetime-local" ? "Now" : type === "month" ? "This month" : "Today"}
+              {type === "datetime-local" ? t("date_picker.now", "Now") : type === "month" ? t("date_picker.this_month", "This month") : t("date_picker.today", "Today")}
             </button>
             {type === "datetime-local" ? (
               <button type="button" className="btn_primary_black date_picker_done" onClick={() => setOpen(false)}>
-                Done
+                {t("date_picker.done", "Done")}
               </button>
             ) : null}
           </div>

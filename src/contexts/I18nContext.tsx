@@ -7,9 +7,19 @@ import {
   useEffect,
   ReactNode,
   useCallback,
+  useMemo,
 } from "react";
-import { usePathname } from "next/navigation";
 import { formatWithCommas } from "@/utils/format-currency";
+import {
+  interpolate,
+  lookup,
+  setActiveMessages,
+  type TranslationMessages,
+  type TranslationParams,
+} from "./translate";
+
+export { translate, type TranslationParams } from "./translate";
+
 const timeUnitTranslations: Record<string, string> = {
   hour: "ម៉ោង",
   hours: "ម៉ោង",
@@ -21,16 +31,41 @@ const timeUnitTranslations: Record<string, string> = {
   months: "ខែ",
 };
 
-const PAGE_TRANSLATION_FILES = new Set<string>([]);
+// Shared dictionaries, merged at the root of the messages (e.g. "nav_home", "actions.save").
+const ROOT_TRANSLATION_FILES = ["common", "sidebar"] as const;
 
-type TranslationMessages = {
-  [key: string]: string | TranslationMessages;
-};
+// One dictionary per page, nested under its own name (e.g. "orders.title" lives in orders.json).
+// All of them load with the locale, so switching pages never shows untranslated text.
+const PAGE_TRANSLATION_FILES = new Set<string>([
+  "attendance",
+  "audit",
+  "auth",
+  "banners",
+  "barista",
+  "categories",
+  "dashboard",
+  "events",
+  "inventory",
+  "notifications",
+  "orders",
+  "payments",
+  "points",
+  "pos",
+  "products",
+  "profile",
+  "promotions",
+  "reports",
+  "settings",
+  "staff",
+  "stock_alerts",
+  "tables",
+  "users",
+]);
 
 type I18nContextType = {
   locale: string;
   setLocale: (locale: string) => void;
-  t: (key: string, fallback?: string) => string;
+  t: (key: string, fallback?: string, params?: TranslationParams) => string;
   loadPage: (pageName: string) => Promise<void>;
   formatNumber: (num: number) => string;
   parseTimeAgo: (timeAgo: string) => string;
@@ -40,9 +75,40 @@ const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
 const LOCALE_STORAGE_KEY = "selectedLocale";
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
+const fileCache = new Map<string, Promise<TranslationMessages>>();
 
+function loadFile(locale: string, file: string): Promise<TranslationMessages> {
+  const cacheKey = `${locale}/${file}`;
+  const cached = fileCache.get(cacheKey);
+  if (cached) return cached;
+
+  const pending = (async (): Promise<TranslationMessages> => {
+    try {
+      const res = await fetch(`/locales/${locale}/${file}.json`);
+      if (res.ok) return await res.json();
+    } catch {
+    }
+    // Let a later locale switch try again instead of caching the failure.
+    fileCache.delete(cacheKey);
+    return locale !== "en" ? loadFile("en", file) : {};
+  })();
+  fileCache.set(cacheKey, pending);
+  return pending;
+}
+
+async function loadMessages(locale: string): Promise<TranslationMessages> {
+  const [roots, pages] = await Promise.all([
+    Promise.all(ROOT_TRANSLATION_FILES.map((file) => loadFile(locale, file))),
+    Promise.all(
+      [...PAGE_TRANSLATION_FILES].map(
+        async (file) => [file, await loadFile(locale, file)] as const
+      )
+    ),
+  ]);
+  return Object.assign({}, ...roots, Object.fromEntries(pages));
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocale] = useState(() => {
     if (typeof window !== "undefined") {
       const savedLocale = localStorage.getItem(LOCALE_STORAGE_KEY);
@@ -59,116 +125,38 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     }
   }, [locale]);
 
-  const getPageName = (path: string): string => {
-    const segments = path.replace(/^\//, "").split("/");
-    const pageName = segments[0] || "dashboard";
-
-    const pageMap: Record<string, string> = {
-      "": "dashboard",
-      content: "content",
-      moderation: "moderation",
-      notifications: "notifications",
-      settings: "settings",
-      users: "users",
-      badges: "badges",
+  useEffect(() => {
+    let cancelled = false;
+    void loadMessages(locale).then((next) => {
+      // A newer locale switch owns the messages now.
+      if (cancelled) return;
+      setActiveMessages(next);
+      setMessages(next);
+    });
+    return () => {
+      cancelled = true;
     };
-
-    return pageMap[pageName] || pageName;
-  };
-
-  // Shared strings loaded on every page: sidebar labels plus common UI (map picker, venue, etc.).
-  const loadSidebar = useCallback(async (): Promise<TranslationMessages> => {
-    const loadFile = async (file: string): Promise<TranslationMessages> => {
-      try {
-        const res = await fetch(`/locales/${locale}/${file}.json`);
-        if (res.ok) return await res.json();
-        if (locale !== "en") {
-          const enRes = await fetch(`/locales/en/${file}.json`);
-          if (enRes.ok) return await enRes.json();
-        }
-      } catch {
-      }
-      return {};
-    };
-
-    const [sidebar, common] = await Promise.all([loadFile("sidebar"), loadFile("common")]);
-    return { ...common, ...sidebar };
   }, [locale]);
 
+  // Every page dictionary already loads with the locale; this keeps the old per-page API working.
   const loadPage = useCallback(
     async (pageName: string) => {
-      try {
-        const sidebarMessages = await loadSidebar();
-
-        if (!PAGE_TRANSLATION_FILES.has(pageName)) {
-          setMessages(sidebarMessages);
-          return;
-        }
-
-        const res = await fetch(`/locales/${locale}/${pageName}.json`);
-
-        if (!res.ok) {
-          if (pageName !== "common") {
-            try {
-              const fallbackRes = await fetch(`/locales/${locale}/common.json`);
-              if (fallbackRes.ok) {
-                const fallbackData = await fallbackRes.json();
-                setMessages({ ...sidebarMessages, ...fallbackData });
-                return;
-              }
-            } catch {
-            }
-          }
-
-          if (locale !== "en") {
-            try {
-              const enRes = await fetch(`/locales/en/${pageName}.json`);
-              if (enRes.ok) {
-                const enData = await enRes.json();
-                setMessages({ ...sidebarMessages, ...enData });
-                return;
-              }
-            } catch {
-            }
-          }
-
-          setMessages(sidebarMessages);
-          return;
-        }
-
-        const pageData: TranslationMessages = await res.json();
-        setMessages({ ...sidebarMessages, ...pageData });
-      } catch {
-        try {
-          const sidebarMessages = await loadSidebar();
-          setMessages(sidebarMessages);
-        } catch {
-        }
-      }
+      if (!pageName || PAGE_TRANSLATION_FILES.has(pageName)) return;
+      const pageData = await loadFile(locale, pageName);
+      setMessages((prev) => {
+        const next = { ...prev, [pageName]: pageData };
+        setActiveMessages(next);
+        return next;
+      });
     },
-    [locale, loadSidebar]
+    [locale]
   );
 
-  useEffect(() => {
-    const pageName = getPageName(pathname);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadPage(pageName);
-  }, [pathname, locale, loadPage]);
-
-  const t = (key: string, fallback?: string): string => {
-    const keys = key.split(".");
-    let result: string | TranslationMessages | undefined = messages;
-
-    for (const k of keys) {
-      if (typeof result === "object" && result !== null && k in result) {
-        result = result[k];
-      } else {
-        return fallback ?? key;
-      }
-    }
-
-    return typeof result === "string" ? result : fallback ?? key;
-  };
+  const t = useCallback(
+    (key: string, fallback?: string, params?: TranslationParams): string =>
+      interpolate(lookup(messages, key) ?? fallback ?? key, params),
+    [messages]
+  );
 
   const formatNumber = useCallback(
     (num: Parameters<typeof formatWithCommas>[0]): string => {
@@ -186,21 +174,27 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     },
     [locale]
   );
-  function parseTimeAgo(timeAgo: string) {
-    const match = timeAgo.match(/(\d+)\s*(\w+)/);
-    if (!match) return timeAgo;
+  const parseTimeAgo = useCallback(
+    (timeAgo: string) => {
+      const match = timeAgo.match(/(\d+)\s*(\w+)/);
+      if (!match) return timeAgo;
 
-    const [, numStr, unit] = match;
-    const formattedNum = formatNumber(Number(numStr));
-    const translatedUnit = timeUnitTranslations[unit.toLowerCase()] || unit;
+      const [, numStr, unit] = match;
+      const formattedNum = formatNumber(Number(numStr));
+      const translatedUnit = timeUnitTranslations[unit.toLowerCase()] || unit;
 
-    return `${formattedNum} ${translatedUnit}`;
-  }
+      return `${formattedNum} ${translatedUnit}`;
+    },
+    [formatNumber]
+  );
+
+  const value = useMemo(
+    () => ({ locale, setLocale, t, loadPage, formatNumber, parseTimeAgo }),
+    [locale, t, loadPage, formatNumber, parseTimeAgo]
+  );
 
   return (
-    <I18nContext.Provider
-      value={{ locale, setLocale, t, loadPage, formatNumber, parseTimeAgo }}
-    >
+    <I18nContext.Provider value={value}>
       {children}
     </I18nContext.Provider>
   );
@@ -225,10 +219,3 @@ export function usePageTranslations(pageName?: string) {
 
   return { t };
 }
-
-
-
-
-
-
-

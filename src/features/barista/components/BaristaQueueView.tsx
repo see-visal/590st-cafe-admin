@@ -71,6 +71,7 @@ import { useOrderInvoice } from "@/hooks/useOrderInvoice";
 import { buildCashPaymentSchema, parseForm } from "@/lib/validation";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { useI18n } from "@/contexts/I18nContext";
 
 const money = (value: number | null | undefined) =>
   value == null ? "-" : `$${Number(value).toFixed(2)}`;
@@ -130,6 +131,7 @@ function OrderCard({
   isBusy?: boolean;
   highlight?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <article
       className={cn(
@@ -142,10 +144,10 @@ function OrderCard({
           type="button"
           onClick={onOpen}
           className="group min-w-0 text-left"
-          aria-label={`View order ${order.id.slice(0, 8).toUpperCase()}`}
+          aria-label={t("barista.card.view_order", "View order {id}", { id: order.id.slice(0, 8).toUpperCase() })}
         >
           <h4 className="inline-flex items-center gap-1.5 text-base font-bold text-gray-900 group-hover:underline">
-            {order.customerName ? titleCase(order.customerName) : "Walk-in"}
+            {order.customerName ? titleCase(order.customerName) : t("barista.labels.walk_in", "Walk-in")}
             <Eye className="h-3.5 w-3.5 shrink-0 text-gray-400" />
           </h4>
           <p className="font-mono text-xs text-gray-400">
@@ -164,7 +166,7 @@ function OrderCard({
           </span>
           {order.fulfillmentMethod === "DELIVERY" && order.deliveryFeeSetAt == null && (
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-              Fee needed
+              {t("barista.card.fee_needed", "Fee needed")}
             </span>
           )}
           {order.paymentMethod === "CASH" &&
@@ -172,7 +174,7 @@ function OrderCard({
             order.status !== "PENDING" &&
             order.status !== "CANCELLED" && (
               <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                Cash due
+                {t("barista.card.cash_due", "Cash due")}
               </span>
             )}
           {onCancel && (
@@ -180,7 +182,7 @@ function OrderCard({
               type="button"
               onClick={onCancel}
               disabled={isBusy}
-              aria-label="Cancel order"
+              aria-label={t("barista.card.cancel_order", "Cancel order")}
               className="text-red-500 hover:text-red-700 disabled:opacity-50"
             >
               <X className="h-4 w-4" />
@@ -197,14 +199,14 @@ function OrderCard({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
-        <OrderChip icon={order.customerId ? Globe : Store}>{order.customerId ? "Online" : "Walk-in"}</OrderChip>
+        <OrderChip icon={order.customerId ? Globe : Store}>{order.customerId ? t("barista.card.online", "Online") : t("barista.labels.walk_in", "Walk-in")}</OrderChip>
         {order.fulfillmentMethod ? (
           <OrderChip icon={order.fulfillmentMethod === "DELIVERY" ? Bike : order.fulfillmentMethod === "DINE_IN" ? Armchair : ShoppingBag}>
             {fulfillmentLabel(order)}
           </OrderChip>
         ) : null}
         <OrderChip icon={order.paymentMethod === "BAKONG" ? QrCode : Banknote}>
-          {order.paymentMethod ? humanise(order.paymentMethod) : "Payment not chosen"}
+          {order.paymentMethod ? humanise(order.paymentMethod) : t("barista.card.payment_not_chosen", "Payment not chosen")}
         </OrderChip>
         <OrderEstimateChip order={order} />
       </div>
@@ -215,13 +217,13 @@ function OrderCard({
             <p className="text-xs font-semibold text-gray-900">
               {[
                 item.variantName ? humanise(item.variantName) : null,
-                item.sugarLevel && `Sugar ${formatLevel(item.sugarLevel)}`,
-                item.iceLevel && `Ice ${formatLevel(item.iceLevel)}`,
+                item.sugarLevel && t("barista.labels.sugar", "Sugar {level}", { level: formatLevel(item.sugarLevel) }),
+                item.iceLevel && t("barista.labels.ice", "Ice {level}", { level: formatLevel(item.iceLevel) }),
                 item.milkType && item.milkType !== "NONE" ? humanise(item.milkType) : null,
                 ...item.extras.map((extra) => titleCase(extra.name)),
               ]
                 .filter(Boolean)
-                .join(" · ") || "Standard"}
+                .join(" · ") || t("barista.labels.standard", "Standard")}
             </p>
             <div className="mt-1 flex items-center justify-between text-sm">
               <span className="text-gray-500">
@@ -246,7 +248,7 @@ function OrderCard({
 
       <div className="mt-4 flex flex-col items-end gap-3">
         <p className="text-sm text-gray-500">
-          Total : <span className="font-bold text-gray-900">{money(order.totalAmount)}</span>
+          {t("fields.total", "Total")} : <span className="font-bold text-gray-900">{money(order.totalAmount)}</span>
         </p>
         {actionLabel ? (
           <div className="flex flex-wrap justify-end gap-2">
@@ -303,6 +305,7 @@ function QueueColumn({
   renderCard: (order: OrderResponse) => React.ReactNode;
   fullWidth?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className={cn(fullWidth && "col-span-full")}>
       <div className="mb-4 flex items-center gap-2">
@@ -312,7 +315,7 @@ function QueueColumn({
       </div>
       <div className="space-y-4">
         {isLoading ? (
-          <div role="status" aria-label={`Loading ${title}`} className="space-y-4">
+          <div role="status" aria-label={t("barista.queue.loading", "Loading {title}", { title })} className="space-y-4">
             {[0, 1].map((i) => (
               <div key={i} className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
                 <SkeletonBlock className="h-5 w-2/3" />
@@ -358,6 +361,7 @@ function useQueue(
 }
 
 export default function BaristaQueueView() {
+  const { t } = useI18n();
   const { isAdmin, isBarista, isLoading: isLoadingRole } = useCurrentRole();
   const { confirm, confirmDialog } = useConfirmDialog();
   const roles = { isAdmin, isBarista };
@@ -427,20 +431,23 @@ export default function BaristaQueueView() {
     | { kind: "fee" | "prepare" | "cash"; label: string }
     | { kind: "waiting"; hint: string } => {
     if (order.fulfillmentMethod === "DELIVERY" && order.deliveryFeeSetAt == null) {
-      return { kind: "fee", label: "Set Delivery Fee" };
+      return { kind: "fee", label: t("barista.actions.set_delivery_fee", "Set Delivery Fee") };
     }
     if (order.paymentMethod === "BAKONG") {
-      return { kind: "waiting", hint: "Waiting for the customer's QR payment — it confirms automatically." };
+      return {
+        kind: "waiting",
+        hint: t("barista.hints.waiting_qr", "Waiting for the customer's QR payment — it confirms automatically."),
+      };
     }
     if (order.paymentMethod === "CASH") {
       return order.customerId != null
-        ? { kind: "prepare", label: "Start Preparing" }
-        : { kind: "cash", label: "Take Cash" };
+        ? { kind: "prepare", label: t("barista.actions.start_preparing", "Start Preparing") }
+        : { kind: "cash", label: t("barista.actions.take_cash", "Take Cash") };
     }
     if (order.customerId == null && order.handledById === currentUser?.id) {
-      return { kind: "cash", label: "Take Cash" };
+      return { kind: "cash", label: t("barista.actions.take_cash", "Take Cash") };
     }
-    return { kind: "waiting", hint: "Waiting for the customer to choose how to pay." };
+    return { kind: "waiting", hint: t("barista.hints.waiting_method", "Waiting for the customer to choose how to pay.") };
   };
   const cancelOrder = isAdmin ? adminCancel : baristaCancel;
   const startPreparing = isAdmin ? adminStartPreparing : baristaStartPreparing;
@@ -527,39 +534,45 @@ export default function BaristaQueueView() {
       }).unwrap();
       toastPaidWithInvoice(
         Number(updated.changeDue) > 0
-          ? `Paid. Change: ${formatByCurrency(updated.changeDue, updated.changeCurrency ?? cashCurrency)}`
-          : "Payment recorded",
+          ? t("barista.toast.paid_change", "Paid. Change: {change}", {
+              change: formatByCurrency(updated.changeDue, updated.changeCurrency ?? cashCurrency),
+            })
+          : t("barista.toast.payment_recorded", "Payment recorded"),
         updated.id,
         printInvoice
       );
       setCashOrder(null);
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not record the payment."));
+      toast.error(apiErrorMessage(err as never, t("barista.errors.record_payment", "Could not record the payment.")));
     }
   };
 
   const handleCancel = async (order: OrderResponse) => {
     const confirmed = await confirm({
-      title: "Cancel order",
-      description: `Cancel order #${order.id.slice(0, 8).toUpperCase()}? Only unpaid orders can be cancelled.`,
-      confirmLabel: "Cancel order",
+      title: t("barista.confirm.cancel_title", "Cancel order"),
+      description: t(
+        "barista.confirm.cancel_description",
+        "Cancel order #{id}? Only unpaid orders can be cancelled.",
+        { id: order.id.slice(0, 8).toUpperCase() }
+      ),
+      confirmLabel: t("barista.confirm.cancel_confirm", "Cancel order"),
       tone: "danger",
     });
     if (!confirmed) return;
     try {
       await cancelOrder(order.id).unwrap();
-      toast.success("Order cancelled");
+      toast.success(t("barista.toast.order_cancelled", "Order cancelled"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not cancel the order."));
+      toast.error(apiErrorMessage(err as never, t("barista.errors.cancel_order", "Could not cancel the order.")));
     }
   };
 
   const handleStartPreparing = async (order: OrderResponse) => {
     try {
       await startPreparing(order.id).unwrap();
-      toast.success("Started preparing — the customer can see this");
+      toast.success(t("barista.toast.started_preparing", "Started preparing — the customer can see this"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not start this order."));
+      toast.error(apiErrorMessage(err as never, t("barista.errors.start_order", "Could not start this order.")));
     }
   };
 
@@ -568,16 +581,18 @@ export default function BaristaQueueView() {
     try {
       if (isDelivery) {
         await dispatchOrder(order.id).unwrap();
-        toast.success("Out for delivery — the customer can see this");
+        toast.success(t("barista.toast.out_for_delivery", "Out for delivery — the customer can see this"));
       } else {
         await completeOrder(order.id).unwrap();
-        toast.success("Order completed");
+        toast.success(t("barista.toast.order_completed", "Order completed"));
       }
     } catch (err) {
       toast.error(
         apiErrorMessage(
           err as never,
-          isDelivery ? "Could not dispatch the order." : "Could not complete the order."
+          isDelivery
+            ? t("barista.errors.dispatch_order", "Could not dispatch the order.")
+            : t("barista.errors.complete_order", "Could not complete the order.")
         )
       );
     }
@@ -586,18 +601,18 @@ export default function BaristaQueueView() {
   const handleDelivered = async (order: OrderResponse) => {
     try {
       await deliverOrder(order.id).unwrap();
-      toast.success("Marked as delivered");
+      toast.success(t("barista.toast.marked_delivered", "Marked as delivered"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not mark the order delivered."));
+      toast.error(apiErrorMessage(err as never, t("barista.errors.mark_delivered", "Could not mark the order delivered.")));
     }
   };
 
   const handleSetDeliveryFee = async (order: OrderResponse, fee: number) => {
     try {
       await setDeliveryFee({ id: order.id, body: { fee } }).unwrap();
-      toast.success("Delivery fee saved");
+      toast.success(t("barista.toast.delivery_fee_saved", "Delivery fee saved"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not save the delivery fee."));
+      toast.error(apiErrorMessage(err as never, t("barista.errors.save_delivery_fee", "Could not save the delivery fee.")));
     }
   };
 
@@ -605,56 +620,59 @@ export default function BaristaQueueView() {
     try {
       const updated = await setEstimate({ id: order.id, body: { minutes } }).unwrap();
       setDetailOrder((current) => (current?.id === updated.id ? updated : current));
-      toast.success(`Estimated time set to ${minutes} min`);
+      toast.success(t("barista.toast.estimate_set", "Estimated time set to {minutes} min", { minutes }));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not save the estimated time."));
+      toast.error(apiErrorMessage(err as never, t("barista.errors.save_estimate", "Could not save the estimated time.")));
     }
   };
 
   return (
     <PageShell>
       <PageHeader
-        title="Order Queue"
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: "Barista Queue" }]}
+        title={t("barista.title", "Order Queue")}
+        breadcrumbs={[
+          { label: t("breadcrumb.home", "Home"), href: "/" },
+          { label: t("barista.breadcrumb.queue", "Barista Queue") },
+        ]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatTile
-          title="Awaiting Payment"
+          title={t("barista.stats.awaiting_payment", "Awaiting Payment")}
           value={String(pendingQuery.data?.totalElements ?? 0)}
           tone={pending.length > 0 ? "orange" : "gray"}
         />
         <StatTile
-          title="Drinks To Make"
+          title={t("barista.stats.drinks_to_make", "Drinks To Make")}
           value={String(toMake)}
           tone={toMake > 0 ? "yellow" : "gray"}
         />
-        <StatTile title="Unpaid Value" value={money(unpaidValue)} tone="gray" />
+        <StatTile title={t("barista.stats.unpaid_value", "Unpaid Value")} value={money(unpaidValue)} tone="gray" />
       </div>
 
       {!isLoadingRole && !isAdmin && !isBarista ? (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-          Your account role cannot read orders. Sign in as an admin or a barista.
+          {t("barista.errors.role_cannot_read", "Your account role cannot read orders. Sign in as an admin or a barista.")}
         </div>
       ) : null}
 
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {apiErrorMessage(error as never, "Could not load the queue.")}{" "}
+          {apiErrorMessage(error as never, t("barista.errors.load_queue", "Could not load the queue."))}{" "}
           <button type="button" onClick={refetch} className="underline">
-            Retry
+            {t("actions.retry", "Retry")}
           </button>
         </div>
       ) : null}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         <QueueColumn
-          title="Awaiting Payment"
+          title={t("barista.queue.awaiting_payment", "Awaiting Payment")}
           accent="bg-amber-500"
           orders={pending}
           isLoading={isLoadingRole || listLoadState(pendingQuery).isLoading}
-          emptyLabel="Nothing waiting to be paid."
+          emptyLabel={t("barista.empty.awaiting_payment", "Nothing waiting to be paid.")}
           renderCard={(order) => {
             const step = awaitingPaymentStep(order);
             return (
@@ -669,7 +687,7 @@ export default function BaristaQueueView() {
                   else if (step.kind === "prepare") handleStartPreparing(order);
                   else if (step.kind === "cash") openCashModal(order);
                 }}
-                secondaryLabel={step.kind === "prepare" ? "Take Cash" : undefined}
+                secondaryLabel={step.kind === "prepare" ? t("barista.actions.take_cash", "Take Cash") : undefined}
                 onSecondary={() => openCashModal(order)}
                 onCancel={canCancel(order) ? () => handleCancel(order) : undefined}
                 onOpen={() => setDetailOrder(order)}
@@ -679,18 +697,18 @@ export default function BaristaQueueView() {
         />
 
         <QueueColumn
-          title="New — Paid"
+          title={t("barista.queue.new_paid", "New — Paid")}
           accent="bg-blue-500"
           orders={paid}
           isLoading={isLoadingRole || listLoadState(paidQuery).isLoading}
-          emptyLabel="No new paid orders."
+          emptyLabel={t("barista.empty.new_paid", "No new paid orders.")}
           renderCard={(order) => (
             <OrderCard
               key={order.id}
               order={order}
               isBusy={isBusy}
               highlight
-              actionLabel="Start Preparing"
+              actionLabel={t("barista.actions.start_preparing", "Start Preparing")}
               onAction={() => handleStartPreparing(order)}
               onOpen={() => setDetailOrder(order)}
             />
@@ -698,11 +716,11 @@ export default function BaristaQueueView() {
         />
 
         <QueueColumn
-          title="Preparing"
+          title={t("barista.queue.preparing", "Preparing")}
           accent="bg-violet-500"
           orders={preparing}
           isLoading={isLoadingRole || listLoadState(preparingQuery).isLoading}
-          emptyLabel="Nothing on the bar."
+          emptyLabel={t("barista.empty.preparing", "Nothing on the bar.")}
           renderCard={(order) => {
             const needsCash =
               order.paymentMethod === "CASH" &&
@@ -715,10 +733,10 @@ export default function BaristaQueueView() {
                 isBusy={isBusy}
                 actionLabel={
                   needsCash
-                    ? "Collect Cash"
+                    ? t("barista.actions.collect_cash", "Collect Cash")
                     : order.fulfillmentMethod === "DELIVERY"
-                      ? "Out for Delivery"
-                      : "Mark Completed"
+                      ? t("barista.actions.out_for_delivery", "Out for Delivery")
+                      : t("barista.actions.mark_completed", "Mark Completed")
                 }
                 onAction={() => {
                   if (needsCash) {
@@ -734,11 +752,11 @@ export default function BaristaQueueView() {
         />
 
         <QueueColumn
-          title="Out for Delivery"
+          title={t("barista.queue.out_for_delivery", "Out for Delivery")}
           accent="bg-cyan-500"
           orders={outForDelivery}
           isLoading={isLoadingRole || listLoadState(outForDeliveryQuery).isLoading}
-          emptyLabel="Nothing out for delivery."
+          emptyLabel={t("barista.empty.out_for_delivery", "Nothing out for delivery.")}
           renderCard={(order) => {
             const needsCash = order.paymentMethod === "CASH" && order.paidAt == null;
             return (
@@ -746,7 +764,11 @@ export default function BaristaQueueView() {
                 key={order.id}
                 order={order}
                 isBusy={isBusy}
-                actionLabel={needsCash ? "Collect Cash" : "Mark Delivered"}
+                actionLabel={
+                  needsCash
+                    ? t("barista.actions.collect_cash", "Collect Cash")
+                    : t("barista.actions.mark_delivered", "Mark Delivered")
+                }
                 onAction={() => {
                   if (needsCash) {
                     openCashModal(order);
@@ -762,11 +784,11 @@ export default function BaristaQueueView() {
 
         <QueueColumn
           fullWidth
-          title="Completed"
+          title={t("barista.queue.completed", "Completed")}
           accent="bg-green-500"
           orders={completed}
           isLoading={isLoadingRole || listLoadState(completedQuery).isLoading}
-          emptyLabel="No completed orders yet."
+          emptyLabel={t("barista.empty.completed", "No completed orders yet.")}
           renderCard={(order) => (
             <OrderCard key={order.id} order={order} onOpen={() => setDetailOrder(order)} />
           )}
@@ -781,7 +803,7 @@ export default function BaristaQueueView() {
           className="flex w-full items-center gap-2 p-4 text-left"
         >
           <span className="h-2.5 w-6 rounded-full bg-red-500" />
-          <h3 className="text-base font-bold text-gray-900">Cancelled</h3>
+          <h3 className="text-base font-bold text-gray-900">{t("barista.queue.cancelled", "Cancelled")}</h3>
           <span className="text-sm text-gray-400">
             ({cancelledQuery.data?.totalElements ?? 0})
           </span>
@@ -795,7 +817,7 @@ export default function BaristaQueueView() {
         {showCancelled ? (
           <div className="grid grid-cols-1 gap-4 border-t border-gray-100 p-4 md:grid-cols-2 xl:grid-cols-4">
             {cancelled.length === 0 ? (
-              <p className="text-sm text-gray-400">No cancelled orders.</p>
+              <p className="text-sm text-gray-400">{t("barista.empty.cancelled", "No cancelled orders.")}</p>
             ) : (
               cancelled.map((order) => (
                 <OrderCard
@@ -814,36 +836,36 @@ export default function BaristaQueueView() {
         onOpenChange={(open) => {
           if (!open) setCashOrder(null);
         }}
-        title="Take Cash Payment"
-        submitLabel="Confirm"
+        title={t("barista.cash.title", "Take Cash Payment")}
+        submitLabel={t("actions.confirm", "Confirm")}
         onSubmit={handlePayCash}
         isLoading={isPaying}
       >
         <ModalGrid>
           <FormInput
-            label="Total Due"
+            label={t("barista.cash.total_due", "Total Due")}
             value={cashOrder ? formatByCurrency(cashDue, cashCurrency) : ""}
             readOnly
           />
           <FormSelect
-            label="Currency"
+            label={t("barista.cash.currency", "Currency")}
             value={cashCurrency}
             onChange={(e) => handleCashCurrencyChange(e.target.value as Currency)}
           >
             <option value="USD">USD</option>
             <option value="KHR" disabled={!khrPerUsdRate}>
-              KHR{!khrPerUsdRate ? " (rate unavailable)" : ""}
+              KHR{!khrPerUsdRate ? ` ${t("barista.cash.rate_unavailable", "(rate unavailable)")}` : ""}
             </option>
           </FormSelect>
           <MoneyField
-            label="Amount Tendered"
+            label={t("barista.cash.amount_tendered", "Amount Tendered")}
             currency={cashCurrency}
             value={amountTendered}
             onValueChange={setAmountTendered}
             required
           />
           <FormInput
-            label="Change Due"
+            label={t("barista.cash.change_due", "Change Due")}
             value={
               cashOrder && Number(amountTendered) >= cashDue
                 ? formatByCurrency(Number(amountTendered) - cashDue, cashCurrency)
@@ -859,17 +881,17 @@ export default function BaristaQueueView() {
         onOpenChange={(open) => {
           if (!open) setDetailOrder(null);
         }}
-        title="Order Detail"
+        title={t("barista.detail.title", "Order Detail")}
       >
         {detailOrder && (
           <div className="admin_modal_form_wrap">
             <DetailGrid>
-              <DetailItem label="Order">
+              <DetailItem label={t("fields.order", "Order")}>
                 <span className="font-mono">
                   #{detailOrder.id.slice(0, 8).toUpperCase()}
                 </span>
               </DetailItem>
-              <DetailItem label="Status">
+              <DetailItem label={t("fields.status", "Status")}>
                 <span
                   className={cn(
                     "inline-block rounded-full px-3 py-1 text-xs font-semibold",
@@ -879,38 +901,40 @@ export default function BaristaQueueView() {
                   {STATUS_LABELS[detailOrder.status]}
                 </span>
               </DetailItem>
-              <DetailItem label="Customer">
-                {detailOrder.customerName ? titleCase(detailOrder.customerName) : "Walk-in"}
+              <DetailItem label={t("fields.customer", "Customer")}>
+                {detailOrder.customerName ? titleCase(detailOrder.customerName) : t("barista.labels.walk_in", "Walk-in")}
               </DetailItem>
-              <DetailItem label="Placed">
+              <DetailItem label={t("barista.detail.placed", "Placed")}>
                 {formatDateTime(detailOrder.createdAt)}
               </DetailItem>
-              <DetailItem label="Payment Method">
-                {detailOrder.paymentMethod ? humanise(detailOrder.paymentMethod) : "Not chosen yet"}
+              <DetailItem label={t("fields.payment_method", "Payment Method")}>
+                {detailOrder.paymentMethod
+                  ? humanise(detailOrder.paymentMethod)
+                  : t("barista.detail.not_chosen_yet", "Not chosen yet")}
               </DetailItem>
-              <DetailItem label="Paid At">
-                {detailOrder.paidAt ? formatDateTime(detailOrder.paidAt) : "Not paid yet"}
+              <DetailItem label={t("barista.detail.paid_at", "Paid At")}>
+                {detailOrder.paidAt ? formatDateTime(detailOrder.paidAt) : t("barista.detail.not_paid_yet", "Not paid yet")}
               </DetailItem>
-              <DetailItem label="Handled By">
+              <DetailItem label={t("barista.detail.handled_by", "Handled By")}>
                 {detailOrder.handledByName
                   ? `${titleCase(detailOrder.handledByName)}${
                       detailOrder.handledByRole ? ` (${humanise(detailOrder.handledByRole)})` : ""
                     }`
                   : "-"}
               </DetailItem>
-              <DetailItem label="Total">{money(detailOrder.totalAmount)}</DetailItem>
+              <DetailItem label={t("fields.total", "Total")}>{money(detailOrder.totalAmount)}</DetailItem>
               {detailOrder.paymentMethod === "CASH" ? (
                 <>
-                  <DetailItem label="Amount Tendered">
+                  <DetailItem label={t("barista.cash.amount_tendered", "Amount Tendered")}>
                     {formatByCurrency(detailOrder.amountTendered, detailOrder.amountTenderedCurrency)}
                   </DetailItem>
-                  <DetailItem label="Change Given">
+                  <DetailItem label={t("barista.detail.change_given", "Change Given")}>
                     {formatByCurrency(detailOrder.changeDue, detailOrder.changeCurrency)}
                   </DetailItem>
                 </>
               ) : null}
               {detailOrder.paymentMethod === "BAKONG" ? (
-                <DetailItem label="Bakong Amount">
+                <DetailItem label={t("barista.detail.bakong_amount", "Bakong Amount")}>
                   {detailOrder.bakongAmount == null
                     ? "-"
                     : `${Number(detailOrder.bakongAmount).toLocaleString()} ${
@@ -936,7 +960,9 @@ export default function BaristaQueueView() {
               <div className="mt-6 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-amber-900">Note from customer</p>
+                  <p className="text-xs font-semibold text-amber-900">
+                    {t("barista.detail.note_from_customer", "Note from customer")}
+                  </p>
                   <p className="mt-0.5 text-sm whitespace-pre-line wrap-break-word text-amber-900">
                     {detailOrder.note}
                   </p>
@@ -947,7 +973,7 @@ export default function BaristaQueueView() {
             <div className="mt-6">
               <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
                 <ChefHat className="h-4 w-4 text-gray-400" />
-                Items ({detailOrder.items.length})
+                {t("barista.detail.items", "Items ({count})", { count: detailOrder.items.length })}
               </h4>
               <div className="space-y-3">
                 {detailOrder.items.map((item) => (
@@ -962,20 +988,23 @@ export default function BaristaQueueView() {
                       <p className="mt-0.5 text-xs text-gray-500">
                         {[
                           item.variantName ? humanise(item.variantName) : null,
-                          item.sugarLevel && `Sugar ${formatLevel(item.sugarLevel)}`,
-                          item.iceLevel && `Ice ${formatLevel(item.iceLevel)}`,
+                          item.sugarLevel &&
+                            t("barista.labels.sugar", "Sugar {level}", { level: formatLevel(item.sugarLevel) }),
+                          item.iceLevel && t("barista.labels.ice", "Ice {level}", { level: formatLevel(item.iceLevel) }),
                           item.milkType && item.milkType !== "NONE" ? humanise(item.milkType) : null,
                           ...item.extras.map((extra) => titleCase(extra.name)),
                         ]
                           .filter(Boolean)
-                          .join(" · ") || "Standard"}
+                          .join(" · ") || t("barista.labels.standard", "Standard")}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-sm font-bold text-gray-900">
                         {money(item.subtotal)}
                       </p>
-                      <p className="text-xs text-gray-400">{money(item.unitPrice)} each</p>
+                      <p className="text-xs text-gray-400">
+                        {t("barista.detail.unit_price_each", "{price} each", { price: money(item.unitPrice) })}
+                      </p>
                     </div>
                   </div>
                 ))}

@@ -28,6 +28,7 @@ import { formatPhoneInput, PHONE_MAX_LENGTH, PHONE_PLACEHOLDER } from "@/lib/pho
 import { parseForm } from "@/lib/validation";
 import { emailLoginSchema, otpSchema, phoneLoginSchema } from "@/lib/formSchemas";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+import { useI18n } from "@/contexts/I18nContext";
 import { ForgotPasswordDialog } from "@/features/auth/components/ForgotPasswordDialog";
 import {
   AUTH_DIALOG_BADGE_CLASS,
@@ -45,26 +46,6 @@ function resolveNextPath(): string {
 
 type LoginMethod = "EMAIL" | "PHONE";
 
-const LOGIN_METHODS: {
-  value: LoginMethod;
-  label: string;
-  icon: typeof Mail;
-  hint: string;
-}[] = [
-  {
-    value: "EMAIL",
-    label: "Email",
-    icon: Mail,
-    hint: "Enter your email and password to access the admin dashboard",
-  },
-  {
-    value: "PHONE",
-    label: "Phone number",
-    icon: Phone,
-    hint: "Invited over Telegram? Enter your phone number and we'll send a code to your Telegram",
-  },
-];
-
 const LOGIN_METHOD_KEY = "loginMethod";
 
 const parseLoginMethod = (raw: string | null): LoginMethod =>
@@ -72,6 +53,33 @@ const parseLoginMethod = (raw: string | null): LoginMethod =>
 
 export default function AuthPage() {
   const router = useRouter();
+  const { t } = useI18n();
+
+  const loginMethods: {
+    value: LoginMethod;
+    label: string;
+    icon: typeof Mail;
+    hint: string;
+  }[] = [
+    {
+      value: "EMAIL",
+      label: t("fields.email", "Email"),
+      icon: Mail,
+      hint: t(
+        "auth.login.hints.email",
+        "Enter your email and password to access the admin dashboard",
+      ),
+    },
+    {
+      value: "PHONE",
+      label: t("auth.login.phone_number", "Phone number"),
+      icon: Phone,
+      hint: t(
+        "auth.login.hints.phone",
+        "Invited over Telegram? Enter your phone number and we'll send a code to your Telegram",
+      ),
+    },
+  ];
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -116,7 +124,10 @@ export default function AuthPage() {
     setOtp("");
     setPassword("");
     toast.error(
-      "This is a customer account. Customer accounts can't open the staff dashboard — sign in with an admin or barista account.",
+      t(
+        "auth.toast.customer_account",
+        "This is a customer account. Customer accounts can't open the staff dashboard — sign in with an admin or barista account.",
+      ),
     );
   };
 
@@ -137,7 +148,10 @@ export default function AuthPage() {
       toast.error(
         apiErrorMessage(
           err as Parameters<typeof apiErrorMessage>[0],
-          "Login failed. Check your credentials and try again.",
+          t(
+            "auth.errors.login_failed",
+            "Login failed. Check your credentials and try again.",
+          ),
         ),
       );
     }
@@ -155,7 +169,10 @@ export default function AuthPage() {
       toast.error(
         apiErrorMessage(
           err as Parameters<typeof apiErrorMessage>[0],
-          "Could not send a code to this number. Please try again.",
+          t(
+            "auth.errors.send_code_failed",
+            "Could not send a code to this number. Please try again.",
+          ),
         ),
       );
     }
@@ -178,7 +195,10 @@ export default function AuthPage() {
       toast.error(
         apiErrorMessage(
           err as Parameters<typeof apiErrorMessage>[0],
-          "That code was not accepted. Check it and try again.",
+          t(
+            "auth.errors.code_not_accepted",
+            "That code was not accepted. Check it and try again.",
+          ),
         ),
       );
     }
@@ -194,6 +214,14 @@ export default function AuthPage() {
   };
 
   const otpStage = loginTicket !== null;
+  const [otpSentBefore, otpSentAfter] = (
+    method === "PHONE"
+      ? t(
+          "auth.otp.sent_telegram",
+          "We sent a 6-digit verification code to your Telegram for {target}",
+        )
+      : t("auth.otp.sent_email", "We sent a 6-digit verification code to {target}")
+  ).split("{target}");
 
   const backToCredentials = () => {
     setLoginTicket(null);
@@ -202,7 +230,9 @@ export default function AuthPage() {
 
   return (
     <main className="min-h-screen bg-[#1f1f1f] p-4 text-black sm:p-8">
-      <p className="mb-4 text-sm text-white/50">Login</p>
+      <p className="mb-4 text-sm text-white/50">
+        {t("auth.login.page_label", "Login")}
+      </p>
       <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-[clamp(80rem,70vw,120rem)] overflow-hidden rounded-2xl bg-white lg:grid-cols-2">
         <section className="flex items-center justify-center px-6 py-12">
           <div className="w-full max-w-lg min-[1920px]:max-w-xl">
@@ -222,18 +252,20 @@ export default function AuthPage() {
             </div>
 
             <div className="text-center">
-              <h1 className="text-2xl font-bold">Login to your account</h1>
+              <h1 className="text-2xl font-bold">
+                {t("auth.login.heading", "Login to your account")}
+              </h1>
               <p className="mt-3 text-sm text-gray-500">
-                {LOGIN_METHODS.find(({ value }) => value === method)?.hint}
+                {loginMethods.find(({ value }) => value === method)?.hint}
               </p>
             </div>
 
             <div
               role="tablist"
-              aria-label="Sign-in method"
+              aria-label={t("auth.login.method_aria", "Sign-in method")}
               className="mt-8 grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1"
             >
-              {LOGIN_METHODS.map(({ value, label, icon: Icon }) => (
+              {loginMethods.map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}
                   type="button"
@@ -256,7 +288,7 @@ export default function AuthPage() {
               {method === "PHONE" ? (
                 <form onSubmit={handlePhone} noValidate>
                   <label className="block text-sm font-medium">
-                    Phone number
+                    {t("auth.login.phone_number", "Phone number")}
                     <span className="relative mt-2 block">
                       <input
                         type="tel"
@@ -275,8 +307,10 @@ export default function AuthPage() {
                     </span>
                   </label>
                   <p className="mt-2 text-xs text-gray-500">
-                    The number your admin invited. The code arrives in the
-                    Telegram chat that accepted the invite.
+                    {t(
+                      "auth.login.phone_help",
+                      "The number your admin invited. The code arrives in the Telegram chat that accepted the invite.",
+                    )}
                   </p>
 
                   <button
@@ -284,14 +318,16 @@ export default function AuthPage() {
                     disabled={isSendingPhoneCode}
                     className={SUBMIT_CLASS}
                   >
-                    {isSendingPhoneCode ? "Sending code..." : "Send code"}
+                    {isSendingPhoneCode
+                      ? t("auth.shared.sending_code", "Sending code...")
+                      : t("auth.login.send_code", "Send code")}
                   </button>
                 </form>
               ) : (
                 <form onSubmit={handleCredentials}>
                   <div className="space-y-6">
                     <label className="block text-sm font-medium">
-                      Email
+                      {t("fields.email", "Email")}
                       <span className="relative mt-2 block">
                         <input
                           type="email"
@@ -307,12 +343,12 @@ export default function AuthPage() {
                     </label>
 
                     <label className="block text-sm font-medium">
-                      Password
+                      {t("fields.password", "Password")}
                       <span className="relative mt-2 block">
                         <input
                           type={showPassword ? "text" : "password"}
                           className={`${FIELD_CLASS} px-4 pr-11`}
-                          placeholder="Password"
+                          placeholder={t("fields.password", "Password")}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           autoComplete="current-password"
@@ -323,7 +359,9 @@ export default function AuthPage() {
                           className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-700"
                           onClick={() => setShowPassword((prev) => !prev)}
                           aria-label={
-                            showPassword ? "Hide password" : "Show password"
+                            showPassword
+                              ? t("auth.shared.hide_password", "Hide password")
+                              : t("auth.shared.show_password", "Show password")
                           }
                         >
                           {showPassword ? (
@@ -341,7 +379,9 @@ export default function AuthPage() {
                     disabled={isLoggingIn}
                     className={SUBMIT_CLASS}
                   >
-                    {isLoggingIn ? "Signing in..." : "Login"}
+                    {isLoggingIn
+                      ? t("auth.shared.signing_in", "Signing in...")
+                      : t("auth.login.submit", "Login")}
                   </button>
                 </form>
               )}
@@ -364,7 +404,7 @@ export default function AuthPage() {
                 >
                   {rememberMe && <Check className="h-4 w-4" />}
                 </span>
-                Keep me logged in
+                {t("auth.login.remember_me", "Keep me logged in")}
               </label>
               {method === "EMAIL" ? (
                 <button
@@ -372,7 +412,7 @@ export default function AuthPage() {
                   onClick={() => setForgotOpen(true)}
                   className="text-sm font-medium text-gray-700 underline hover:text-black"
                 >
-                  Forgot password?
+                  {t("auth.login.forgot_password", "Forgot password?")}
                 </button>
               ) : null}
             </div>
@@ -383,18 +423,34 @@ export default function AuthPage() {
           <div className="absolute left-[10%] top-[13%] aspect-[13/18] w-[min(32cqw,25cqh)] -rotate-[28deg] rounded-lg bg-white p-[2.5cqmin] shadow-2xl">
             <Poster
               title="590st CAFE"
-              subtitle="Iced Coffee Collection"
+              subtitle={t(
+                "auth.login.posters.iced_coffee_collection",
+                "Iced Coffee Collection",
+              )}
               light
             />
           </div>
           <div className="absolute right-[10%] top-[5%] aspect-[32/43] w-[min(50cqw,38cqh)] rotate-[28deg] rounded-lg bg-[#21140d] p-[3cqmin] shadow-2xl">
-            <Poster title="590st CAFE" subtitle="Refreshing!" />
+            <Poster
+              title="590st CAFE"
+              subtitle={t("auth.login.posters.refreshing", "Refreshing!")}
+            />
           </div>
           <div className="absolute -bottom-[10%] left-[30%] aspect-[7/9] w-[min(35cqw,27cqh)] -rotate-[20deg] rounded-lg bg-[#3b291b] p-[2.5cqmin] shadow-2xl">
-            <Poster title="Iced Latte" subtitle="Fresh coffee" />
+            <Poster
+              title={t("auth.login.posters.iced_latte", "Iced Latte")}
+              subtitle={t("auth.login.posters.fresh_coffee", "Fresh coffee")}
+            />
           </div>
           <div className="absolute bottom-[6%] right-[4%] aspect-[2/3] w-[min(30cqw,23cqh)] rotate-[20deg] rounded-lg bg-[#f6df7a] p-[2.5cqmin] shadow-2xl">
-            <Poster title="Coffee" subtitle="Best with everything" light />
+            <Poster
+              title={t("auth.login.posters.coffee", "Coffee")}
+              subtitle={t(
+                "auth.login.posters.best_with_everything",
+                "Best with everything",
+              )}
+              light
+            />
           </div>
         </section>
       </div>
@@ -412,24 +468,20 @@ export default function AuthPage() {
             </div>
 
             <div className="text-center">
-              <h1 className="text-xl font-bold">Enter your code</h1>
+              <h1 className="text-xl font-bold">
+                {t("auth.otp.heading", "Enter your code")}
+              </h1>
               <p className="mt-3 text-sm text-gray-500">
-                {method === "PHONE" ? (
-                  <>
-                    We sent a 6-digit verification code to your Telegram for{" "}
-                    <span className="font-medium text-gray-700">{phone}</span>
-                  </>
-                ) : (
-                  <>
-                    We sent a 6-digit verification code to{" "}
-                    <span className="font-medium text-gray-700">{email}</span>
-                  </>
-                )}
+                {otpSentBefore}
+                <span className="font-medium text-gray-700">
+                  {method === "PHONE" ? phone : email}
+                </span>
+                {otpSentAfter}
               </p>
             </div>
 
             <label className="mt-8 block text-sm font-medium">
-              Verification code
+              {t("auth.shared.verification_code", "Verification code")}
               <input
                 className={`${FIELD_CLASS} mt-2 h-12 text-center text-2xl tracking-[0.5em]`}
                 placeholder="000000"
@@ -449,7 +501,9 @@ export default function AuthPage() {
               disabled={isVerifying || otp.length !== 6}
               className={SUBMIT_CLASS}
             >
-              {isVerifying ? "Verifying..." : "Verify and sign in"}
+              {isVerifying
+                ? t("auth.otp.verifying", "Verifying...")
+                : t("auth.otp.verify", "Verify and sign in")}
             </button>
 
             <div className="mt-6 flex items-center justify-between text-sm">
@@ -459,14 +513,16 @@ export default function AuthPage() {
                 disabled={isResending}
                 className="text-gray-600 underline disabled:opacity-60"
               >
-                {isResending ? "Sending..." : "Resend code"}
+                {isResending
+                  ? t("states.sending", "Sending...")
+                  : t("auth.shared.resend_code", "Resend code")}
               </button>
               <button
                 type="button"
                 onClick={backToCredentials}
                 className="text-gray-600 underline"
               >
-                Use a different account
+                {t("auth.otp.different_account", "Use a different account")}
               </button>
             </div>
           </form>
@@ -480,7 +536,12 @@ export default function AuthPage() {
         onReset={(resetEmail) => {
           setEmail(resetEmail);
           setPassword("");
-          toast.success("Password reset. Log in with your new password.");
+          toast.success(
+            t(
+              "auth.toast.password_reset",
+              "Password reset. Log in with your new password.",
+            ),
+          );
         }}
       />
     </main>

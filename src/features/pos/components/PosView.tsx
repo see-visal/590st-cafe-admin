@@ -40,6 +40,7 @@ import { cn, humanise, titleCase } from "@/lib/utils";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
+import { useI18n } from "@/contexts/I18nContext";
 
 const BAKONG_POLL_MS = 4000;
 
@@ -67,13 +68,14 @@ function QuantityControl({
   onIncrement: () => void;
   onDecrement: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className={cn("pos_qty_control", variant === "cart" && "is_cart")}>
-      <button type="button" aria-label="Decrease quantity" onClick={onDecrement}>
+      <button type="button" aria-label={t("pos.quantity.decrease", "Decrease quantity")} onClick={onDecrement}>
         <Minus />
       </button>
       <span>{quantity}</span>
-      <button type="button" aria-label="Increase quantity" onClick={onIncrement}>
+      <button type="button" aria-label={t("pos.quantity.increase", "Increase quantity")} onClick={onIncrement}>
         <Plus />
       </button>
     </div>
@@ -81,6 +83,7 @@ function QuantityControl({
 }
 
 export default function PosView() {
+  const { t } = useI18n();
   const { isAdmin, isBarista } = useCurrentRole();
 
   const [activeCategory, setActiveCategory] = usePersistentState<string>("pos:activeCategory", "All");
@@ -161,12 +164,12 @@ export default function PosView() {
 
   const addToCart = (product: ProductResponse, variant: ProductVariantResponse) => {
     if (pendingOrder || confirmingRef.current) {
-      toast.error("Finish or cancel the payment before editing the order.");
+      toast.error(t("pos.toast.finish_payment_first", "Finish or cancel the payment before editing the order."));
       return;
     }
     const quantity = cart.filter((line) => line.product.id === product.id).reduce((sum, line) => sum + line.quantity, 0);
     if (quantity + 1 > Number(product.quantityOnHand)) {
-      toast.error(`${product.name} does not have enough stock.`);
+      toast.error(t("pos.toast.not_enough_stock", "{name} does not have enough stock.", { name: product.name }));
       return;
     }
     const key = `${product.id}:${variant.id}`;
@@ -188,7 +191,7 @@ export default function PosView() {
     if (item && delta > 0) {
       const quantity = cart.filter((line) => line.product.id === item.product.id).reduce((sum, line) => sum + line.quantity, 0);
       if (quantity + delta > Number(item.product.quantityOnHand)) {
-        toast.error(`${item.product.name} does not have enough stock.`);
+        toast.error(t("pos.toast.not_enough_stock", "{name} does not have enough stock.", { name: item.product.name }));
         return;
       }
     }
@@ -243,7 +246,13 @@ export default function PosView() {
     // Cancelled elsewhere: forget the order but keep the cart, so the sale can be rung up again.
     setPendingOrder(null);
     resetBakongState();
-    toast(`Order #${latest.id.slice(0, 8)} was cancelled. The cart is kept — take payment again to start a new order.`);
+    toast(
+      t(
+        "pos.toast.order_cancelled",
+        "Order #{id} was cancelled. The cart is kept — take payment again to start a new order.",
+        { id: latest.id.slice(0, 8) }
+      )
+    );
   };
 
   useEffect(() => {
@@ -268,7 +277,7 @@ export default function PosView() {
         resetCart();
         return;
       }
-      toast.error(apiErrorMessage(error as never, "Could not cancel the pending order. Check its payment status."));
+      toast.error(apiErrorMessage(error as never, t("pos.errors.cancel_pending", "Could not cancel the pending order. Check its payment status.")));
     }
   };
 
@@ -277,6 +286,12 @@ export default function PosView() {
 
   const grossTotal = cart.reduce((sum, line) => sum + Number(line.variant.price) * line.quantity, 0);
   const discount = Math.max(grossTotal - total, 0);
+
+  const noteLabels: Record<string, string> = {
+    "Dine in": t("pos.order.note_dine_in", "Dine in"),
+    Takeaway: t("pos.order.note_takeaway", "Takeaway"),
+    Delivery: t("pos.order.note_delivery", "Delivery"),
+  };
 
   const paymentItems: PosCartItem[] = cart.map((line) => ({
     id: line.key,
@@ -320,7 +335,7 @@ export default function PosView() {
       resetCart();
       setCompletedSale(paid);
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not complete the sale."));
+      toast.error(apiErrorMessage(err as never, t("pos.errors.complete_sale", "Could not complete the sale.")));
     } finally {
       confirmingRef.current = false;
     }
@@ -343,7 +358,7 @@ export default function PosView() {
       setBakongQr({ dataUrl, amount: Number(issued.amount) });
       setBakongSecondsLeft(Math.max(0, Math.floor(issued.expiresInSeconds)));
     } catch (err) {
-      setBakongFailure(apiErrorMessage(err as never, "Could not generate the payment QR."));
+      setBakongFailure(apiErrorMessage(err as never, t("pos.errors.generate_qr", "Could not generate the payment QR.")));
     } finally {
       isGeneratingBakongRef.current = false;
       setIsGeneratingBakong(false);
@@ -362,7 +377,7 @@ export default function PosView() {
         setCompletedSale(updated);
       }
     } catch (err) {
-      const message = apiErrorMessage(err as never, "Could not check the payment.");
+      const message = apiErrorMessage(err as never, t("pos.errors.check_payment", "Could not check the payment."));
       if (bakongCheckErrorRef.current !== message) toast.error(message);
       bakongCheckErrorRef.current = message;
     } finally {
@@ -393,22 +408,31 @@ export default function PosView() {
   return (
     <PageShell contentClassName="is_pos_page">
       <PageHeader
-        title="POS"
-        breadcrumbs={[{ label: "Home", href: "/" }, { label: "Point of Sale" }]}
+        title={t("pos.title", "POS")}
+        breadcrumbs={[
+          { label: t("breadcrumb.home", "Home"), href: "/" },
+          { label: t("pos.breadcrumb.point_of_sale", "Point of Sale") },
+        ]}
         rightSlot={<AdminTopActions />}
       />
       {pendingOrder && <div role="status" className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
-        <p>Order #{pendingOrder.id.slice(0, 8)} is awaiting payment. Retry payment or clear the order to cancel it.</p>
-        <button type="button" onClick={() => setPaymentOpen(true)} className="underline">Resume payment</button>
+        <p>
+          {t(
+            "pos.pending.awaiting_payment",
+            "Order #{id} is awaiting payment. Retry payment or clear the order to cancel it.",
+            { id: pendingOrder.id.slice(0, 8) }
+          )}
+        </p>
+        <button type="button" onClick={() => setPaymentOpen(true)} className="underline">{t("pos.pending.resume_payment", "Resume payment")}</button>
       </div>}
 
       <div className="pos_layout">
-        <section className="pos_catalog" aria-label="Product catalog">
+        <section className="pos_catalog" aria-label={t("pos.catalog.aria_label", "Product catalog")}>
           <div className="pos_catalog_toolbar">
             <div
               className="pos_category_selection"
               role="tablist"
-              aria-label="Product categories"
+              aria-label={t("pos.catalog.categories_aria_label", "Product categories")}
             >
               <button
                 type="button"
@@ -417,7 +441,7 @@ export default function PosView() {
                 className={cn(activeCategory === "All" && "is_active")}
                 onClick={() => setActiveCategory("All")}
               >
-                All
+                {t("pos.catalog.all", "All")}
               </button>
               {categories.map((category) => (
                 <button
@@ -436,7 +460,7 @@ export default function PosView() {
             <label className="pos_search">
               <Search />
               <input
-                placeholder="Search product by name or SKU"
+                placeholder={t("pos.catalog.search_placeholder", "Search product by name or SKU")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -445,7 +469,7 @@ export default function PosView() {
 
           <div className="pos_product_grid_scroll">
             {products.isLoading ? (
-              <div className="pos_product_grid" role="status" aria-label="Loading products">
+              <div className="pos_product_grid" role="status" aria-label={t("pos.catalog.loading_aria_label", "Loading products")}>
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="space-y-3 rounded-xl bg-white p-3">
                     <SkeletonBlock className="aspect-square w-full rounded-lg" />
@@ -456,11 +480,11 @@ export default function PosView() {
               </div>
             ) : products.error ? (
               <div className="p-8">
-                <ErrorState error={products.error} fallback="Could not load products." onRetry={refetch} isRetrying={productsQuery.isFetching} />
+                <ErrorState error={products.error} fallback={t("pos.catalog.load_error", "Could not load products.")} onRetry={refetch} isRetrying={productsQuery.isFetching} />
               </div>
             ) : visibleProducts.length === 0 ? (
               <p className="p-8 text-sm text-gray-400">
-                No active products in this category.
+                {t("pos.catalog.empty", "No active products in this category.")}
               </p>
             ) : (
               <div className="pos_product_grid">
@@ -469,8 +493,8 @@ export default function PosView() {
                   const discountLabel = !product.discountActive || product.discountValue == null
                     ? null
                     : product.discountType === "PERCENTAGE"
-                      ? `${Number(product.discountValue)}% off`
-                      : `$${Number(product.discountValue).toFixed(2)} off`;
+                      ? t("pos.product.discount_off", "{amount} off", { amount: `${Number(product.discountValue)}%` })
+                      : t("pos.product.discount_off", "{amount} off", { amount: `$${Number(product.discountValue).toFixed(2)}` });
                   const activeVariants = [...product.variants]
                     .filter((v) => v.status === "ACTIVE")
                     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
@@ -496,7 +520,7 @@ export default function PosView() {
                             <strong>{priceLabel}</strong>
                           </div>
                           <div className="pos_product_meta">
-                            <span>In stock: {Number(product.quantityOnHand)}</span>
+                            <span>{t("pos.product.in_stock", "In stock: {count}", { count: Number(product.quantityOnHand) })}</span>
                             <span>{humanise(product.stockUnit)}</span>
                           </div>
                           {discountLabel ? (
@@ -529,7 +553,7 @@ export default function PosView() {
                             variant="product"
                             onIncrement={() => {
                               if (outOfStock) {
-                                toast.error(`${product.name} is out of stock.`);
+                                toast.error(t("pos.toast.out_of_stock", "{name} is out of stock.", { name: product.name }));
                                 return;
                               }
                               addToCart(product, onlyVariant);
@@ -551,13 +575,13 @@ export default function PosView() {
           </div>
         </section>
 
-        <aside id="pos-order-panel" className="pos_order_panel" aria-label="Order summary">
+        <aside id="pos-order-panel" className="pos_order_panel" aria-label={t("pos.order.aria_label", "Order summary")}>
           <div className="pos_order_header">
             <div>
-              <h2>Order Summary</h2>
+              <h2>{t("pos.order.title", "Order Summary")}</h2>
             </div>
             <div className="pos_order_header_actions">
-              <button type="button" aria-label="Clear order" onClick={clearCart}>
+              <button type="button" aria-label={t("pos.order.clear_aria_label", "Clear order")} onClick={clearCart}>
                 <X />
               </button>
             </div>
@@ -565,25 +589,25 @@ export default function PosView() {
 
           <div className="pos_order_selects">
             <FormSelect
-              label="Order note"
+              label={t("pos.order.note_label", "Order note")}
               value={note}
               onChange={(event) => { if (!pendingOrder && !confirmingRef.current) setNote(event.target.value); }}
-              placeholder="No note"
+              placeholder={t("pos.order.note_placeholder", "No note")}
             >
-              <option value="Dine in">Dine in</option>
-              <option value="Takeaway">Takeaway</option>
-              <option value="Delivery">Delivery</option>
+              <option value="Dine in">{noteLabels["Dine in"]}</option>
+              <option value="Takeaway">{noteLabels.Takeaway}</option>
+              <option value="Delivery">{noteLabels.Delivery}</option>
             </FormSelect>
             {isDineIn ? (
               <FormSelect
-                label="Table"
+                label={t("pos.order.table_label", "Table")}
                 value={tableNumber}
                 onChange={(event) => { if (!pendingOrder && !confirmingRef.current) setTableNumber(event.target.value); }}
-                placeholder="No table"
+                placeholder={t("pos.order.table_placeholder", "No table")}
               >
                 {(tables ?? []).map((table) => (
                   <option key={table.id} value={table.tableNumber}>
-                    Table {table.tableNumber}
+                    {t("pos.order.table_option", "Table {number}", { number: table.tableNumber })}
                   </option>
                 ))}
               </FormSelect>
@@ -593,7 +617,7 @@ export default function PosView() {
           <div className="pos_cart_list">
             {cart.length === 0 ? (
               <p className="p-6 text-center text-sm text-gray-400">
-                Cart is empty. Tap a product to add it.
+                {t("pos.cart.empty", "Cart is empty. Tap a product to add it.")}
               </p>
             ) : (
               cart.map((line) => (
@@ -623,7 +647,7 @@ export default function PosView() {
                     <button
                       type="button"
                       className="pos_cart_action is_remove"
-                      aria-label={`Remove ${line.product.name}`}
+                      aria-label={t("pos.cart.remove_item", "Remove {name}", { name: line.product.name })}
                       onClick={() => removeLine(line.key)}
                     >
                       <X />
@@ -635,13 +659,16 @@ export default function PosView() {
           </div>
 
           <dl className="pos_order_totals">
-            <dt>Subtotal:</dt>
+            <dt>{t("pos.totals.subtotal", "Subtotal:")}</dt>
             <dd>
-              ${grossTotal.toFixed(2)} - {itemCount} {itemCount === 1 ? "Item" : "Items"}
+              ${grossTotal.toFixed(2)} -{" "}
+              {itemCount === 1
+                ? t("pos.totals.items_one", "{count} Item", { count: itemCount })
+                : t("pos.totals.items_other", "{count} Items", { count: itemCount })}
             </dd>
-            <dt>Total Discount:</dt>
+            <dt>{t("pos.totals.total_discount", "Total Discount:")}</dt>
             <dd>${discount.toFixed(2)}</dd>
-            <dt className="is_grand_total">Grand Total:</dt>
+            <dt className="is_grand_total">{t("pos.totals.grand_total", "Grand Total:")}</dt>
             <dd className="is_grand_total">${total.toFixed(2)}</dd>
           </dl>
 
@@ -653,7 +680,7 @@ export default function PosView() {
               disabled={cart.length === 0}
             >
               <ShoppingBag />
-              Clear
+              {t("actions.clear", "Clear")}
             </button>
             <button
               type="button"
@@ -661,7 +688,7 @@ export default function PosView() {
               onClick={() => setPaymentOpen(true)}
               disabled={cart.length === 0 || (!isAdmin && !isBarista)}
             >
-              Make a Payment
+              {t("pos.actions.make_payment", "Make a Payment")}
               <span aria-hidden className="pos_cta_arrow">
                 →
               </span>
@@ -678,7 +705,7 @@ export default function PosView() {
           onClick={() => document.getElementById("pos-order-panel")?.scrollIntoView({ behavior: "smooth", block: "start" })}
         >
           <span className="pos_mobile_order_count">{itemCount}</span>
-          <span>View order</span>
+          <span>{t("pos.actions.view_order", "View order")}</span>
           <b>${total.toFixed(2)}</b>
         </button>
       ) : null}
@@ -690,8 +717,14 @@ export default function PosView() {
         }}
         items={paymentItems}
         total={Number(pendingOrder?.totalAmount ?? total)}
-        orderTable={note || "Walk-in"}
-        orderId={pendingOrder ? `#${pendingOrder.id.slice(0, 8)}` : `${itemCount} item${itemCount === 1 ? "" : "s"}`}
+        orderTable={note ? noteLabels[note] ?? note : t("pos.order.walk_in", "Walk-in")}
+        orderId={
+          pendingOrder
+            ? `#${pendingOrder.id.slice(0, 8)}`
+            : itemCount === 1
+              ? t("pos.order.item_count_one", "{count} item", { count: itemCount })
+              : t("pos.order.item_count_other", "{count} items", { count: itemCount })
+        }
         method={paymentMethod}
         onMethodChange={(next) => {
           setPaymentMethod(next);

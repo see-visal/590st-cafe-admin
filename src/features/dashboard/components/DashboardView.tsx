@@ -29,6 +29,7 @@ import type { OrderResponse } from "@/store/api/types";
 import { useRefreshOptions } from "@/contexts/AdminPreferencesContext";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
+import { useI18n } from "@/contexts/I18nContext";
 
 const SERIES_CASH = "#2a78d6";
 const SERIES_BAKONG = "#eb6834";
@@ -63,6 +64,7 @@ function topProducts(orders: OrderResponse[]) {
 }
 
 function PaymentMeter({ cash, bakong }: { cash: number; bakong: number }) {
+  const { t } = useI18n();
   const total = cash + bakong;
   const cashPct = total > 0 ? (cash / total) * 100 : 0;
   const bakongPct = total > 0 ? (bakong / total) * 100 : 0;
@@ -70,7 +72,7 @@ function PaymentMeter({ cash, bakong }: { cash: number; bakong: number }) {
   if (total <= 0) {
     return (
       <p className="py-6 text-sm text-muted-foreground">
-        No payments recorded today yet.
+        {t("dashboard.payments.empty", "No payments recorded today yet.")}
       </p>
     );
   }
@@ -94,7 +96,7 @@ function PaymentMeter({ cash, bakong }: { cash: number; bakong: number }) {
               className="inline-block h-2.5 w-2.5 rounded-full"
               style={{ background: SERIES_CASH }}
             />
-            Cash
+            {t("dashboard.payments.cash", "Cash")}
           </dt>
           <dd className="font-semibold">
             {currency(cash)} · {cashPct.toFixed(0)}%
@@ -118,6 +120,7 @@ function PaymentMeter({ cash, bakong }: { cash: number; bakong: number }) {
 }
 
 export default function DashboardView() {
+  const { t } = useI18n();
   const today = shopDate();
   const refresh = useRefreshOptions();
   const reportQuery = useGetDailyReportQuery({ date: today }, refresh);
@@ -167,12 +170,12 @@ export default function DashboardView() {
       query.error
         ? {
             label: [
-              "Daily report",
-              "Finance",
-              "Low stock",
-              "Pending orders",
-              "Completed orders",
-              "Weekly report",
+              t("dashboard.errors.daily_report", "Daily report"),
+              t("dashboard.errors.finance", "Finance"),
+              t("dashboard.errors.low_stock", "Low stock"),
+              t("dashboard.errors.pending_orders", "Pending orders"),
+              t("dashboard.errors.completed_orders", "Completed orders"),
+              t("dashboard.errors.weekly_report", "Weekly report"),
             ][index],
             error: query.error,
             retry: query.refetch,
@@ -201,13 +204,17 @@ export default function DashboardView() {
   return (
     <PageShell>
       <PageHeader
-        title="Dashboard"
-        breadcrumbs={[{ label: "Home", href: "/" }]}
+        title={t("dashboard.title", "Dashboard")}
+        breadcrumbs={[{ label: t("breadcrumb.home", "Home"), href: "/" }]}
         rightSlot={<AdminTopActions />}
       />
 
       <p className="text-sm text-muted-foreground">
-        Shop data for {today}. Refreshes every 30 seconds.
+        {t(
+          "dashboard.subtitle",
+          "Shop data for {date}. Refreshes every 30 seconds.",
+          { date: today },
+        )}
       </p>
       {queryErrors.map((entry) => (
         <div
@@ -216,71 +223,80 @@ export default function DashboardView() {
           className="rounded-xl border border-red-200 p-4 text-sm text-red-700"
         >
           {entry.label}:{" "}
-          {apiErrorMessage(entry.error as never, "Could not load this data.")}
+          {apiErrorMessage(
+            entry.error as never,
+            t("dashboard.errors.load_failed", "Could not load this data."),
+          )}
           <button
             type="button"
             className="ml-3 underline"
             onClick={() => void entry.retry()}
           >
-            Retry
+            {t("actions.retry", "Retry")}
           </button>
         </div>
       ))}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatTile
-          title="Revenue Today"
+          title={t("dashboard.stats.revenue_today", "Revenue Today")}
           value={
             isLoadingReport
               ? "..."
               : reportQuery.error
-                ? "Unavailable"
+                ? t("dashboard.stats.unavailable", "Unavailable")
                 : currency(Number(report?.grandTotal ?? 0))
           }
           hint={
             finance && !financeQuery.error
-              ? `Profit: ${currency(Number(finance.profit))}`
+              ? t("dashboard.stats.profit_hint", "Profit: {amount}", {
+                  amount: currency(Number(finance.profit)),
+                })
               : undefined
           }
           tone="green"
         />
         <StatTile
-          title="Orders Today"
+          title={t("dashboard.stats.orders_today", "Orders Today")}
           value={
             isLoadingReport
               ? "..."
               : reportQuery.error
-                ? "Unavailable"
+                ? t("dashboard.stats.unavailable", "Unavailable")
                 : String(report?.totalOrders ?? 0)
           }
           hint={
             report && !reportQuery.error
-              ? `${report.baristas.length} staff member(s) with completed sales`
+              ? t(
+                  "dashboard.stats.staff_with_sales",
+                  "{count} staff member(s) with completed sales",
+                  { count: report.baristas.length },
+                )
               : undefined
           }
           tone="gray"
         />
         <StatTile
-          title="Pending Orders"
+          title={t("dashboard.stats.pending_orders", "Pending Orders")}
           value={
             pendingQuery.isLoading
               ? "..."
               : pendingQuery.error
-                ? "Unavailable"
+                ? t("dashboard.stats.unavailable", "Unavailable")
                 : String(pending?.totalElements ?? 0)
           }
-          hint="Awaiting payment or pickup"
+          hint={t("dashboard.stats.pending_hint", "Awaiting payment or pickup")}
           tone={(pending?.totalElements ?? 0) > 0 ? "orange" : "gray"}
         />
         <StatTile
-          title="Low Stock Items"
+          title={t("dashboard.stats.low_stock_items", "Low Stock Items")}
           value={
             lowStockQuery.isLoading
               ? "..."
               : lowStockQuery.error
-                ? "Unavailable"
+                ? t("dashboard.stats.unavailable", "Unavailable")
                 : String(lowStock?.totalElements ?? 0)
           }
-          hint="At or below reorder level"
+          hint={t("dashboard.low_stock.subtitle", "At or below reorder level")}
           tone={(lowStock?.totalElements ?? 0) > 0 ? "red" : "gray"}
         />
       </div>
@@ -289,38 +305,45 @@ export default function DashboardView() {
         <div className="chart_card dashboard_sales_card">
           <div className="section_header">
             <div className="header_text_group">
-              <h2 className="header_title">Revenue · last 7 days</h2>
+              <h2 className="header_title">
+                {t("dashboard.revenue.title", "Revenue · last 7 days")}
+              </h2>
               <p className="header_subtitle">
-                All completed sales from the daily reports
+                {t(
+                  "dashboard.revenue.subtitle",
+                  "All completed sales from the daily reports",
+                )}
               </p>
             </div>
             <Link
               href="/reports"
               className="header_filter_btn dashboard_header_link"
             >
-              View Report
+              {t("dashboard.revenue.view_report", "View Report")}
               <ArrowRight />
             </Link>
           </div>
 
           <div className="dashboard_chart_totals">
             <div>
-              <span>7-day revenue</span>
+              <span>{t("dashboard.revenue.week_revenue", "7-day revenue")}</span>
               <strong>
                 {weeklyQuery.isLoading
                   ? "..."
                   : weeklyQuery.error
-                    ? "Unavailable"
+                    ? t("dashboard.stats.unavailable", "Unavailable")
                     : currency(weekRevenue)}
               </strong>
             </div>
             <div>
-              <span>Average daily orders</span>
+              <span>
+                {t("dashboard.revenue.avg_daily_orders", "Average daily orders")}
+              </span>
               <strong>
                 {weeklyQuery.isLoading
                   ? "..."
                   : weeklyQuery.error
-                    ? "Unavailable"
+                    ? t("dashboard.stats.unavailable", "Unavailable")
                     : avgDailyOrders}
               </strong>
             </div>
@@ -328,10 +351,16 @@ export default function DashboardView() {
 
           <div className="chart_container">
             {weeklyQuery.error ? (
-              <p className="p-4 text-sm">Weekly sales could not be loaded.</p>
+              <p className="p-4 text-sm">
+                {t(
+                  "dashboard.revenue.load_failed",
+                  "Weekly sales could not be loaded.",
+                )}
+              </p>
             ) : weeklyQuery.isLoading ? (
               <p className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+                <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                {t("states.loading", "Loading...")}
               </p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -352,7 +381,7 @@ export default function DashboardView() {
                     cursor={{ fill: "rgba(42, 120, 214, 0.08)" }}
                     formatter={(value) => [
                       currency(Number(value ?? 0)),
-                      "Revenue",
+                      t("dashboard.revenue.series", "Revenue"),
                     ]}
                   />
                   <Bar
@@ -369,17 +398,21 @@ export default function DashboardView() {
         <div className="dashboard_panel">
           <div className="dashboard_panel_header">
             <div>
-              <h2>Payment Split</h2>
-              <p>Today, from the daily report</p>
+              <h2>{t("dashboard.payments.title", "Payment Split")}</h2>
+              <p>
+                {t("dashboard.payments.subtitle", "Today, from the daily report")}
+              </p>
             </div>
             <Link href="/payments">
-              Payments <ArrowRight />
+              {t("dashboard.payments.link", "Payments")} <ArrowRight />
             </Link>
           </div>
           {reportQuery.error ? (
-            <p className="p-4 text-sm">Payments could not be loaded.</p>
+            <p className="p-4 text-sm">
+              {t("dashboard.payments.load_failed", "Payments could not be loaded.")}
+            </p>
           ) : reportQuery.isLoading ? (
-            <p>Loading payments...</p>
+            <p>{t("dashboard.payments.loading", "Loading payments...")}</p>
           ) : (
             <PaymentMeter
               cash={Number(report?.cashTotal ?? 0)}
@@ -404,28 +437,38 @@ export default function DashboardView() {
         <div className="dashboard_panel">
           <div className="dashboard_panel_header">
             <div>
-              <h2>Top Products</h2>
-              <p>By units sold across the most recent 200 completed orders</p>
+              <h2>{t("dashboard.top_products.title", "Top Products")}</h2>
+              <p>
+                {t(
+                  "dashboard.top_products.subtitle",
+                  "By units sold across the most recent 200 completed orders",
+                )}
+              </p>
             </div>
             <Link href="/products">
-              Products <ArrowRight />
+              {t("dashboard.top_products.link", "Products")} <ArrowRight />
             </Link>
           </div>
           {completedQuery.error ? (
-            <p className="p-4 text-sm">Products could not be loaded.</p>
+            <p className="p-4 text-sm">
+              {t(
+                "dashboard.top_products.load_failed",
+                "Products could not be loaded.",
+              )}
+            </p>
           ) : isLoadingCompleted ? (
-            <p>Loading products...</p>
+            <p>{t("dashboard.top_products.loading", "Loading products...")}</p>
           ) : products.length === 0 ? (
             <p className="py-6 text-sm text-muted-foreground">
-              No sales recorded yet.
+              {t("dashboard.top_products.empty", "No sales recorded yet.")}
             </p>
           ) : (
             <table className="data_table is_compact">
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>Units</th>
-                  <th>Revenue</th>
+                  <th>{t("fields.product", "Product")}</th>
+                  <th>{t("dashboard.top_products.units", "Units")}</th>
+                  <th>{t("dashboard.top_products.revenue", "Revenue")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -444,20 +487,27 @@ export default function DashboardView() {
         <div className="dashboard_panel">
           <div className="dashboard_panel_header">
             <div>
-              <h2>Low Stock</h2>
-              <p>At or below reorder level</p>
+              <h2>{t("dashboard.low_stock.title", "Low Stock")}</h2>
+              <p>
+                {t("dashboard.low_stock.subtitle", "At or below reorder level")}
+              </p>
             </div>
             <Link href="/stock-alerts">
-              Stock Alerts <ArrowRight />
+              {t("dashboard.low_stock.link", "Stock Alerts")} <ArrowRight />
             </Link>
           </div>
           {lowStockQuery.error ? (
-            <p className="p-4 text-sm">Stock could not be loaded.</p>
+            <p className="p-4 text-sm">
+              {t("dashboard.low_stock.load_failed", "Stock could not be loaded.")}
+            </p>
           ) : lowStockQuery.isLoading ? (
-            <p>Loading stock...</p>
+            <p>{t("dashboard.low_stock.loading", "Loading stock...")}</p>
           ) : (lowStock?.content.length ?? 0) === 0 ? (
             <p className="py-6 text-sm text-muted-foreground">
-              Everything is above its reorder level.
+              {t(
+                "dashboard.low_stock.empty",
+                "Everything is above its reorder level.",
+              )}
             </p>
           ) : (
             <div className="dashboard_flow_list">
@@ -481,28 +531,32 @@ export default function DashboardView() {
         <div className="dashboard_panel">
           <div className="dashboard_panel_header">
             <div>
-              <h2>Recent Orders</h2>
-              <p>Most recently completed</p>
+              <h2>{t("dashboard.recent_orders.title", "Recent Orders")}</h2>
+              <p>
+                {t("dashboard.recent_orders.subtitle", "Most recently completed")}
+              </p>
             </div>
             <Link href="/orders">
-              Orders <ArrowRight />
+              {t("dashboard.recent_orders.link", "Orders")} <ArrowRight />
             </Link>
           </div>
           {completedQuery.error ? (
-            <p className="p-4 text-sm">Orders could not be loaded.</p>
+            <p className="p-4 text-sm">
+              {t("dashboard.recent_orders.load_failed", "Orders could not be loaded.")}
+            </p>
           ) : isLoadingCompleted ? (
-            <p>Loading orders...</p>
+            <p>{t("dashboard.recent_orders.loading", "Loading orders...")}</p>
           ) : recentOrders.length === 0 ? (
             <p className="py-6 text-sm text-muted-foreground">
-              No completed orders yet.
+              {t("dashboard.recent_orders.empty", "No completed orders yet.")}
             </p>
           ) : (
             <table className="data_table is_compact">
               <thead>
                 <tr>
-                  <th>Order</th>
-                  <th>Customer</th>
-                  <th>Total</th>
+                  <th>{t("fields.order", "Order")}</th>
+                  <th>{t("fields.customer", "Customer")}</th>
+                  <th>{t("fields.total", "Total")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -514,7 +568,7 @@ export default function DashboardView() {
                     <td>
                       {order.customerName
                         ? titleCase(order.customerName)
-                        : "Walk-in"}
+                        : t("dashboard.recent_orders.walk_in", "Walk-in")}
                     </td>
                     <td>{currency(Number(order.totalAmount))}</td>
                   </tr>

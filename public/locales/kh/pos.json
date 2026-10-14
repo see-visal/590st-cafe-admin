@@ -1,0 +1,92 @@
+{
+  "title": "POS",
+  "breadcrumb": {
+    "point_of_sale": "ចំណុចលក់"
+  },
+  "pending": {
+    "awaiting_payment": "ការបញ្ជាទិញ #{id} កំពុងរង់ចាំការទូទាត់។ សូមទូទាត់ម្តងទៀត ឬសម្អាតការបញ្ជាទិញដើម្បីបោះបង់វា។",
+    "resume_payment": "បន្តការទូទាត់"
+  },
+  "catalog": {
+    "aria_label": "កាតាឡុកផលិតផល",
+    "categories_aria_label": "ប្រភេទផលិតផល",
+    "all": "ទាំងអស់",
+    "search_placeholder": "ស្វែងរកផលិតផលតាមឈ្មោះ ឬ SKU",
+    "loading_aria_label": "កំពុងផ្ទុកផលិតផល",
+    "load_error": "មិនអាចផ្ទុកផលិតផលបានទេ។",
+    "empty": "មិនមានផលិតផលសកម្មក្នុងប្រភេទនេះទេ។"
+  },
+  "product": {
+    "discount_off": "បញ្ចុះ {amount}",
+    "in_stock": "មានក្នុងស្តុក៖ {count}"
+  },
+  "quantity": {
+    "decrease": "បន្ថយបរិមាណ",
+    "increase": "បង្កើនបរិមាណ"
+  },
+  "order": {
+    "aria_label": "សេចក្តីសង្ខេបការបញ្ជាទិញ",
+    "title": "សេចក្តីសង្ខេបការបញ្ជាទិញ",
+    "clear_aria_label": "សម្អាតការបញ្ជាទិញ",
+    "note_label": "កំណត់ចំណាំការបញ្ជាទិញ",
+    "note_placeholder": "គ្មានកំណត់ចំណាំ",
+    "note_dine_in": "ញ៉ាំនៅហាង",
+    "note_takeaway": "ខ្ចប់យកទៅ",
+    "note_delivery": "ដឹកជញ្ជូន",
+    "table_label": "តុ",
+    "table_placeholder": "គ្មានតុ",
+    "table_option": "តុ {number}",
+    "walk_in": "អតិថិជនដើរចូល",
+    "item_count_one": "{count} មុខ",
+    "item_count_other": "{count} មុខ"
+  },
+  "cart": {
+    "empty": "កន្ត្រកទទេ។ ចុចលើផលិតផលដើម្បីបន្ថែម។",
+    "remove_item": "ដក {name} ចេញ"
+  },
+  "totals": {
+    "subtotal": "សរុបរង៖",
+    "items_one": "{count} មុខ",
+    "items_other": "{count} មុខ",
+    "total_discount": "បញ្ចុះតម្លៃសរុប៖",
+    "grand_total": "សរុបរួម៖"
+  },
+  "actions": {
+    "make_payment": "ទូទាត់ប្រាក់",
+    "view_order": "មើលការបញ្ជាទិញ"
+  },
+  "payment": {
+    "title": "ទូទាត់ការបញ្ជាទិញ",
+    "method_aria_label": "វិធីសាស្ត្រទូទាត់",
+    "calculator_aria_label": "ម៉ាស៊ីនគិតលុយ",
+    "payable_amount": "ចំនួនទឹកប្រាក់ត្រូវបង់ (សរុបរួម)",
+    "cash_currency_aria_label": "រូបិយប័ណ្ណសាច់ប្រាក់",
+    "exact": "គ្រប់ចំនួន",
+    "backspace": "លុបថយក្រោយ",
+    "qr_currency_aria_label": "រូបិយប័ណ្ណ QR",
+    "qr_alt": "Bakong KHQR សម្រាប់ការបញ្ជាទិញនេះ",
+    "no_qr": "មិនទាន់បានបង្កើត QR នៅឡើយទេ។",
+    "scan_hint": "សូមឱ្យអតិថិជនស្កេន QR នេះតាមកម្មវិធីធនាគាររបស់ពួកគេ — អេក្រង់នេះសម្រាប់កន្លែងគិតលុយ មិនមែនសម្រាប់ទូរស័ព្ទរបស់អតិថិជនទេ។",
+    "expires_in": "ផុតកំណត់ក្នុងរយៈពេល {time}",
+    "waiting": "កំពុងរង់ចាំការទូទាត់ — នឹងបញ្ជាក់ដោយស្វ័យប្រវត្តិ",
+    "new_qr": "បង្កើត QR ថ្មី",
+    "generate_qr": "បង្កើត QR",
+    "qty": "បរិមាណ៖ {quantity}",
+    "credit": "ប្រាក់ទទួល៖",
+    "balance": "សមតុល្យ៖",
+    "confirm": "បញ្ជាក់ការទូទាត់",
+    "total": "សរុប៖"
+  },
+  "toast": {
+    "finish_payment_first": "សូមបញ្ចប់ ឬបោះបង់ការទូទាត់ មុនពេលកែប្រែការបញ្ជាទិញ។",
+    "not_enough_stock": "{name} មានស្តុកមិនគ្រប់គ្រាន់ទេ។",
+    "out_of_stock": "{name} អស់ស្តុកហើយ។",
+    "order_cancelled": "ការបញ្ជាទិញ #{id} ត្រូវបានបោះបង់។ កន្ត្រកនៅដដែល — សូមទូទាត់ម្តងទៀតដើម្បីចាប់ផ្តើមការបញ្ជាទិញថ្មី។"
+  },
+  "errors": {
+    "cancel_pending": "មិនអាចបោះបង់ការបញ្ជាទិញដែលកំពុងរង់ចាំបានទេ។ សូមពិនិត្យស្ថានភាពទូទាត់របស់វា។",
+    "complete_sale": "មិនអាចបញ្ចប់ការលក់បានទេ។",
+    "generate_qr": "មិនអាចបង្កើត QR ទូទាត់បានទេ។",
+    "check_payment": "មិនអាចពិនិត្យការទូទាត់បានទេ។"
+  }
+}

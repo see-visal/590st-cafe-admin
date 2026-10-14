@@ -12,6 +12,7 @@ import {
 import { orderCode, useOrderInvoice } from "@/hooks/useOrderInvoice";
 import type { OrderResponse } from "@/store/api/types";
 import { cn, formatByCurrency, humanise } from "@/lib/utils";
+import { translate, useI18n } from "@/contexts/I18nContext";
 
 const orderNumber = (order: Pick<OrderResponse, "id">) =>
   `#${orderCode(order.id)}`;
@@ -27,6 +28,7 @@ export function InvoiceActions({
 }) {
   const { printInvoice, viewInvoice, downloadInvoice, isBusy } =
     useOrderInvoice();
+  const { t } = useI18n();
   if (order.paidAt == null) return null;
   const busy = isBusy(order.id);
 
@@ -44,7 +46,7 @@ export function InvoiceActions({
         ) : (
           <Printer />
         )}
-        {isBusy(order.id, "print") ? "Preparing..." : "Print Invoice"}
+        {isBusy(order.id, "print") ? t("states.preparing", "Preparing...") : t("invoice.print", "Print Invoice")}
       </button>
       <button
         type="button"
@@ -57,7 +59,7 @@ export function InvoiceActions({
         ) : (
           <FileText />
         )}
-        {isBusy(order.id, "view") ? "Opening..." : "View PDF"}
+        {isBusy(order.id, "view") ? t("states.opening", "Opening...") : t("invoice.view_pdf", "View PDF")}
       </button>
       <button
         type="button"
@@ -70,7 +72,7 @@ export function InvoiceActions({
         ) : (
           <Download />
         )}
-        {isBusy(order.id, "download") ? "Downloading..." : "Download"}
+        {isBusy(order.id, "download") ? t("states.downloading", "Downloading...") : t("actions.download", "Download")}
       </button>
     </div>
   );
@@ -82,6 +84,7 @@ export function PrintInvoiceIconButton({
   order: Pick<OrderResponse, "id" | "paidAt">;
 }) {
   const { printInvoice, isBusy } = useOrderInvoice();
+  const { t } = useI18n();
   if (order.paidAt == null) return null;
   const busy = isBusy(order.id);
 
@@ -90,8 +93,8 @@ export function PrintInvoiceIconButton({
       type="button"
       onClick={() => printInvoice(order.id)}
       disabled={busy}
-      aria-label={`Print invoice for order ${orderNumber(order)}`}
-      title="Print invoice"
+      aria-label={t("invoice.print_for_order", "Print invoice for order {number}", { number: orderNumber(order) })}
+      title={t("actions.print_invoice", "Print invoice")}
       className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
     >
       {busy ? (
@@ -120,7 +123,7 @@ export function toastPaidWithInvoice(
           }}
           className="app_toast_action"
         >
-          <Printer aria-hidden="true" /> Print invoice
+          <Printer aria-hidden="true" /> {translate("actions.print_invoice", "Print invoice")}
         </button>
       </span>
     ),
@@ -135,34 +138,34 @@ export function SaleCompleteModal({
   sale: OrderResponse | null;
   onNewSale: () => void;
 }) {
+  const { t } = useI18n();
   const change = Number(sale?.changeDue ?? 0);
 
   return (
     <Dialog open={sale != null} onOpenChange={(open) => !open && onNewSale()}>
       <DialogContent className="admin_modal sm:max-w-[440px]">
         <DialogHeader className="admin_modal_header">
-          <DialogTitle className="admin_modal_title">Sale Complete</DialogTitle>
+          <DialogTitle className="admin_modal_title">{t("invoice.sale_complete", "Sale Complete")}</DialogTitle>
         </DialogHeader>
         {sale && (
           <div className="admin_modal_body">
             <div className="flex flex-col items-center gap-2 px-6 pt-2 text-center">
               <CheckCircle2 className="h-12 w-12 text-green-600" />
               <p className="font-mono text-sm text-gray-500">
-                Order {orderNumber(sale)}
+                {t("invoice.order_number", "Order {number}", { number: orderNumber(sale) })}
               </p>
               <p className="text-3xl font-bold tabular-nums">
                 {formatByCurrency(sale.totalAmount, "USD")}
               </p>
               <p className="text-sm text-gray-500">
-                Paid by{" "}
-                {sale.paymentMethod ? humanise(sale.paymentMethod) : "cash"}
+                {t("invoice.paid_by", "Paid by {method}", { method: sale.paymentMethod ? humanise(sale.paymentMethod) : t("invoice.cash", "cash") })}
                 {sale.amountTendered != null
-                  ? ` · Received ${formatByCurrency(sale.amountTendered, sale.amountTenderedCurrency)}`
+                  ? ` · ${t("invoice.received", "Received {amount}", { amount: formatByCurrency(sale.amountTendered, sale.amountTenderedCurrency) })}`
                   : ""}
               </p>
               {change > 0 && (
                 <p className="mt-1 rounded-lg bg-amber-50 px-4 py-2 text-base font-semibold text-amber-900 tabular-nums">
-                  Change due: {formatByCurrency(change, sale.changeCurrency)}
+                  {t("invoice.change_due", "Change due: {amount}", { amount: formatByCurrency(change, sale.changeCurrency) })}
                 </p>
               )}
             </div>
@@ -179,7 +182,7 @@ export function SaleCompleteModal({
             onClick={onNewSale}
             className="btn_primary_yellow"
           >
-            New Sale
+            {t("invoice.new_sale", "New Sale")}
           </button>
         </DialogFooter>
       </DialogContent>

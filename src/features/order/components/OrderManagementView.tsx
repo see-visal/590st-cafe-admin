@@ -47,20 +47,9 @@ import { useOrderInvoice } from "@/hooks/useOrderInvoice";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { useI18n } from "@/contexts/I18nContext";
 
-const ORDER_TABLE_HEADERS = [
-  "No",
-  "Order ID",
-  "Customer",
-  "Type",
-  "Handled By",
-  "Items",
-  "Total",
-  "Payment",
-  "Order Date",
-  "Status",
-  "Action",
-] as const;
+type Translate = ReturnType<typeof useI18n>["t"];
 
 const money = (value: number | null | undefined) =>
   value == null ? "-" : `$${Number(value).toFixed(2)}`;
@@ -111,18 +100,18 @@ type NextStep =
   | { kind: "blocked"; message: string }
   | null;
 
-function describeNextStep(order: OrderResponse): NextStep {
+function describeNextStep(order: OrderResponse, t: Translate): NextStep {
   if (order.status === "PENDING" || order.status === "PAID") {
     if (order.fulfillmentMethod === "DELIVERY" && order.deliveryFeeSetAt == null) {
-      return { kind: "blocked", message: "Waiting for the delivery fee to be set before this can start." };
+      return { kind: "blocked", message: t("orders.progress.waiting_delivery_fee", "Waiting for the delivery fee to be set before this can start.") };
     }
     if (order.status === "PENDING" && order.paymentMethod === "BAKONG") {
-      return { kind: "blocked", message: "Waiting for the customer's QR payment — it confirms automatically, then this can start." };
+      return { kind: "blocked", message: t("orders.progress.waiting_qr_payment", "Waiting for the customer's QR payment — it confirms automatically, then this can start.") };
     }
     if (order.status === "PENDING" && !order.paymentMethod) {
-      return { kind: "blocked", message: "Waiting for the customer to choose how to pay." };
+      return { kind: "blocked", message: t("orders.progress.waiting_payment_choice", "Waiting for the customer to choose how to pay.") };
     }
-    return { kind: "action", label: "Start Preparing", hint: "Send this order to the kitchen queue." };
+    return { kind: "action", label: t("orders.progress.start_preparing", "Start Preparing"), hint: t("orders.progress.start_preparing_hint", "Send this order to the kitchen queue.") };
   }
   if (order.status === "PREPARING") {
     if (
@@ -130,22 +119,23 @@ function describeNextStep(order: OrderResponse): NextStep {
       order.paymentMethod === "CASH" &&
       order.paidAt == null
     ) {
-      return { kind: "blocked", message: "Cash hasn't been collected yet — take it from the Barista queue before completing this order." };
+      return { kind: "blocked", message: t("orders.progress.cash_not_collected_complete", "Cash hasn't been collected yet — take it from the Barista queue before completing this order.") };
     }
     return order.fulfillmentMethod === "DELIVERY"
-      ? { kind: "action", label: "Dispatch for Delivery", hint: "Send this order out with a courier." }
-      : { kind: "action", label: "Mark Completed", hint: "Hand the order over at the counter." };
+      ? { kind: "action", label: t("orders.progress.dispatch", "Dispatch for Delivery"), hint: t("orders.progress.dispatch_hint", "Send this order out with a courier.") }
+      : { kind: "action", label: t("orders.progress.mark_completed", "Mark Completed"), hint: t("orders.progress.mark_completed_hint", "Hand the order over at the counter.") };
   }
   if (order.status === "OUT_FOR_DELIVERY") {
     if (order.paymentMethod === "CASH" && order.paidAt == null) {
-      return { kind: "blocked", message: "Cash hasn't been collected yet — collect it before marking this delivered." };
+      return { kind: "blocked", message: t("orders.progress.cash_not_collected_deliver", "Cash hasn't been collected yet — collect it before marking this delivered.") };
     }
-    return { kind: "action", label: "Mark Delivered", hint: "Confirm the courier has handed it over." };
+    return { kind: "action", label: t("orders.progress.mark_delivered", "Mark Delivered"), hint: t("orders.progress.mark_delivered_hint", "Confirm the courier has handed it over.") };
   }
   return null;
 }
 
 export default function Orders() {
+  const { t } = useI18n();
   const { confirm, confirmDialog } = useConfirmDialog();
   const [page, setPage] = usePersistentState("orders:page", 1);
   const [size, setSize] = usePageSize();
@@ -194,31 +184,45 @@ export default function Orders() {
     .filter((o) => o.paidAt != null)
     .reduce((sum, o) => sum + Number(o.totalAmount), 0);
 
+  const orderTableHeaders = [
+    t("table.no", "No"),
+    t("orders.table.order_id", "Order ID"),
+    t("fields.customer", "Customer"),
+    t("fields.type", "Type"),
+    t("orders.table.handled_by", "Handled By"),
+    t("orders.table.items", "Items"),
+    t("fields.total", "Total"),
+    t("orders.table.payment", "Payment"),
+    t("orders.table.order_date", "Order Date"),
+    t("fields.status", "Status"),
+    t("table.action", "Action"),
+  ];
+
   const handleCancel = async (order: OrderResponse) => {
-    if (!(await confirm({ title: "Cancel order", description: `Cancel order ${order.id.slice(0, 8)}?`, confirmLabel: "Cancel order", tone: "danger" }))) return;
+    if (!(await confirm({ title: t("orders.confirm.cancel_title", "Cancel order"), description: t("orders.confirm.cancel_description", "Cancel order {id}?", { id: order.id.slice(0, 8) }), confirmLabel: t("orders.confirm.cancel_title", "Cancel order"), tone: "danger" }))) return;
     try {
       await cancelOrder(order.id).unwrap();
-      toast.success("Order cancelled");
+      toast.success(t("orders.toast.cancelled", "Order cancelled"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not cancel the order."));
+      toast.error(apiErrorMessage(err as never, t("orders.errors.cancel", "Could not cancel the order.")));
     }
   };
 
   const handleSetDeliveryFee = async (order: OrderResponse, fee: number) => {
     try {
       await setDeliveryFee({ id: order.id, body: { fee } }).unwrap();
-      toast.success("Delivery fee saved");
+      toast.success(t("orders.toast.delivery_fee_saved", "Delivery fee saved"));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not save the delivery fee."));
+      toast.error(apiErrorMessage(err as never, t("orders.errors.delivery_fee", "Could not save the delivery fee.")));
     }
   };
 
   const handleSetEstimate = async (order: OrderResponse, minutes: number) => {
     try {
       await setEstimate({ id: order.id, body: { minutes } }).unwrap();
-      toast.success(`Estimated time set to ${minutes} min`);
+      toast.success(t("orders.toast.estimate_set", "Estimated time set to {minutes} min", { minutes }));
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not save the estimated time."));
+      toast.error(apiErrorMessage(err as never, t("orders.errors.estimate", "Could not save the estimated time.")));
     }
   };
 
@@ -226,48 +230,48 @@ export default function Orders() {
     try {
       if (order.status === "PENDING" || order.status === "PAID") {
         await startPreparing(order.id).unwrap();
-        toast.success("Order sent to the kitchen queue");
+        toast.success(t("orders.toast.sent_to_kitchen", "Order sent to the kitchen queue"));
       } else if (order.status === "PREPARING" && order.fulfillmentMethod === "DELIVERY") {
         await dispatchOrder(order.id).unwrap();
-        toast.success("Order dispatched for delivery");
+        toast.success(t("orders.toast.dispatched", "Order dispatched for delivery"));
       } else if (order.status === "PREPARING") {
         await completeOrder(order.id).unwrap();
-        toast.success("Order marked completed");
+        toast.success(t("orders.toast.completed", "Order marked completed"));
       } else if (order.status === "OUT_FOR_DELIVERY") {
         await markDelivered(order.id).unwrap();
-        toast.success("Order marked delivered");
+        toast.success(t("orders.toast.delivered", "Order marked delivered"));
       }
     } catch (err) {
-      toast.error(apiErrorMessage(err as never, "Could not update the order."));
+      toast.error(apiErrorMessage(err as never, t("orders.errors.update", "Could not update the order.")));
     }
   };
 
   return (
     <PageShell>
       <PageHeader
-        title="Orders List"
+        title={t("orders.title", "Orders List")}
         breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "Orders" },
-          { label: "Orders List" },
+          { label: t("breadcrumb.home", "Home"), href: "/" },
+          { label: t("orders.breadcrumb.orders", "Orders") },
+          { label: t("orders.title", "Orders List") },
         ]}
         rightSlot={<AdminTopActions />}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatTile title="All Orders" value={String(orderPage?.totalElements ?? 0)} tone="gray" />
+        <StatTile title={t("orders.stats.all_orders", "All Orders")} value={String(orderPage?.totalElements ?? 0)} tone="gray" />
         <StatTile
-          title="Unpaid (this page)"
+          title={t("orders.stats.unpaid_page", "Unpaid (this page)")}
           value={String(pendingCount)}
           tone={pendingCount > 0 ? "orange" : "gray"}
         />
-        <StatTile title="Paid Value (this page)" value={money(pageRevenue)} tone="green" />
+        <StatTile title={t("orders.stats.paid_value_page", "Paid Value (this page)")} value={money(pageRevenue)} tone="green" />
       </div>
 
       <FilterPanel>
         <SelectField
-          label="Status"
-          placeholder="All statuses"
+          label={t("fields.status", "Status")}
+          placeholder={t("orders.filters.all_statuses", "All statuses")}
           value={filterStatus}
           onChange={(e) => {
             setFilterStatus(e.target.value);
@@ -285,14 +289,14 @@ export default function Orders() {
         <FilterActions onClear={() => { setFilterStatus(""); setPage(1); }} onSearch={refetch} />
       </FilterPanel>
 
-      <DataCard title="Orders" meta={`Total Orders: ${orderPage?.totalElements ?? 0}`}>
-        <SimpleTable headers={[...ORDER_TABLE_HEADERS]}>
+      <DataCard title={t("orders.card.title", "Orders")} meta={t("orders.card.meta", "Total Orders: {count}", { count: orderPage?.totalElements ?? 0 })}>
+        <SimpleTable headers={orderTableHeaders}>
           <TableState
-            colSpan={ORDER_TABLE_HEADERS.length}
+            colSpan={orderTableHeaders.length}
             isLoading={list.isLoading}
             error={list.error}
             isEmpty={orders.length === 0}
-            emptyLabel="No orders match this filter."
+            emptyLabel={t("orders.empty.list", "No orders match this filter.")}
             onRetry={refetch}
           />
           {list.showRows &&
@@ -300,7 +304,7 @@ export default function Orders() {
               <Row key={order.id} striped={index % 2 === 1}>
                 <Cell>{(page - 1) * size + index + 1}</Cell>
                 <Cell className="whitespace-nowrap font-mono text-xs">#{order.id.slice(0, 8)}</Cell>
-                <Cell>{order.customerName ? titleCase(order.customerName) : "Walk-in"}</Cell>
+                <Cell>{order.customerName ? titleCase(order.customerName) : t("orders.common.walk_in", "Walk-in")}</Cell>
                 <Cell className={order.fulfillmentMethod === "DINE_IN" ? "whitespace-nowrap font-semibold" : "whitespace-nowrap"}>
                   {fulfillmentLabel(order) || "-"}
                 </Cell>
@@ -316,7 +320,7 @@ export default function Orders() {
                   <div className="flex flex-col items-start gap-1">
                     <StatusBadge label={humanise(order.status)} tone={statusTone(order.status)} />
                     {order.fulfillmentMethod === "DELIVERY" && order.deliveryFeeSetAt == null && (
-                      <StatusBadge label="Delivery fee needed" tone="warning" />
+                      <StatusBadge label={t("orders.badge.delivery_fee_needed", "Delivery fee needed")} tone="warning" />
                     )}
                   </div>
                 </Cell>
@@ -328,7 +332,7 @@ export default function Orders() {
                     onDelete={
                       order.status === "PENDING" ? () => handleCancel(order) : undefined
                     }
-                    deleteLabel="Cancel order"
+                    deleteLabel={t("orders.confirm.cancel_title", "Cancel order")}
                     isLoading={isCancelling}
                   />
                 </Cell>
@@ -353,38 +357,38 @@ export default function Orders() {
         onOpenChange={(open) => {
           if (!open) setSelectedId(null);
         }}
-        title="Order Detail"
+        title={t("orders.detail.title", "Order Detail")}
       >
         {selected && (
           <div className="admin_modal_form_wrap">
             <DetailGrid>
-              <DetailItem label="Order ID">
+              <DetailItem label={t("orders.table.order_id", "Order ID")}>
                 <span className="font-mono text-xs">#{selected.id.slice(0, 8).toUpperCase()}</span>
               </DetailItem>
-              <DetailItem label="Status">
+              <DetailItem label={t("fields.status", "Status")}>
                 <StatusBadge label={humanise(selected.status)} tone={statusTone(selected.status)} />
               </DetailItem>
-              <DetailItem label="Customer">{selected.customerName ? titleCase(selected.customerName) : "Walk-in"}</DetailItem>
-              <DetailItem label="Handled By">
+              <DetailItem label={t("fields.customer", "Customer")}>{selected.customerName ? titleCase(selected.customerName) : t("orders.common.walk_in", "Walk-in")}</DetailItem>
+              <DetailItem label={t("orders.table.handled_by", "Handled By")}>
                 {selected.handledByName ? titleCase(selected.handledByName) : "-"}
                 {selected.handledByRole ? ` (${humanise(selected.handledByRole)})` : ""}
               </DetailItem>
-              <DetailItem label="Payment Method">
-                {selected.paymentMethod ? humanise(selected.paymentMethod) : "Not paid"}
+              <DetailItem label={t("fields.payment_method", "Payment Method")}>
+                {selected.paymentMethod ? humanise(selected.paymentMethod) : t("orders.detail.not_paid", "Not paid")}
               </DetailItem>
-              <DetailItem label="Total">{money(selected.totalAmount)}</DetailItem>
-              <DetailItem label="Amount Tendered">
+              <DetailItem label={t("fields.total", "Total")}>{money(selected.totalAmount)}</DetailItem>
+              <DetailItem label={t("orders.detail.amount_tendered", "Amount Tendered")}>
                 {formatByCurrency(selected.amountTendered, selected.amountTenderedCurrency)}
               </DetailItem>
-              <DetailItem label="Change Due">
+              <DetailItem label={t("orders.detail.change_due", "Change Due")}>
                 {formatByCurrency(selected.changeDue, selected.changeCurrency)}
               </DetailItem>
-              <DetailItem label="Ordered At">
+              <DetailItem label={t("orders.detail.ordered_at", "Ordered At")}>
                 {formatDateTime(selected.createdAt)}
               </DetailItem>
-              <DetailItem label="Paid At">{formatDateTime(selected.paidAt)}</DetailItem>
-              <DetailItem label="Note">{selected.note || "-"}</DetailItem>
-              <DetailItem label="Fulfillment">
+              <DetailItem label={t("orders.detail.paid_at", "Paid At")}>{formatDateTime(selected.paidAt)}</DetailItem>
+              <DetailItem label={t("fields.note", "Note")}>{selected.note || "-"}</DetailItem>
+              <DetailItem label={t("orders.detail.fulfillment", "Fulfillment")}>
                 <OrderFulfillmentDetails
                   order={selected}
                   onSetDeliveryFee={(fee) => handleSetDeliveryFee(selected, fee)}
@@ -401,15 +405,15 @@ export default function Orders() {
             <InvoiceActions order={selected} className="mt-4" />
 
             {(() => {
-              const step = describeNextStep(selected);
+              const step = describeNextStep(selected, t);
               if (!step) return null;
               if (step.kind === "blocked") {
                 return (
                   <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <p className="text-sm font-semibold text-amber-900">Order progress</p>
+                    <p className="text-sm font-semibold text-amber-900">{t("orders.progress.title", "Order progress")}</p>
                     <p className="mt-1 text-xs text-amber-800">{step.message}</p>
                     <Link href="/payments" className="mt-2 inline-block text-xs font-medium underline text-amber-900">
-                      Go to Payments
+                      {t("orders.progress.go_to_payments", "Go to Payments")}
                     </Link>
                   </div>
                 );
@@ -417,7 +421,7 @@ export default function Orders() {
               return (
                 <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-gray-50 p-3">
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">Order progress</p>
+                    <p className="text-sm font-semibold text-gray-900">{t("orders.progress.title", "Order progress")}</p>
                     <p className="text-xs text-muted-foreground">{step.hint}</p>
                   </div>
                   <button
@@ -426,22 +430,22 @@ export default function Orders() {
                     disabled={isAdvancing}
                     className="btn_primary_black shrink-0 text-xs font-medium disabled:opacity-50"
                   >
-                    {isAdvancing ? "Updating..." : step.label}
+                    {isAdvancing ? t("states.updating", "Updating...") : step.label}
                   </button>
                 </div>
               );
             })()}
 
             <div className="mt-6">
-              <p className="detail_item_label mb-2">Items :</p>
+              <p className="detail_item_label mb-2">{t("orders.detail.items_label", "Items :")}</p>
               <table className="data_table">
                 <thead>
                   <tr>
-                    <th>Product</th>
-                    <th>Options</th>
-                    <th>Qty</th>
-                    <th>Unit Price</th>
-                    <th>Subtotal</th>
+                    <th>{t("fields.product", "Product")}</th>
+                    <th>{t("orders.detail.options", "Options")}</th>
+                    <th>{t("orders.detail.qty", "Qty")}</th>
+                    <th>{t("orders.detail.unit_price", "Unit Price")}</th>
+                    <th>{t("orders.detail.subtotal", "Subtotal")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -451,8 +455,8 @@ export default function Orders() {
                       <td className="text-xs text-muted-foreground">
                         {[
                           item.variantName ? humanise(item.variantName) : null,
-                          item.sugarLevel && `Sugar ${formatLevel(item.sugarLevel)}`,
-                          item.iceLevel && `Ice ${formatLevel(item.iceLevel)}`,
+                          item.sugarLevel && t("orders.detail.sugar", "Sugar {level}", { level: formatLevel(item.sugarLevel) }),
+                          item.iceLevel && t("orders.detail.ice", "Ice {level}", { level: formatLevel(item.iceLevel) }),
                           item.milkType && item.milkType !== "NONE" ? humanise(item.milkType) : null,
                           ...item.extras.map((extra) => titleCase(extra.name)),
                         ]
@@ -476,18 +480,18 @@ export default function Orders() {
         onOpenChange={(open) => {
           if (!open) setHistoryFor(null);
         }}
-        title="Order History"
+        title={t("orders.history.title", "Order History")}
       >
         <div className="admin_modal_form_wrap">
-          {historyLoading ? <p role="status">Loading history...</p> : historyError ? <div role="alert">
-            {apiErrorMessage(historyError as never, "Could not load order history.")} <button className="underline" onClick={() => refetchHistory()}>Retry</button>
+          {historyLoading ? <p role="status">{t("orders.history.loading", "Loading history...")}</p> : historyError ? <div role="alert">
+            {apiErrorMessage(historyError as never, t("orders.history.error", "Could not load order history."))} <button className="underline" onClick={() => refetchHistory()}>{t("actions.retry", "Retry")}</button>
           </div> : history && history.length > 0 ? (
             <table className="data_table">
               <thead>
                 <tr>
-                  <th>Action</th>
-                  <th>Actor</th>
-                  <th>When</th>
+                  <th>{t("orders.history.action", "Action")}</th>
+                  <th>{t("orders.history.actor", "Actor")}</th>
+                  <th>{t("orders.history.when", "When")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -505,7 +509,7 @@ export default function Orders() {
             </table>
           ) : (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No history recorded for this order.
+              {t("orders.history.empty", "No history recorded for this order.")}
             </p>
           )}
         </div>
