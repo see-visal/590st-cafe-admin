@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Image from "next/image";
 import toast from "react-hot-toast";
 import {
   Check,
@@ -16,6 +15,7 @@ import {
 
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import {
   AdminTopActions,
   DataCard,
@@ -212,26 +212,19 @@ export default function ProfileView() {
               meta={t("profile.photo.meta", "Shown beside your name across the dashboard.")}
             >
               <div className="flex flex-col items-center gap-4 p-2 pb-4">
-                <div className="relative h-28 w-28 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
-                  {user.avatarUrl ? (
-                    <Image
-                      src={user.avatarUrl}
-                      alt={user.fullName}
-                      fill
-                      sizes="112px"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-3xl font-semibold text-gray-400">
-                      {user.fullName.slice(0, 1).toUpperCase()}
-                    </span>
-                  )}
+                <UserAvatar
+                  src={user.avatarUrl}
+                  name={user.fullName}
+                  alt={user.fullName}
+                  sizes="112px"
+                  className="h-28 w-28 border border-gray-200 bg-gray-100 text-3xl font-semibold text-gray-400"
+                >
                   {avatarBusy ? (
                     <span className="absolute inset-0 grid place-items-center bg-white/70">
                       <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
                     </span>
                   ) : null}
-                </div>
+                </UserAvatar>
 
                 <p className="text-center text-xs text-gray-400">
                   {t("profile.photo.hint", "JPG or PNG, up to 5\u00a0MB.")}

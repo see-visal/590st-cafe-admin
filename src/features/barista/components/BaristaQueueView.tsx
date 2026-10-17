@@ -807,12 +807,7 @@ export default function BaristaQueueView() {
           <span className="text-sm text-gray-400">
             ({cancelledQuery.data?.totalElements ?? 0})
           </span>
-          <ChevronDown
-            className={cn(
-              "ml-auto h-4 w-4 text-gray-400 transition-transform",
-              showCancelled && "rotate-180"
-            )}
-          />
+          <ChevronDown className="dropdown_chevron ml-auto h-4 w-4 text-gray-400" aria-hidden />
         </button>
         {showCancelled ? (
           <div className="grid grid-cols-1 gap-4 border-t border-gray-100 p-4 md:grid-cols-2 xl:grid-cols-4">

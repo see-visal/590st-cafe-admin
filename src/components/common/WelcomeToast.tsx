@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import Image from "next/image";
 import { X } from "lucide-react";
 import toast, { type Toast } from "react-hot-toast";
 
+import { UserAvatar } from "@/components/common/UserAvatar";
 import {
   consumeWelcomePending,
   firstName,
-  initials,
   timeOfDayGreeting,
 } from "@/lib/welcomeToast";
 import { humanise } from "@/lib/utils";
@@ -22,7 +21,7 @@ interface WelcomeToastCardProps {
   greeting: string;
   title: string;
   description: string;
-  initials: string;
+  fullName: string;
   avatarUrl?: string | null;
 }
 
@@ -31,7 +30,7 @@ function WelcomeToastCard({
   greeting,
   title,
   description,
-  initials,
+  fullName,
   avatarUrl,
 }: WelcomeToastCardProps) {
   const { t: tr } = useI18n();
@@ -41,18 +40,8 @@ function WelcomeToastCard({
       aria-live="polite"
       className={`welcome_toast ${t.visible ? "welcome_toast_enter" : "welcome_toast_leave"}`}
     >
-      <span className="welcome_toast_avatar" aria-hidden="true">
-        {avatarUrl ? (
-          <Image
-            src={avatarUrl}
-            alt=""
-            fill
-            sizes="44px"
-            className="welcome_toast_avatar_img"
-          />
-        ) : (
-          initials
-        )}
+      <span aria-hidden="true" className="contents">
+        <UserAvatar src={avatarUrl} name={fullName} sizes="44px" className="welcome_toast_avatar" />
       </span>
       <div className="welcome_toast_text">
         <p className="welcome_toast_eyebrow">{greeting}</p>
@@ -89,7 +78,7 @@ export function LoginWelcome() {
           greeting={timeOfDayGreeting()}
           title={name ? translate("welcome.back_name", "Welcome back, {name}", { name }) : translate("welcome.back", "Welcome back")}
           description={translate("welcome.signed_in_as", "Signed in as {role}", { role: humanise(user.role) })}
-          initials={initials(user.fullName)}
+          fullName={user.fullName}
           avatarUrl={user.avatarUrl}
         />
       ),

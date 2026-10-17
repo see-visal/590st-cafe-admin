@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { useGetCurrentUserQuery, useLogoutMutation } from "@/store/api/authApi";
 import { humanise, titleCase } from "@/lib/utils";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -56,19 +56,12 @@ export function SidebarUser({ onNavigate }: { onNavigate?: () => void } = {}) {
         title={t("account.view_profile", "View and edit your profile")}
         className="sidebar_user_link flex min-w-0 flex-1 items-center gap-3 rounded-lg transition hover:opacity-80"
       >
-        <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-sm font-semibold text-black">
-          {user?.avatarUrl ? (
-            <Image
-              src={user.avatarUrl}
-              alt=""
-              fill
-              sizes="36px"
-              className="object-cover"
-            />
-          ) : (
-            name.slice(0, 1).toUpperCase()
-          )}
-        </span>
+        <UserAvatar
+          src={user?.avatarUrl}
+          name={user?.fullName}
+          sizes="36px"
+          className="h-9 w-9 bg-white text-sm font-semibold text-black"
+        />
         <span className="sidebar_user_text min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-white">
             {name}

@@ -28,8 +28,8 @@ import {
   TableState,
   listLoadState,
   TextField,
-  Thumbnail,
 } from "@/components/common/AdminKit";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import { useI18n } from "@/contexts/I18nContext";
 import { usePageSize, useRefreshOptions } from "@/contexts/AdminPreferencesContext";
@@ -259,7 +259,12 @@ export default function UserManagementView({
               <Row key={user.id} striped={index % 2 === 1}>
                 <Cell>{view.offset + index + 1}</Cell>
                 <Cell>
-                  <Thumbnail src={user.avatarUrl} kind="person" />
+                  <UserAvatar
+                    src={user.avatarUrl}
+                    name={user.fullName}
+                    sizes="40px"
+                    className="h-10 w-10 bg-[#f6f1f3] text-sm font-semibold text-[#a1255b]"
+                  />
                 </Cell>
                 <Cell className="font-semibold">{titleCase(user.fullName)}</Cell>
                 <Cell>{user.email}</Cell>
@@ -357,9 +362,23 @@ export default function UserManagementView({
       >
         {selected && (
           <div className="admin_modal_form_wrap">
+            <div className="mb-4 flex items-center gap-4">
+              <UserAvatar
+                src={selected.avatarUrl}
+                name={selected.fullName}
+                sizes="64px"
+                className="h-16 w-16 bg-[#f6f1f3] text-xl font-semibold text-[#a1255b]"
+              />
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-gray-900">{titleCase(selected.fullName)}</p>
+                {selected.telegramUsername ? (
+                  <p className="truncate text-sm text-gray-500">@{selected.telegramUsername}</p>
+                ) : null}
+              </div>
+            </div>
             <DetailGrid>
               <DetailItem label={t("fields.full_name", "Full Name")}>{titleCase(selected.fullName)}</DetailItem>
-              <DetailItem label={t("fields.email", "Email")}>{selected.email}</DetailItem>
+              <DetailItem label={t("fields.email", "Email")}>{selected.email || "-"}</DetailItem>
               <DetailItem label={t("fields.phone_number", "Phone Number")}>{formatPhone(selected.phoneNumber) || "-"}</DetailItem>
               <DetailItem label={t("users.fields.gender", "Gender")}>
                 {selected.gender ? humanise(selected.gender) : "-"}
@@ -373,6 +392,7 @@ export default function UserManagementView({
               </DetailItem>
               <DetailItem label="Telegram">
                 {selected.telegramLinked ? t("users.telegram.linked", "Linked") : t("users.telegram.not_linked", "Not linked")}
+                {selected.telegramLinked && selected.telegramUsername ? ` (@${selected.telegramUsername})` : ""}
               </DetailItem>
               <DetailItem label={t("fields.created_by", "Created By")}>
                 {selected.createdByName

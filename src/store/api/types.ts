@@ -152,6 +152,7 @@ export interface UserResponse {
   role: Role;
   status: UserStatus;
   telegramLinked: boolean;
+  telegramUsername?: string | null;
   createdBy: UUID | null;
   createdByName: string | null;
   createdByRole: Role | null;

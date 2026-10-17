@@ -64,6 +64,7 @@ import { formatPhoneInput, PHONE_MAX_LENGTH, PHONE_PLACEHOLDER } from "@/lib/pho
 import { apiErrorMessage } from "@/store/api/baseApi";
 
 import { OperationalAlertsContent, useOperationalAlerts } from "./OperationalAlerts";
+import { UserAvatar } from "./UserAvatar";
 import { MoneyInput, type MoneyInputProps } from "@/components/forms/MoneyInput";
 import { DATE_PICKER_TYPES, DatePickerInput, type DatePickerType } from "@/components/forms/DatePickerInput";
 
@@ -146,7 +147,7 @@ export function AdminTopActions() {
             >
               <LanguageFlag src={currentLang.flag} alt={t(currentLang.flagAltKey, currentLang.flagAlt)} />
               <span className="header_lang_label">{currentLang.label}</span>
-              <ChevronDown className="h-4 w-4 shrink-0" />
+              <ChevronDown className="dropdown_chevron h-4 w-4" aria-hidden />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -768,15 +769,18 @@ const PLACEHOLDER_ICONS = { product: Coffee, person: UserRound, picture: ImageIc
 
 export function Thumbnail({ src, kind }: { src?: string | null; kind: ImageKind }) {
   const Placeholder = PLACEHOLDER_ICONS[kind];
+  // A broken image link falls back to the placeholder instead of an empty box.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const image = src && src !== failedSrc ? src : null;
   return (
     <span
       className={cn(
         "relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg",
-        src ? "bg-gray-100" : "bg-[#f6f1f3] text-[#c9a3b4]"
+        image ? "bg-gray-100" : "bg-[#f6f1f3] text-[#c9a3b4]"
       )}
     >
-      {src ? (
-        <Image src={src} alt="" fill sizes="40px" className="object-cover" />
+      {image ? (
+        <Image src={image} alt="" fill sizes="40px" className="object-cover" onError={() => setFailedSrc(image)} />
       ) : (
         <Placeholder className="h-5 w-5" strokeWidth={1.75} aria-hidden />
       )}
@@ -850,9 +854,7 @@ export function StaffIdentityCell({
 }) {
   return (
     <div className="staff_identity">
-      <span className="staff_identity_avatar relative overflow-hidden" aria-hidden>
-        {avatarUrl ? <Image src={avatarUrl} alt="" fill sizes="40px" className="object-cover" /> : name.charAt(0).toUpperCase()}
-      </span>
+      <UserAvatar src={avatarUrl} name={name} sizes="28px" className="staff_identity_avatar" />
       <div className="staff_identity_text">
         <p className="staff_identity_name">{titleCase(name)}</p>
         <p className="staff_identity_email">{email}</p>

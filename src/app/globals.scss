@@ -2858,6 +2858,30 @@ body {
   }
 }
 
+// Dropdown arrows turn with their trigger's aria-expanded, so an arrow always matches whether its menu is open.
+.dropdown_chevron {
+  flex-shrink: 0;
+  transition:
+    rotate 200ms ease-out,
+    color 150ms ease;
+}
+[aria-expanded="true"] > .dropdown_chevron {
+  rotate: 180deg;
+}
+// The category picker's arrow sits outside its trigger and is already shifted with transform, so it turns that way.
+.form_field_multi_select > .form_field_icon {
+  transition: transform 200ms ease-out;
+}
+.form_field_multi_select:has([aria-expanded="true"]) > .form_field_icon {
+  transform: translateY(-50%) rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dropdown_chevron,
+  .form_field_multi_select > .form_field_icon {
+    transition: none;
+  }
+}
+
 .dashboard_primary_grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
