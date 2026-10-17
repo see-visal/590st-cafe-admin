@@ -387,8 +387,8 @@ export default function Orders() {
                 {formatDateTime(selected.createdAt)}
               </DetailItem>
               <DetailItem label={t("orders.detail.paid_at", "Paid At")}>{formatDateTime(selected.paidAt)}</DetailItem>
-              <DetailItem label={t("fields.note", "Note")}>{selected.note || "-"}</DetailItem>
-              <DetailItem label={t("orders.detail.fulfillment", "Fulfillment")}>
+              <DetailItem label={t("fields.note", "Note")} wide={Boolean(selected.note)}>{selected.note || "-"}</DetailItem>
+              <DetailItem label={t("orders.detail.fulfillment", "Fulfillment")} wide>
                 <OrderFulfillmentDetails
                   order={selected}
                   onSetDeliveryFee={(fee) => handleSetDeliveryFee(selected, fee)}
@@ -419,8 +419,8 @@ export default function Orders() {
                 );
               }
               return (
-                <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-gray-50 p-3">
-                  <div>
+                <div className="mt-4 flex flex-col gap-3 rounded-lg border bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900">{t("orders.progress.title", "Order progress")}</p>
                     <p className="text-xs text-muted-foreground">{step.hint}</p>
                   </div>
@@ -428,7 +428,7 @@ export default function Orders() {
                     type="button"
                     onClick={() => handleAdvance(selected)}
                     disabled={isAdvancing}
-                    className="btn_primary_black shrink-0 text-xs font-medium disabled:opacity-50"
+                    className="btn_primary_black w-full shrink-0 justify-center text-xs font-medium disabled:opacity-50 sm:w-auto"
                   >
                     {isAdvancing ? t("states.updating", "Updating...") : step.label}
                   </button>
@@ -438,7 +438,8 @@ export default function Orders() {
 
             <div className="mt-6">
               <p className="detail_item_label mb-2">{t("orders.detail.items_label", "Items :")}</p>
-              <table className="data_table">
+              <div className="data_table_wrap">
+              <table className="data_table is_stack_mobile">
                 <thead>
                   <tr>
                     <th>{t("fields.product", "Product")}</th>
@@ -452,7 +453,7 @@ export default function Orders() {
                   {selected.items.map((item) => (
                     <tr key={item.id}>
                       <td>{titleCase(item.productName)}</td>
-                      <td className="text-xs text-muted-foreground">
+                      <td data-label={t("orders.detail.options", "Options")} className="text-xs text-muted-foreground">
                         {[
                           item.variantName ? humanise(item.variantName) : null,
                           item.sugarLevel && t("orders.detail.sugar", "Sugar {level}", { level: formatLevel(item.sugarLevel) }),
@@ -463,13 +464,14 @@ export default function Orders() {
                           .filter(Boolean)
                           .join(" · ") || "-"}
                       </td>
-                      <td>{item.quantity}</td>
-                      <td>{money(item.unitPrice)}</td>
-                      <td>{money(item.subtotal)}</td>
+                      <td data-label={t("orders.detail.qty", "Qty")}>{item.quantity}</td>
+                      <td data-label={t("orders.detail.unit_price", "Unit Price")}>{money(item.unitPrice)}</td>
+                      <td data-label={t("orders.detail.subtotal", "Subtotal")}>{money(item.subtotal)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
@@ -486,7 +488,8 @@ export default function Orders() {
           {historyLoading ? <p role="status">{t("orders.history.loading", "Loading history...")}</p> : historyError ? <div role="alert">
             {apiErrorMessage(historyError as never, t("orders.history.error", "Could not load order history."))} <button className="underline" onClick={() => refetchHistory()}>{t("actions.retry", "Retry")}</button>
           </div> : history && history.length > 0 ? (
-            <table className="data_table">
+            <div className="data_table_wrap">
+            <table className="data_table is_stack_mobile">
               <thead>
                 <tr>
                   <th>{t("orders.history.action", "Action")}</th>
@@ -498,15 +501,16 @@ export default function Orders() {
                 {history.map((entry) => (
                   <tr key={entry.id}>
                     <td>{humanise(entry.action)}</td>
-                    <td>
+                    <td data-label={t("orders.history.actor", "Actor")}>
                       {entry.actorName ?? "-"}
                       {entry.actorRole ? ` (${humanise(entry.actorRole)})` : ""}
                     </td>
-                    <td>{formatDateTime(entry.createdAt)}</td>
+                    <td data-label={t("orders.history.when", "When")}>{formatDateTime(entry.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           ) : (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {t("orders.history.empty", "No history recorded for this order.")}

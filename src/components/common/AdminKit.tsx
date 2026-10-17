@@ -158,15 +158,14 @@ export function AdminTopActions() {
               return (
                 <DropdownMenuItem
                   key={lang.code}
+                  role="menuitemradio"
+                  aria-checked={isActive}
                   onClick={() => setLocale(lang.code)}
-                  className={cn(
-                    "header_lang_option flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-gray-900 focus:bg-gray-100",
-                    isActive && "bg-gray-50"
-                  )}
+                  className="header_lang_option flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-gray-900"
                 >
                   <LanguageFlag src={lang.flag} alt={t(lang.flagAltKey, lang.flagAlt)} />
                   <span className="flex-1">{lang.shortLabel}</span>
-                  {isActive && <Check className="h-4 w-4 text-black" />}
+                  {isActive && <Check aria-hidden strokeWidth={2.5} className="h-4 w-4 text-(--option-selected-ink)" />}
                 </DropdownMenuItem>
               );
             })}
@@ -325,18 +324,19 @@ export function SelectField({
         </>
       );
   const options = withUnsetOption(rawOptions, placeholder);
+  const selected = value ? String(value) : UNSET;
   return (
     <div className="form_field">
       <label htmlFor={id} className="form_field_label">
         {label}
       </label>
       <Select
-        value={value ? String(value) : undefined}
+        value={selected}
         onValueChange={(next) =>
           onChange?.({ target: { value: next === UNSET ? "" : next } } as React.ChangeEvent<HTMLSelectElement>)
         }
       >
-        <SelectTrigger id={id} className="form_field_select_trigger">
+        <SelectTrigger id={id} className="form_field_select_trigger" data-unset={selected === UNSET || undefined}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent className="form_field_select_content">
@@ -1403,12 +1403,14 @@ export function DetailGrid({ children }: { children: ReactNode }) {
 export function DetailItem({
   label,
   children,
+  wide = false,
 }: {
   label: string;
   children: ReactNode;
+  wide?: boolean;
 }) {
   return (
-    <div className="detail_item">
+    <div className={cn("detail_item", wide && "is_wide")}>
       <p className="detail_item_label">{label} :</p>
       <div className="detail_item_value">{children}</div>
     </div>
@@ -1594,6 +1596,7 @@ export function FormSelect({
   const placeholder = placeholderProp ?? t("form.select_method", "Select Method");
   const id = useId();
   const options = withUnsetOption(optionsFromChildren(children), placeholder);
+  const selected = value ? String(value) : UNSET;
   return (
     <div className="form_field">
       <label htmlFor={id} className="form_field_label">
@@ -1601,13 +1604,17 @@ export function FormSelect({
         {required && <span className="form_field_required"> *</span>}
       </label>
       <Select
-        value={value ? String(value) : undefined}
+        value={selected}
         onValueChange={(next) =>
           onChange?.({ target: { value: next === UNSET ? "" : next } } as React.ChangeEvent<HTMLSelectElement>)
         }
         disabled={disabled}
       >
-        <SelectTrigger id={id} className={cn("form_field_select_trigger", disabled && "is_disabled")}>
+        <SelectTrigger
+          id={id}
+          className={cn("form_field_select_trigger", disabled && "is_disabled")}
+          data-unset={selected === UNSET || undefined}
+        >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent className="form_field_select_content">

@@ -205,7 +205,7 @@ export function DatePickerInput({
           <div className="date_picker_time">
             <span className="date_picker_time_label">{t("fields.time", "Time")}</span>
             <div className="date_picker_time_controls">
-              <Select value={hour12} onValueChange={(next) => setTime("hour", next)}>
+              <Select value={hour12 ?? ""} onValueChange={(next) => setTime("hour", next)}>
                 <SelectTrigger className="date_picker_time_select" aria-label={t("date_picker.hour", "Hour")}>
                   <SelectValue placeholder="--" />
                 </SelectTrigger>
@@ -218,7 +218,7 @@ export function DatePickerInput({
                 </SelectContent>
               </Select>
               <span className="text-[var(--ink-muted)]">:</span>
-              <Select value={minute} onValueChange={(next) => setTime("minute", next)}>
+              <Select value={minute ?? ""} onValueChange={(next) => setTime("minute", next)}>
                 <SelectTrigger className="date_picker_time_select" aria-label={t("date_picker.minute", "Minute")}>
                   <SelectValue placeholder="--" />
                 </SelectTrigger>
