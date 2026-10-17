@@ -179,7 +179,7 @@ export function AdminTopActions() {
           <div className="notify_header">
             <div>
               <SheetTitle className="notify_header_title">{t("alerts.title", "Current alerts")}</SheetTitle>
-              <p className="notify_header_sub">{alerts.count === undefined ? t("alerts.checking", "Checking current activity") : t("alerts.need_attention", "{count} items need attention", { count: alerts.count })}</p>
+              <p className={cn("notify_header_sub", alerts.count ? "is_alert" : undefined)}>{alerts.count === undefined ? t("alerts.checking", "Checking current activity") : t("alerts.need_attention", "{count} items need attention", { count: alerts.count })}</p>
             </div>
             <button type="button" onClick={() => setOpen(false)} className="notify_icon_btn" aria-label={t("alerts.close", "Close notifications")}>
               <X className="h-5 w-5" />

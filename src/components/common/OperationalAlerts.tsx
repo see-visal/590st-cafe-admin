@@ -1,9 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { ConciergeBell, PackageMinus, PhoneCall, ShoppingBag, MessageSquareText } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronRight,
+  CircleCheck,
+  Clock,
+  ConciergeBell,
+  Loader2,
+  PackageMinus,
+  PhoneCall,
+  ShoppingBag,
+  MessageSquareText,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { useListLowStockQuery } from "@/store/api/inventoryApi";
 import {
   useAnswerStaffCallMutation,
@@ -22,7 +35,7 @@ import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { useStaffCallAlerts } from "@/hooks/useStaffCallAlerts";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { useFeedbackAlerts } from "@/hooks/useFeedbackAlerts";
-import { fulfillmentLabel, humanise, timeAgo, titleCase } from "@/lib/utils";
+import { cn, fulfillmentLabel, humanise, timeAgo, titleCase } from "@/lib/utils";
 import { notify } from "@/components/common/AppToast";
 import { useI18n } from "@/contexts/I18nContext";
 import { Input } from "@/components/ui/input";
@@ -243,6 +256,117 @@ export function useOperationalAlerts() {
   };
 }
 
+type AlertTone = "red" | "orange" | "amber";
+
+const TONE: Record<
+  AlertTone,
+  { section: string; icon: string; badge: string; item: string; link: string; empty: string }
+> = {
+  red: {
+    section: "border-red-100 bg-red-50/60",
+    icon: "bg-red-100 text-red-600",
+    badge: "bg-red-600 text-white",
+    item: "border-red-100 hover:border-red-300 focus-visible:ring-red-500",
+    link: "text-red-700 hover:text-red-800 focus-visible:ring-red-500",
+    empty: "border-red-200",
+  },
+  orange: {
+    section: "border-orange-100 bg-orange-50/60",
+    icon: "bg-orange-100 text-orange-600",
+    badge: "bg-orange-700 text-white",
+    item: "border-orange-100 hover:border-orange-300 focus-visible:ring-orange-500",
+    link: "text-orange-700 hover:text-orange-800 focus-visible:ring-orange-500",
+    empty: "border-orange-200",
+  },
+  amber: {
+    section: "border-amber-200/70 bg-amber-50/70",
+    icon: "bg-amber-100 text-amber-600",
+    badge: "bg-amber-400 text-amber-950",
+    item: "border-amber-100 hover:border-amber-300 focus-visible:ring-amber-500",
+    link: "text-amber-800 hover:text-amber-900 focus-visible:ring-amber-500",
+    empty: "border-amber-200",
+  },
+};
+
+const ALERT_ITEM =
+  "group flex items-center gap-3 rounded-xl border bg-white p-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[border-color,box-shadow] duration-150 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+
+function AlertSection({
+  tone,
+  icon: Icon,
+  label,
+  srTitle,
+  count,
+  children,
+  footer,
+}: {
+  tone: AlertTone;
+  icon: LucideIcon;
+  label: string;
+  srTitle: string;
+  count: number;
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
+  const headingId = useId();
+  return (
+    <section aria-labelledby={headingId} className={cn("rounded-2xl border p-4 sm:p-5", TONE[tone].section)}>
+      <h3 id={headingId} className="flex items-center gap-3">
+        <span aria-hidden className={cn("grid size-9 shrink-0 place-items-center rounded-xl", TONE[tone].icon)}>
+          <Icon className="size-4.5" />
+        </span>
+        <span className="sr-only">{srTitle}</span>
+        <span aria-hidden className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-(--ink)">
+          {label}
+        </span>
+        <span
+          aria-hidden
+          className={cn(
+            "inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full px-2 text-sm font-bold tabular-nums",
+            count > 0 ? TONE[tone].badge : "bg-white text-slate-500 ring-1 ring-inset ring-slate-200"
+          )}
+        >
+          {count}
+        </span>
+      </h3>
+      <div className="mt-3 space-y-2">{children}</div>
+      {footer}
+    </section>
+  );
+}
+
+function EmptyAlert({ tone, children }: { tone: AlertTone; children: ReactNode }) {
+  return (
+    <p
+      className={cn(
+        "flex items-center gap-2 rounded-xl border border-dashed bg-white/80 px-3.5 py-3 text-sm text-slate-600",
+        TONE[tone].empty
+      )}
+    >
+      <CircleCheck aria-hidden className="size-4 shrink-0 text-emerald-600" />
+      {children}
+    </p>
+  );
+}
+
+function SectionLink({ tone, href, children }: { tone: AlertTone; href: string; children: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "group mt-3 inline-flex items-center gap-1.5 rounded-md text-sm font-semibold underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+        TONE[tone].link
+      )}
+    >
+      {children}
+      <ArrowRight
+        aria-hidden
+        className="size-4 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none"
+      />
+    </Link>
+  );
+}
+
 export function OperationalAlertsContent({
   alerts,
 }: {
@@ -251,14 +375,19 @@ export function OperationalAlertsContent({
   const { t } = useI18n();
   if (alerts.loading)
     return (
-      <p role="status" className="p-4 text-sm">
+      <p
+        role="status"
+        className="flex items-center gap-2.5 rounded-2xl border border-(--line-subtle) bg-(--surface-muted) p-4 text-sm text-slate-600"
+      >
+        <Loader2 aria-hidden className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
         {t("alerts.loading", "Loading current alerts...")}
       </p>
     );
   if (alerts.error)
     return (
-      <div role="alert" className="p-4 text-sm text-red-700">
-        <p>
+      <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <p className="flex items-start gap-2">
+          <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
           {apiErrorMessage(
             alerts.error as never,
             t("alerts.load_failed", "Could not load current alerts."),
@@ -266,22 +395,32 @@ export function OperationalAlertsContent({
         </p>
         <button
           type="button"
-          className="mt-2 underline"
+          className="mt-3 inline-flex h-9 items-center rounded-lg bg-white px-3.5 font-semibold text-red-700 ring-1 ring-inset ring-red-200 transition-colors hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
           onClick={alerts.refresh}
         >
           {t("actions.retry", "Retry")}
         </button>
       </div>
     );
+  const staffCallCount = alerts.staffCalls.data?.length ?? 0;
+  const pendingOrderCount = alerts.orders.data?.totalElements ?? 0;
+  const lowStockCount = alerts.stock.data?.totalElements ?? 0;
   return (
-    <div className="space-y-5 p-4 text-sm">
-      <p className="text-muted-foreground">
+    <div className="space-y-4">
+      <p className="flex items-start gap-2.5 text-sm leading-relaxed text-slate-600">
+        <span aria-hidden className="relative mt-1.75 flex size-2 shrink-0">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:hidden" />
+          <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+        </span>
         {t("alerts.intro", "Current staff calls, pending orders and low stock. Updates every 30 seconds.")}
       </p>
-      <section>
-        <h3 className="font-semibold flex items-center gap-1.5">
-          <PhoneCall className="h-4 w-4" /> {t("alerts.staff_calls", "Staff calls ({count})", { count: alerts.staffCalls.data?.length ?? 0 })}
-        </h3>
+      <AlertSection
+        tone="red"
+        icon={PhoneCall}
+        label={t("alerts.staff_calls_label", "Staff calls")}
+        srTitle={t("alerts.staff_calls", "Staff calls ({count})", { count: staffCallCount })}
+        count={staffCallCount}
+      >
         {alerts.staffCalls.data?.length ? (
           alerts.staffCalls.data.map((call) => (
             <StaffCallItem
@@ -292,68 +431,98 @@ export function OperationalAlertsContent({
             />
           ))
         ) : (
-          <p className="mt-2 text-muted-foreground">{t("alerts.no_staff_calls", "No open staff calls.")}</p>
+          <EmptyAlert tone="red">{t("alerts.no_staff_calls", "No open staff calls.")}</EmptyAlert>
         )}
-      </section>
-      <section>
-        <h3 className="font-semibold">
-          {t("alerts.pending_orders", "Pending orders ({count})", { count: alerts.orders.data?.totalElements ?? 0 })}
-        </h3>
+      </AlertSection>
+      <AlertSection
+        tone="orange"
+        icon={ShoppingBag}
+        label={t("alerts.pending_orders_label", "Pending orders")}
+        srTitle={t("alerts.pending_orders", "Pending orders ({count})", { count: pendingOrderCount })}
+        count={pendingOrderCount}
+        footer={
+          <SectionLink tone="orange" href={alerts.ordersHref}>
+            {t("alerts.view_all_orders", "View all orders")}
+          </SectionLink>
+        }
+      >
         {alerts.orders.data?.content.length ? (
           alerts.orders.data.content.map((order) => (
             <Link
               key={order.id}
               href={alerts.ordersHref}
-              className="mt-2 block rounded border p-3 hover:bg-muted"
+              className={cn(ALERT_ITEM, TONE.orange.item)}
             >
-              <span className="flex items-center gap-2">
-                <span className="font-mono">
-                  #{order.id.slice(0, 8).toUpperCase()}
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-sm font-semibold tracking-wide text-(--ink)">
+                    #{order.id.slice(0, 8).toUpperCase()}
+                  </span>
+                  {order.fulfillmentMethod === "DELIVERY" &&
+                    order.deliveryFeeSetAt == null && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        {t("alerts.needs_delivery_fee", "Needs delivery fee")}
+                      </span>
+                    )}
                 </span>
-                {order.fulfillmentMethod === "DELIVERY" &&
-                  order.deliveryFeeSetAt == null && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                      {t("alerts.needs_delivery_fee", "Needs delivery fee")}
-                    </span>
-                  )}
+                <span className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-slate-600">
+                  <span className="font-medium text-(--ink)">
+                    {order.customerName ? titleCase(order.customerName) : t("alerts.walk_in", "Walk-in")}
+                  </span>
+                  <span>·</span>
+                  <span>{order.paymentMethod ? humanise(order.paymentMethod) : t("alerts.unpaid", "Unpaid")}</span>
+                </span>
               </span>
-              <span className="block">
-                {order.customerName ? titleCase(order.customerName) : t("alerts.walk_in", "Walk-in")}{" "}
-                ·{" "}
-                {order.paymentMethod ? humanise(order.paymentMethod) : t("alerts.unpaid", "Unpaid")}{" "}
-                · ${Number(order.totalAmount).toFixed(2)}
+              <span className="shrink-0 text-base font-bold tabular-nums text-(--ink)">
+                <span className="sr-only">· </span>${Number(order.totalAmount).toFixed(2)}
               </span>
+              <ChevronRight
+                aria-hidden
+                className="size-4 shrink-0 text-slate-400 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none"
+              />
             </Link>
           ))
         ) : (
-          <p className="mt-2 text-muted-foreground">{t("alerts.no_pending_orders", "No pending orders.")}</p>
+          <EmptyAlert tone="orange">{t("alerts.no_pending_orders", "No pending orders.")}</EmptyAlert>
         )}
-        <Link href={alerts.ordersHref} className="mt-2 inline-block underline">
-          {t("alerts.view_all_orders", "View all orders")}
-        </Link>
-      </section>
-      <section>
-        <h3 className="font-semibold">
-          {t("alerts.low_stock", "Low stock ({count})", { count: alerts.stock.data?.totalElements ?? 0 })}
-        </h3>
+      </AlertSection>
+      <AlertSection
+        tone="amber"
+        icon={PackageMinus}
+        label={t("alerts.low_stock_label", "Low stock")}
+        srTitle={t("alerts.low_stock", "Low stock ({count})", { count: lowStockCount })}
+        count={lowStockCount}
+        footer={
+          <SectionLink tone="amber" href="/stock-alerts">
+            {t("alerts.view_stock_alerts", "View stock alerts")}
+          </SectionLink>
+        }
+      >
         {alerts.stock.data?.content.length ? (
           alerts.stock.data.content.map((item) => (
             <Link
               key={item.productId}
               href="/stock-alerts"
-              className="mt-2 block rounded border p-3 hover:bg-muted"
+              className={cn(ALERT_ITEM, TONE.amber.item)}
             >
-              {titleCase(item.productName)}: {Number(item.quantityOnHand)}{" "}
-              {item.unit}
+              <span className="min-w-0 flex-1 wrap-break-word text-sm font-medium text-(--ink)">
+                {titleCase(item.productName)}
+                <span className="sr-only">:</span>
+              </span>
+              <span className="shrink-0 rounded-lg bg-amber-100 px-2.5 py-1 text-sm font-bold tabular-nums text-amber-900">
+                {Number(item.quantityOnHand)}{" "}
+                <span className="text-xs font-semibold tracking-wide">{item.unit}</span>
+              </span>
+              <ChevronRight
+                aria-hidden
+                className="size-4 shrink-0 text-slate-400 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none"
+              />
             </Link>
           ))
         ) : (
-          <p className="mt-2 text-muted-foreground">{t("alerts.no_low_stock", "No low-stock items.")}</p>
+          <EmptyAlert tone="amber">{t("alerts.no_low_stock", "No low-stock items.")}</EmptyAlert>
         )}
-        <Link href="/stock-alerts" className="mt-2 inline-block underline">
-          {t("alerts.view_stock_alerts", "View stock alerts")}
-        </Link>
-      </section>
+      </AlertSection>
     </div>
   );
 }
@@ -380,27 +549,30 @@ function StaffCallItem({
   };
 
   return (
-    <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <span className="flex items-center gap-2">
-            <span className="font-mono">
+    <div className="rounded-xl border border-red-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1 basis-60">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-sm font-semibold tracking-wide text-(--ink)">
               #{call.orderId.slice(0, 8).toUpperCase()}
             </span>
-            <span className="text-xs text-amber-800">
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700">
+              <Clock aria-hidden className="size-3.5" />
               {timeAgo(call.calledAt)}
             </span>
           </span>
-          <span className="mt-1 inline-block rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
+          <span className="mt-1.5 inline-block rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
             {staffCallReasonLabel(call.reason)}
           </span>
           {call.note && (
-            <span className="mt-1 block break-words text-xs italic text-amber-900">
+            <span className="mt-1.5 block wrap-break-word text-sm italic text-slate-700">
               &ldquo;{call.note}&rdquo;
             </span>
           )}
-          <span className="block truncate">
-            {call.customerName ? titleCase(call.customerName) : t("alerts.walk_in", "Walk-in")}{" "}
+          <span className="mt-1 block wrap-break-word text-sm text-slate-600">
+            <span className="font-medium text-(--ink)">
+              {call.customerName ? titleCase(call.customerName) : t("alerts.walk_in", "Walk-in")}
+            </span>{" "}
             · {humanise(call.orderStatus)}
             {call.fulfillmentMethod
               ? ` · ${fulfillmentLabel(call)}`
@@ -410,7 +582,7 @@ function StaffCallItem({
         {!replying && (
           <button
             type="button"
-            className="shrink-0 rounded bg-black px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+            className="inline-flex h-10 w-full shrink-0 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-50 sm:h-9 sm:w-auto"
             disabled={disabled}
             onClick={() => setReplying(true)}
           >
@@ -420,7 +592,7 @@ function StaffCallItem({
       </div>
       {replying && (
         <form
-          className="mt-3 space-y-2 border-t border-amber-200 pt-3"
+          className="mt-3 space-y-2.5 border-t border-red-100 pt-3"
           onSubmit={(event) => {
             event.preventDefault();
             void send(reply);
@@ -433,7 +605,7 @@ function StaffCallItem({
                 type="button"
                 disabled={disabled}
                 onClick={() => void send(text)}
-                className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-xs text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                className="rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-800 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:opacity-50"
               >
                 {text}
               </button>
@@ -451,7 +623,7 @@ function StaffCallItem({
           <div className="flex items-center justify-end gap-2">
             <button
               type="button"
-              className="rounded px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:underline"
+              className="inline-flex h-9 items-center rounded-lg px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
               disabled={disabled}
               onClick={() => {
                 setReplying(false);
@@ -462,7 +634,7 @@ function StaffCallItem({
             </button>
             <button
               type="submit"
-              className="rounded bg-black px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+              className="inline-flex h-9 items-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-50"
               disabled={disabled}
             >
               {reply.trim() ? t("alerts.send_reply", "Send reply") : t("alerts.answer_silently", "Answer without message")}
