@@ -1,70 +1,387 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { useListContactMessagesQuery, useUpdateContactStatusMutation, type ContactMessage } from "@/store/api/contactApi";
+import { CircleCheck, Copy, Loader2, Mail, MessageSquareText, Phone, RotateCcw, TriangleAlert } from "lucide-react";
+import {
+  NEW_MESSAGES_PREVIEW,
+  useListContactMessagesQuery,
+  useUpdateContactStatusMutation,
+  type ContactMessage,
+} from "@/store/api/contactApi";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import { apiErrorMessage } from "@/store/api/baseApi";
-import { humanise, titleCase } from "@/lib/utils";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertSection, EmptyAlert } from "@/components/common/OperationalAlerts";
 import { useFeedbackAlerts } from "@/hooks/useFeedbackAlerts";
-import { formatPhone } from "@/lib/phone";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useI18n } from "@/contexts/I18nContext";
+import {
+  clearContactMessageFocus,
+  contactMessageAnchor,
+  contactTopicLabel,
+  replyMailto,
+  useContactMessageFocus,
+} from "@/lib/contactMessages";
+import { SHOP_TIME_ZONE, parseShopDateTime } from "@/lib/estimate";
+import { formatPhone, phoneDigits } from "@/lib/phone";
+import { cn, timeAgo, titleCase } from "@/lib/utils";
+
+type MessageStatus = ContactMessage["status"];
+
+const PAGE_SIZE = 10;
+const HIGHLIGHT_MS = 5000;
+
+const BUTTON =
+  "inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0";
+const BUTTON_PRIMARY = "bg-sky-700 text-white hover:bg-sky-800 focus-visible:ring-sky-500";
+const BUTTON_RESOLVE = "bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-500";
+const BUTTON_OUTLINE =
+  "bg-white text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 focus-visible:ring-slate-400";
+
+// Long messages start folded so one essay doesn't push every other message off screen.
+function isLong(text: string) {
+  return text.length > 240 || text.split("\n").length > 4;
+}
+
+function sentAtLabel(createdAt: string) {
+  return parseShopDateTime(createdAt).toLocaleString("en-GB", {
+    timeZone: SHOP_TIME_ZONE,
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export function ContactInbox() {
   const { t } = useI18n();
   const { isAdmin } = useCurrentRole();
   const [page, setPage] = usePersistentState("contact-inbox:page", 1);
-  const [status, setStatus] = usePersistentState<ContactMessage["status"]>("contact-inbox:status", "NEW");
-  const { data, isLoading, error, refetch } = useListContactMessagesQuery({ page, size: 10, status }, {
-    skip: !isAdmin, pollingInterval: 15000, refetchOnMountOrArgChange: true,
-  });
+  const [status, setStatus] = usePersistentState<MessageStatus>("contact-inbox:status", "NEW");
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
+  const list = useListContactMessagesQuery(
+    { page, size: PAGE_SIZE, status },
+    { skip: !isAdmin, pollingInterval: 15000, refetchOnMountOrArgChange: true },
+  );
+  // Same cached request the bell uses, so the "Needs attention" count costs nothing extra.
+  const unanswered = useListContactMessagesQuery(NEW_MESSAGES_PREVIEW, { skip: !isAdmin });
+  const newCount = unanswered.data?.totalElements ?? 0;
+  const { refetch } = list;
   useFeedbackAlerts(useCallback(() => { if (isAdmin) void refetch(); }, [isAdmin, refetch]));
-  const [updateStatus, { isLoading: isUpdating }] = useUpdateContactStatusMutation();
+
+  const [updateStatus, { isLoading: isUpdating, originalArgs }] = useUpdateContactStatusMutation();
+  const busyId = isUpdating ? originalArgs?.id : undefined;
+
+  // A toast or the alerts panel picked a message: open the first "Needs attention" page, where new messages land.
+  const focusId = useContactMessageFocus();
+  const [handledFocusId, setHandledFocusId] = useState<string | null>(null);
+  if (focusId !== handledFocusId) {
+    setHandledFocusId(focusId);
+    if (focusId) {
+      setStatus("NEW");
+      setPage(1);
+      setExpanded((prev) => new Set(prev).add(focusId));
+      setHighlightId(focusId);
+    }
+  }
+
+  const rows = list.currentData?.content;
+  const totalPages = Math.max(1, list.currentData?.totalPages ?? 1);
+  // Resolving the last message on the last page would otherwise leave an empty page behind.
+  if (list.currentData && page > totalPages) setPage(totalPages);
+
+  useEffect(() => {
+    if (!focusId || status !== "NEW" || page !== 1 || list.isFetching || !rows) return;
+    const card = document.getElementById(contactMessageAnchor(focusId));
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.focus({ preventScroll: true });
+    }
+    clearContactMessageFocus();
+  }, [focusId, status, page, list.isFetching, rows]);
+
+  useEffect(() => {
+    if (!highlightId) return;
+    const timer = window.setTimeout(() => setHighlightId(null), HIGHLIGHT_MS);
+    return () => window.clearTimeout(timer);
+  }, [highlightId]);
+
   if (!isAdmin) return null;
-  const resolve = async (message: ContactMessage) => {
+
+  const changeStatus = async (message: ContactMessage, next: MessageStatus) => {
     try {
-      await updateStatus({ id: message.id, status: message.status === "NEW" ? "RESOLVED" : "NEW" }).unwrap();
-      toast.success(t("notifications.contact.toast.updated", "Message updated"));
-    } catch (error) { toast.error(apiErrorMessage(error as never, t("notifications.contact.errors.update", "Could not update the message."))); }
+      await updateStatus({ id: message.id, status: next }).unwrap();
+      toast.success(
+        next === "RESOLVED"
+          ? t("notifications.contact.toast.resolved", "Marked as resolved")
+          : t("notifications.contact.toast.reopened", "Moved back to Needs attention"),
+      );
+    } catch (error) {
+      toast.error(apiErrorMessage(error as never, t("notifications.contact.errors.update", "Could not update the message.")));
+    }
   };
-  return <section className="space-y-4 rounded-xl border bg-white p-5" aria-label={t("notifications.contact.label", "Customer messages")}>
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="text-lg font-semibold">{t("notifications.contact.heading", "Customer messages ({count})", { count: data?.totalElements ?? 0 })}</h2>
-      <Select value={status} onValueChange={(next) => { setStatus(next as ContactMessage["status"]); setPage(1); }}>
-        <SelectTrigger aria-label={t("notifications.contact.status_label", "Message status")} className="form_field_select_trigger is_compact">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent className="form_field_select_content">
-          <SelectItem value="NEW" className="form_field_select_item">Needs attention</SelectItem>
-          <SelectItem value="RESOLVED" className="form_field_select_item">Resolved</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-    {isLoading && <p role="status">{t("notifications.contact.loading", "Loading messages...")}</p>}
-    {error && <div role="alert" className="text-sm text-red-600">
-      <p>{apiErrorMessage(error as never, t("notifications.contact.errors.load", "Could not load messages."))}</p>
-      <button type="button" className="underline" onClick={() => { void refetch(); }}>{t("actions.retry", "Retry")}</button>
-    </div>}
-    {!isLoading && !error && data?.content.length === 0 && <p className="text-sm text-gray-500">{t("notifications.contact.empty", "No messages in this view.")}</p>}
-    {data?.content.map((message) => <article key={message.id} className="space-y-2 rounded-lg border p-4 text-sm">
-      <div className="flex flex-wrap justify-between gap-2"><h3 className="font-semibold">{humanise(message.topic)} · {titleCase(message.fullName)}</h3>
-        <span className="text-xs text-gray-500">{message.createdAt.replace("T", " ")}</span></div>
-      <p>{message.email}{message.phoneNumber ? ` · ${formatPhone(message.phoneNumber)}` : ""}</p>
-      <p className="whitespace-pre-wrap break-words">{message.message}</p>
-      <div className="flex gap-4 pt-2">
-        <a href={`mailto:${encodeURIComponent(message.email)}?subject=${encodeURIComponent(`Re: ${humanise(message.topic)}`)}`} className="underline">{t("notifications.contact.reply_by_email", "Reply by email")}</a>
-        <button type="button" disabled={isUpdating} onClick={() => { void resolve(message); }} className="underline disabled:opacity-50">
-          {message.status === "NEW" ? t("notifications.contact.mark_resolved", "Mark resolved") : t("notifications.contact.reopen", "Reopen")}
-        </button>
+
+  const copyEmail = async (email: string) => {
+    try {
+      await navigator.clipboard.writeText(email);
+      toast.success(t("notifications.contact.toast.email_copied", "Email copied"));
+    } catch {
+      toast.error(t("notifications.contact.errors.copy", "Could not copy the email."));
+    }
+  };
+
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const filters: { value: MessageStatus; label: string }[] = [
+    { value: "NEW", label: t("notifications.contact.tabs.new", "Needs attention") },
+    { value: "RESOLVED", label: t("notifications.contact.tabs.resolved", "Resolved") },
+  ];
+
+  return (
+    <AlertSection
+      id="customer-messages"
+      tone="sky"
+      icon={MessageSquareText}
+      label={t("notifications.contact.label", "Customer messages")}
+      srTitle={t("alerts.messages", "Customer messages needing a reply ({count})", { count: newCount })}
+      count={newCount}
+      footer={
+        totalPages > 1 ? (
+          <nav
+            aria-label={t("notifications.contact.pagination", "Message pages")}
+            className="mt-3 flex items-center justify-between gap-3 text-sm"
+          >
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+              className={cn(BUTTON, BUTTON_OUTLINE)}
+            >
+              {t("actions.previous", "Previous")}
+            </button>
+            <span className="text-slate-600">
+              {t("notifications.contact.page_of", "Page {page} of {total}", { page, total: totalPages })}
+            </span>
+            <button
+              type="button"
+              disabled={page >= totalPages}
+              onClick={() => setPage(page + 1)}
+              className={cn(BUTTON, BUTTON_OUTLINE)}
+            >
+              {t("actions.next", "Next")}
+            </button>
+          </nav>
+        ) : null
+      }
+    >
+      <div
+        role="group"
+        aria-label={t("notifications.contact.status_label", "Message status")}
+        className="inline-flex rounded-xl bg-white p-1 ring-1 ring-inset ring-sky-100"
+      >
+        {filters.map((filter) => {
+          const active = status === filter.value;
+          return (
+            <button
+              key={filter.value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => {
+                setStatus(filter.value);
+                setPage(1);
+              }}
+              className={cn(
+                "inline-flex h-8 items-center rounded-lg px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500",
+                active ? "bg-sky-700 text-white" : "text-slate-600 hover:bg-sky-50",
+              )}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
       </div>
-    </article>)}
-    <div className="flex items-center justify-between text-sm">
-      <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)} className="disabled:opacity-40">{t("actions.previous", "Previous")}</button>
-      <span>{t("notifications.contact.page_of", "Page {page} of {total}", { page, total: Math.max(1, data?.totalPages ?? 1) })}</span>
-      <button type="button" disabled={!data || page >= data.totalPages} onClick={() => setPage(page + 1)} className="disabled:opacity-40">{t("actions.next", "Next")}</button>
-    </div>
-  </section>;
+
+      {list.isLoading || (list.isFetching && !rows) ? (
+        <p role="status" className="flex items-center gap-2.5 rounded-xl bg-white/80 p-3.5 text-sm text-slate-600">
+          <Loader2 aria-hidden className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
+          {t("notifications.contact.loading", "Loading messages...")}
+        </p>
+      ) : list.error ? (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-800">
+          <p className="flex items-start gap-2">
+            <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+            {apiErrorMessage(list.error as never, t("notifications.contact.errors.load", "Could not load messages."))}
+          </p>
+          <button
+            type="button"
+            className={cn(BUTTON, BUTTON_OUTLINE, "mt-3 text-red-700 ring-red-200 hover:bg-red-100")}
+            onClick={() => void refetch()}
+          >
+            {t("actions.retry", "Retry")}
+          </button>
+        </div>
+      ) : rows?.length ? (
+        rows.map((message) => (
+          <MessageCard
+            key={message.id}
+            message={message}
+            expanded={expanded.has(message.id)}
+            highlighted={highlightId === message.id}
+            busy={busyId === message.id}
+            onToggle={() => toggleExpanded(message.id)}
+            onChangeStatus={(next) => void changeStatus(message, next)}
+            onCopyEmail={() => void copyEmail(message.email)}
+          />
+        ))
+      ) : (
+        <EmptyAlert tone="sky">
+          {status === "NEW"
+            ? t("notifications.contact.empty_new", "All caught up — no messages need a reply.")
+            : t("notifications.contact.empty_resolved", "No resolved messages yet.")}
+        </EmptyAlert>
+      )}
+    </AlertSection>
+  );
+}
+
+function MessageCard({
+  message,
+  expanded,
+  highlighted,
+  busy,
+  onToggle,
+  onChangeStatus,
+  onCopyEmail,
+}: {
+  message: ContactMessage;
+  expanded: boolean;
+  highlighted: boolean;
+  busy: boolean;
+  onToggle: () => void;
+  onChangeStatus: (next: MessageStatus) => void;
+  onCopyEmail: () => void;
+}) {
+  const { t } = useI18n();
+  const isNew = message.status === "NEW";
+  const long = isLong(message.message);
+  const name = titleCase(message.fullName);
+  // The form lets customers type any name, so show the account too when it's someone else's.
+  const accountName =
+    message.customerName && message.customerName.trim().toLowerCase() !== message.fullName.trim().toLowerCase()
+      ? titleCase(message.customerName)
+      : null;
+  const titleId = `${contactMessageAnchor(message.id)}-title`;
+
+  return (
+    <article
+      id={contactMessageAnchor(message.id)}
+      tabIndex={-1}
+      aria-labelledby={titleId}
+      className={cn(
+        "rounded-xl border bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition-shadow duration-300",
+        isNew ? "border-sky-200" : "border-slate-200",
+        highlighted && "ring-2 ring-sky-500 ring-offset-2",
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+        <h4 id={titleId} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          {isNew && (
+            <span className="size-2 shrink-0 rounded-full bg-sky-600">
+              <span className="sr-only">{t("notifications.contact.unread", "Needs a reply")}: </span>
+            </span>
+          )}
+          <span className="wrap-break-word text-[15px] font-semibold text-(--ink)">{name}</span>
+          <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+            {contactTopicLabel(message.topic)}
+          </span>
+          {!isNew && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+              <CircleCheck aria-hidden className="size-3.5" />
+              {t("notifications.contact.tabs.resolved", "Resolved")}
+            </span>
+          )}
+        </h4>
+        <time dateTime={message.createdAt} className="shrink-0 text-xs font-medium text-slate-500">
+          {timeAgo(message.createdAt)} · {sentAtLabel(message.createdAt)}
+        </time>
+      </div>
+
+      <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-slate-600">
+        <span className="wrap-break-word">{message.email}</span>
+        {message.phoneNumber && <span>{formatPhone(message.phoneNumber)}</span>}
+        {accountName && (
+          <span>{t("notifications.contact.account", "Account: {name}", { name: accountName })}</span>
+        )}
+      </p>
+
+      <p
+        className={cn(
+          "mt-3 whitespace-pre-wrap wrap-break-word rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-(--ink)",
+          long && !expanded && "line-clamp-4",
+        )}
+      >
+        {message.message}
+      </p>
+      {long && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={onToggle}
+          className="mt-1.5 rounded text-sm font-semibold text-sky-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+        >
+          {expanded
+            ? t("notifications.contact.show_less", "Show less")
+            : t("notifications.contact.show_more", "Show full message")}
+        </button>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+        <a href={replyMailto(message)} className={cn(BUTTON, BUTTON_PRIMARY)}>
+          <Mail aria-hidden />
+          {t("notifications.contact.reply_by_email", "Reply by email")}
+        </a>
+        {message.phoneNumber && (
+          <a href={`tel:${phoneDigits(message.phoneNumber)}`} className={cn(BUTTON, BUTTON_OUTLINE)}>
+            <Phone aria-hidden />
+            {t("notifications.contact.call", "Call")}
+          </a>
+        )}
+        <button type="button" onClick={onCopyEmail} className={cn(BUTTON, BUTTON_OUTLINE)}>
+          <Copy aria-hidden />
+          {t("notifications.contact.copy_email", "Copy email")}
+        </button>
+        <span className="hidden flex-1 sm:block" />
+        {isNew ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onChangeStatus("RESOLVED")}
+            className={cn(BUTTON, BUTTON_RESOLVE)}
+          >
+            {busy ? <Loader2 aria-hidden className="animate-spin motion-reduce:animate-none" /> : <CircleCheck aria-hidden />}
+            {t("notifications.contact.mark_resolved", "Mark resolved")}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onChangeStatus("NEW")}
+            className={cn(BUTTON, BUTTON_OUTLINE)}
+          >
+            {busy ? <Loader2 aria-hidden className="animate-spin motion-reduce:animate-none" /> : <RotateCcw aria-hidden />}
+            {t("notifications.contact.reopen", "Reopen")}
+          </button>
+        )}
+      </div>
+    </article>
+  );
 }

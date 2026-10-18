@@ -152,7 +152,12 @@
     "reply_label": "Reply to customer",
     "reply_placeholder": "Or type a reply to the customer…",
     "send_reply": "Send reply",
-    "answer_silently": "Answer without message"
+    "answer_silently": "Answer without message",
+    "intro_with_messages": "Current staff calls, pending orders, low stock and customer messages. Updates every 30 seconds.",
+    "messages_label": "Customer messages",
+    "messages": "Customer messages needing a reply ({count})",
+    "open_inbox": "Open message inbox",
+    "no_messages": "No messages waiting for a reply."
   },
   "language": {
     "label": "Language",
@@ -401,7 +406,9 @@
     "running_low_one": "{count} item is running low.",
     "running_low_other": "{count} items are running low.",
     "new_message": "New customer message",
-    "new_message_description": "Someone sent a message from the contact page."
+    "new_message_description": "Someone sent a message from the contact page.",
+    "new_message_from": "New message from {customer}",
+    "read_message": "Read message"
   },
   "sidebar_toggle": {
     "expand": "Expand sidebar",

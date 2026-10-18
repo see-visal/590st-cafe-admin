@@ -28,7 +28,7 @@ export default function Page() {
         ]}
         rightSlot={<AdminTopActions />}
       />
-      <OperationalAlertsContent alerts={alerts} />
+      <OperationalAlertsContent alerts={alerts} showMessages={false} />
       <ContactInbox />
     </PageShell>
   );

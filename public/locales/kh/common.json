@@ -152,7 +152,12 @@
     "reply_label": "ឆ្លើយតបទៅអតិថិជន",
     "reply_placeholder": "ឬវាយសារឆ្លើយតបទៅអតិថិជន…",
     "send_reply": "ផ្ញើការឆ្លើយតប",
-    "answer_silently": "ឆ្លើយតបដោយគ្មានសារ"
+    "answer_silently": "ឆ្លើយតបដោយគ្មានសារ",
+    "intro_with_messages": "ការហៅបុគ្គលិក ការបញ្ជាទិញកំពុងរង់ចាំ ស្តុកជិតអស់ និងសារពីអតិថិជនបច្ចុប្បន្ន។ ធ្វើបច្ចុប្បន្នភាពរៀងរាល់ 30 វិនាទី។",
+    "messages_label": "សារពីអតិថិជន",
+    "messages": "សារពីអតិថិជនដែលត្រូវឆ្លើយតប ({count})",
+    "open_inbox": "បើកប្រអប់សារ",
+    "no_messages": "មិនមានសាររង់ចាំការឆ្លើយតបទេ។"
   },
   "language": {
     "label": "ភាសា",
@@ -401,7 +406,9 @@
     "running_low_one": "មាន {count} មុខជិតអស់ពីស្តុក។",
     "running_low_other": "មាន {count} មុខជិតអស់ពីស្តុក។",
     "new_message": "សារថ្មីពីអតិថិជន",
-    "new_message_description": "មាននរណាម្នាក់បានផ្ញើសារពីទំព័រទំនាក់ទំនង។"
+    "new_message_description": "មាននរណាម្នាក់បានផ្ញើសារពីទំព័រទំនាក់ទំនង។",
+    "new_message_from": "សារថ្មីពី {customer}",
+    "read_message": "អានសារ"
   },
   "sidebar_toggle": {
     "expand": "ពង្រីករបារចំហៀង",

@@ -62,6 +62,8 @@ export interface NotifyOptions {
   icon?: JSX.Element;
   href?: string;
   actionLabel?: string;
+  // Runs when the action link is clicked, just before navigating to href.
+  onAction?: () => void;
   duration?: number;
 }
 
@@ -73,6 +75,7 @@ export function notify({
   icon,
   href,
   actionLabel = translate("actions.view", "View"),
+  onAction,
   duration = 8000,
 }: NotifyOptions) {
   const content = (
@@ -80,7 +83,14 @@ export function notify({
       <p className="app_toast_title">{title}</p>
       {description ? <p className="app_toast_text app_toast_muted">{description}</p> : null}
       {href ? (
-        <Link href={href} onClick={() => toast.dismiss(id)} className="app_toast_action">
+        <Link
+          href={href}
+          onClick={() => {
+            onAction?.();
+            toast.dismiss(id);
+          }}
+          className="app_toast_action"
+        >
           {actionLabel}
         </Link>
       ) : null}

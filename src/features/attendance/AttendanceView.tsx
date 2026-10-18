@@ -138,7 +138,7 @@ export default function AttendanceView() {
     </div>}
     {records.error && <div role="alert" className="my-3 text-red-600"><p>{apiErrorMessage(records.error as never, t("attendance.errors.load_failed", "Could not load attendance."))}</p>
       <button type="button" onClick={() => { void records.refetch(); }} className="underline">{t("actions.retry", "Retry")}</button></div>}
-    <div className="mt-4 overflow-x-auto rounded-xl border bg-white">
+    <div className="mt-4 overflow-x-auto overflow-y-hidden rounded-xl border bg-white">
       <table className="w-full min-w-[760px] text-left text-sm"><thead><tr className="border-b bg-gray-50">
         {[t("attendance.table.staff", "Staff"), t("attendance.table.check_in", "Check in"), t("attendance.table.check_out", "Check out"), t("attendance.table.worked", "Worked"), t("fields.note", "Note"), ...(isAdmin ? [t("table.action", "Action")] : [])].map((label) => <th key={label} className="whitespace-nowrap p-3">{label}</th>)}
       </tr></thead><tbody>

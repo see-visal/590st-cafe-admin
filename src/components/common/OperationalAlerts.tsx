@@ -30,7 +30,8 @@ import {
 } from "@/store/api/baristaOrderApi";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import { apiErrorMessage } from "@/store/api/baseApi";
-import { useListContactMessagesQuery } from "@/store/api/contactApi";
+import { NEW_MESSAGES_PREVIEW, useListContactMessagesQuery } from "@/store/api/contactApi";
+import { contactMessageToastId, contactTopicLabel, focusContactMessage } from "@/lib/contactMessages";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { useStaffCallAlerts } from "@/hooks/useStaffCallAlerts";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
@@ -127,10 +128,10 @@ export function useOperationalAlerts() {
     { page: 1, size: 5 },
     { ...polling, skip: !isAdmin && !isBarista },
   );
-  const messages = useListContactMessagesQuery(
-    { status: "NEW", page: 1, size: 1 },
-    { ...polling, skip: !isAdmin },
-  );
+  const messages = useListContactMessagesQuery(NEW_MESSAGES_PREVIEW, {
+    ...polling,
+    skip: !isAdmin,
+  });
   const adminStaffCalls = useListStaffCallsQuery(undefined, {
     ...polling,
     skip: !isAdmin,
@@ -195,12 +196,23 @@ export function useOperationalAlerts() {
   );
   useFeedbackAlerts(
     useCallback(
-      (message) => {
+      (change) => {
         if (!isAdmin) return;
-        void messages.refetch();
-        if (message.change === "CREATED") {
-          notify({ ...newMessageNotice(message.id, "/notifications"), icon: <MessageSquareText /> });
+        if (change.change !== "CREATED") {
+          // Someone already handled this message, so its pop-up is no longer news.
+          toast.dismiss(contactMessageToastId(change.id));
+          void messages.refetch();
+          return;
         }
+        // The new message is the newest, so the refreshed preview has the sender, topic and text for the pop-up.
+        void messages.refetch().then((result) => {
+          const message = result.data?.content.find((item) => item.id === change.id);
+          notify({
+            ...newMessageNotice(change.id, message, "/notifications"),
+            icon: <MessageSquareText />,
+            onAction: () => focusContactMessage(change.id),
+          });
+        });
       },
       [isAdmin, messages],
     ),
@@ -237,6 +249,8 @@ export function useOperationalAlerts() {
     orders,
     stock,
     staffCalls,
+    messages,
+    showMessages: isAdmin,
     answerStaffCall,
     isAnsweringStaffCall: isAnsweringAdmin || isAnsweringBarista,
     error,
@@ -256,7 +270,7 @@ export function useOperationalAlerts() {
   };
 }
 
-type AlertTone = "red" | "orange" | "amber";
+type AlertTone = "red" | "orange" | "amber" | "sky";
 
 const TONE: Record<
   AlertTone,
@@ -286,12 +300,21 @@ const TONE: Record<
     link: "text-amber-800 hover:text-amber-900 focus-visible:ring-amber-500",
     empty: "border-amber-200",
   },
+  sky: {
+    section: "border-sky-100 bg-sky-50/60",
+    icon: "bg-sky-100 text-sky-700",
+    badge: "bg-sky-700 text-white",
+    item: "border-sky-100 hover:border-sky-300 focus-visible:ring-sky-500",
+    link: "text-sky-700 hover:text-sky-800 focus-visible:ring-sky-500",
+    empty: "border-sky-200",
+  },
 };
 
 const ALERT_ITEM =
   "group flex items-center gap-3 rounded-xl border bg-white p-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[border-color,box-shadow] duration-150 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
 
-function AlertSection({
+export function AlertSection({
+  id,
   tone,
   icon: Icon,
   label,
@@ -300,6 +323,7 @@ function AlertSection({
   children,
   footer,
 }: {
+  id?: string;
   tone: AlertTone;
   icon: LucideIcon;
   label: string;
@@ -310,7 +334,7 @@ function AlertSection({
 }) {
   const headingId = useId();
   return (
-    <section aria-labelledby={headingId} className={cn("rounded-2xl border p-4 sm:p-5", TONE[tone].section)}>
+    <section id={id} aria-labelledby={headingId} className={cn("rounded-2xl border p-4 sm:p-5", TONE[tone].section)}>
       <h3 id={headingId} className="flex items-center gap-3">
         <span aria-hidden className={cn("grid size-9 shrink-0 place-items-center rounded-xl", TONE[tone].icon)}>
           <Icon className="size-4.5" />
@@ -335,7 +359,7 @@ function AlertSection({
   );
 }
 
-function EmptyAlert({ tone, children }: { tone: AlertTone; children: ReactNode }) {
+export function EmptyAlert({ tone, children }: { tone: AlertTone; children: ReactNode }) {
   return (
     <p
       className={cn(
@@ -369,8 +393,11 @@ function SectionLink({ tone, href, children }: { tone: AlertTone; href: string; 
 
 export function OperationalAlertsContent({
   alerts,
+  showMessages = true,
 }: {
   alerts: ReturnType<typeof useOperationalAlerts>;
+  // The alerts page shows the full message inbox instead, so it turns this summary off.
+  showMessages?: boolean;
 }) {
   const { t } = useI18n();
   if (alerts.loading)
@@ -405,6 +432,7 @@ export function OperationalAlertsContent({
   const staffCallCount = alerts.staffCalls.data?.length ?? 0;
   const pendingOrderCount = alerts.orders.data?.totalElements ?? 0;
   const lowStockCount = alerts.stock.data?.totalElements ?? 0;
+  const messageCount = alerts.messages.data?.totalElements ?? 0;
   return (
     <div className="space-y-4">
       <p className="flex items-start gap-2.5 text-sm leading-relaxed text-slate-600">
@@ -412,7 +440,9 @@ export function OperationalAlertsContent({
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:hidden" />
           <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
         </span>
-        {t("alerts.intro", "Current staff calls, pending orders and low stock. Updates every 30 seconds.")}
+        {alerts.showMessages
+          ? t("alerts.intro_with_messages", "Current staff calls, pending orders, low stock and customer messages. Updates every 30 seconds.")
+          : t("alerts.intro", "Current staff calls, pending orders and low stock. Updates every 30 seconds.")}
       </p>
       <AlertSection
         tone="red"
@@ -523,6 +553,59 @@ export function OperationalAlertsContent({
           <EmptyAlert tone="amber">{t("alerts.no_low_stock", "No low-stock items.")}</EmptyAlert>
         )}
       </AlertSection>
+      {alerts.showMessages && showMessages && (
+        <AlertSection
+          tone="sky"
+          icon={MessageSquareText}
+          label={t("alerts.messages_label", "Customer messages")}
+          srTitle={t("alerts.messages", "Customer messages needing a reply ({count})", { count: messageCount })}
+          count={messageCount}
+          footer={
+            <SectionLink tone="sky" href="/notifications">
+              {t("alerts.open_inbox", "Open message inbox")}
+            </SectionLink>
+          }
+        >
+          {alerts.messages.data?.content.length ? (
+            alerts.messages.data.content.map((message) => (
+              <Link
+                key={message.id}
+                href="/notifications"
+                onClick={() => focusContactMessage(message.id)}
+                className={cn(ALERT_ITEM, TONE.sky.item)}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="wrap-break-word text-sm font-semibold text-(--ink)">
+                      {titleCase(message.fullName)}
+                    </span>
+                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                      {contactTopicLabel(message.topic)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500">
+                      <Clock aria-hidden className="size-3.5" />
+                      {timeAgo(message.createdAt)}
+                    </span>
+                  </span>
+                  <span className="mt-1 line-clamp-2 wrap-break-word text-sm text-slate-600">
+                    {message.message}
+                  </span>
+                </span>
+                <ChevronRight
+                  aria-hidden
+                  className="size-4 shrink-0 text-slate-400 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none"
+                />
+              </Link>
+            ))
+          ) : alerts.messages.error ? (
+            <p role="alert" className="text-sm text-red-700">
+              {apiErrorMessage(alerts.messages.error as never, t("notifications.contact.errors.load", "Could not load messages."))}
+            </p>
+          ) : (
+            <EmptyAlert tone="sky">{t("alerts.no_messages", "No messages waiting for a reply.")}</EmptyAlert>
+          )}
+        </AlertSection>
+      )}
     </div>
   );
 }

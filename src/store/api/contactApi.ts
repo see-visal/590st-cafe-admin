@@ -22,6 +22,10 @@ export interface ContactMessage {
   updatedAt: string;
 }
 
+// The newest unanswered messages: the alerts panel lists these and the bell/inbox count their total.
+// Kept as one constant so every caller shares the same cached request.
+export const NEW_MESSAGES_PREVIEW = { status: "NEW", page: 1, size: 5 } as const;
+
 export const contactApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     listContactMessages: builder.query<

@@ -2,7 +2,9 @@ import type { NotifyOptions } from "@/components/common/AppToast";
 import { staffCallReasonLabel } from "@/lib/staffCall";
 import { fulfillmentLabel, titleCase } from "@/lib/utils";
 import type { OrderResponse, OrderUpdateMessage, StaffCallMessage } from "@/store/api/types";
+import type { ContactMessage } from "@/store/api/contactApi";
 import { translate } from "@/contexts/translate";
+import { contactMessageToastId, contactTopicLabel, messagePreview } from "@/lib/contactMessages";
 
 type Notice = Omit<NotifyOptions, "icon">;
 
@@ -88,11 +90,18 @@ export function lowStockNotice(total: number, href: string): Notice {
   };
 }
 
-export function newMessageNotice(id: string, href: string): Notice {
+// `message` is missing only when its details couldn't be loaded in time; the notice then stays generic.
+export function newMessageNotice(id: string, message: ContactMessage | undefined, href: string): Notice {
   return {
-    id: `feedback-${id}`,
-    title: translate("notices.new_message", "New customer message"),
-    description: translate("notices.new_message_description", "Someone sent a message from the contact page."),
+    id: contactMessageToastId(id),
+    title: message
+      ? translate("notices.new_message_from", "New message from {customer}", { customer: customerOf(message.fullName) })
+      : translate("notices.new_message", "New customer message"),
+    description: message
+      ? `${contactTopicLabel(message.topic)} · “${messagePreview(message.message)}”`
+      : translate("notices.new_message_description", "Someone sent a message from the contact page."),
     href,
+    actionLabel: translate("notices.read_message", "Read message"),
+    duration: 12000,
   };
 }
