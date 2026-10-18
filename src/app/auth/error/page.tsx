@@ -15,7 +15,7 @@ export default function Unauthorized() {
   ).split("{role}");
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen text-center bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="flex flex-col items-center justify-center h-screen text-center bg-gray-100 text-gray-900">
       <h1 className="text-4xl font-bold mb-4">
         {t("auth.error_page.title", "Access Denied")}
       </h1>
@@ -26,7 +26,7 @@ export default function Unauthorized() {
       </p>
       <button
         onClick={handleGoHome}
-        className="mt-4 px-6 py-3 cursor-pointer bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white rounded-md transition-colors"
+        className="mt-4 px-6 py-3 cursor-pointer bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
       >
         {t("auth.error_page.go_back", "Go Back")}
       </button>

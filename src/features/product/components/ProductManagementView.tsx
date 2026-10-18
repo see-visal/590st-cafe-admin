@@ -441,7 +441,7 @@ export default function Products() {
                   <span
                     className={
                       Number(product.quantityOnHand) <= Number(product.reorderLevel)
-                        ? "font-semibold text-red-600"
+                        ? "font-semibold text-red-700"
                         : undefined
                     }
                   >

@@ -205,65 +205,62 @@ export default function ProfileView() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="space-y-6 lg:col-span-1">
-          {/* Super admin is a system account, so it has no personal photo. */}
-          {!isSuperAdmin ? (
-            <DataCard
-              title={t("profile.photo.title", "Photo")}
-              meta={t("profile.photo.meta", "Shown beside your name across the dashboard.")}
-            >
-              <div className="flex flex-col items-center gap-4 p-2 pb-4">
-                <UserAvatar
-                  src={user.avatarUrl}
-                  name={user.fullName}
-                  alt={user.fullName}
-                  sizes="112px"
-                  className="h-28 w-28 border border-gray-200 bg-gray-100 text-3xl font-semibold text-gray-400"
+          <DataCard
+            title={t("profile.photo.title", "Photo")}
+            meta={t("profile.photo.meta", "Shown beside your name across the dashboard.")}
+          >
+            <div className="flex flex-col items-center gap-4 p-2 pb-4">
+              <UserAvatar
+                src={user.avatarUrl}
+                name={user.fullName}
+                alt={user.fullName}
+                sizes="112px"
+                className="h-28 w-28 border border-gray-200 bg-gray-100 text-3xl font-semibold text-gray-400"
+              >
+                {avatarBusy ? (
+                  <span className="absolute inset-0 grid place-items-center bg-white/70">
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+                  </span>
+                ) : null}
+              </UserAvatar>
+
+              <p className="text-center text-xs text-gray-400">
+                {t("profile.photo.hint", "JPG or PNG, up to 5\u00a0MB.")}
+              </p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => handlePickAvatar(e.target.files?.[0] ?? null)}
+              />
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  className="btn_primary_black"
+                  disabled={avatarBusy}
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  {avatarBusy ? (
-                    <span className="absolute inset-0 grid place-items-center bg-white/70">
-                      <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
-                    </span>
-                  ) : null}
-                </UserAvatar>
-
-                <p className="text-center text-xs text-gray-400">
-                  {t("profile.photo.hint", "JPG or PNG, up to 5\u00a0MB.")}
-                </p>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={(e) => handlePickAvatar(e.target.files?.[0] ?? null)}
-                />
-                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Upload />
+                  {user.avatarUrl
+                    ? t("profile.photo.replace", "Replace")
+                    : t("profile.photo.upload", "Upload")}
+                </button>
+                {user.avatarUrl ? (
                   <button
                     type="button"
-                    className="btn_primary_black"
+                    className="btn_outline_black"
                     disabled={avatarBusy}
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleRemoveAvatar}
                   >
-                    <Upload />
-                    {user.avatarUrl
-                      ? t("profile.photo.replace", "Replace")
-                      : t("profile.photo.upload", "Upload")}
+                    <Trash2 />
+                    {t("actions.remove", "Remove")}
                   </button>
-                  {user.avatarUrl ? (
-                    <button
-                      type="button"
-                      className="btn_outline_black"
-                      disabled={avatarBusy}
-                      onClick={handleRemoveAvatar}
-                    >
-                      <Trash2 />
-                      {t("actions.remove", "Remove")}
-                    </button>
-                  ) : null}
-                </div>
+                ) : null}
               </div>
-            </DataCard>
-          ) : null}
+            </div>
+          </DataCard>
 
           <DataCard
             title={t("profile.account.title", "Account")}
@@ -289,9 +286,11 @@ export default function ProfileView() {
                   </DetailItem>
                 ) : null}
                 <DetailItem label={t("fields.created_by", "Created By")}>
-                  {user.createdByName
-                    ? `${titleCase(user.createdByName)} (${humanise(user.createdByRole ?? "")})`
-                    : t("profile.account.self_registered", "Self-registered")}
+                  {isSuperAdmin
+                    ? t("profile.account.server_config", "Server configuration")
+                    : user.createdByName
+                      ? `${titleCase(user.createdByName)} (${humanise(user.createdByRole ?? "")})`
+                      : t("profile.account.self_registered", "Self-registered")}
                 </DetailItem>
               </DetailGrid>
             </div>
@@ -338,10 +337,15 @@ export default function ProfileView() {
 
               <p className="flex items-start gap-2 text-xs text-gray-400">
                 <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                {t(
-                  "profile.personal.email_note",
-                  "Your email is your sign-in name and cannot be changed here — ask a super admin if it needs to move."
-                )}
+                {isSuperAdmin
+                  ? t(
+                      "profile.personal.super_admin_email_note",
+                      "The super admin signs in with the email set in the server configuration, so it is changed there."
+                    )
+                  : t(
+                      "profile.personal.email_note",
+                      "Your email is your sign-in name and cannot be changed here — ask a super admin if it needs to move."
+                    )}
               </p>
 
               <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-6">

@@ -14,7 +14,7 @@ export default function NotFound() {
       </p>
       <Link
         href="/dashboard"
-        className="h-10 rounded-md bg-black px-6 text-sm font-semibold text-white leading-10 hover:bg-gray-800 transition"
+        className="h-10 rounded-md bg-black px-6 text-sm font-semibold text-white leading-10 hover:bg-(--brand-ink-hover) transition"
       >
         {t("not_found.back", "Back to Dashboard")}
       </Link>

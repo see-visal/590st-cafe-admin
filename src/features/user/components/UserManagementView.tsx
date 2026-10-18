@@ -263,7 +263,7 @@ export default function UserManagementView({
                     src={user.avatarUrl}
                     name={user.fullName}
                     sizes="40px"
-                    className="h-10 w-10 bg-[#f6f1f3] text-sm font-semibold text-[#a1255b]"
+                    className="h-10 w-10 bg-(--placeholder-bg) text-sm font-semibold text-(--placeholder-ink-strong)"
                   />
                 </Cell>
                 <Cell className="font-semibold">{titleCase(user.fullName)}</Cell>
@@ -367,7 +367,7 @@ export default function UserManagementView({
                 src={selected.avatarUrl}
                 name={selected.fullName}
                 sizes="64px"
-                className="h-16 w-16 bg-[#f6f1f3] text-xl font-semibold text-[#a1255b]"
+                className="h-16 w-16 bg-(--placeholder-bg) text-xl font-semibold text-(--placeholder-ink-strong)"
               />
               <div className="min-w-0">
                 <p className="truncate font-semibold text-gray-900">{titleCase(selected.fullName)}</p>

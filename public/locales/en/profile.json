@@ -19,7 +19,8 @@
     "meta": "Managed by a super admin.",
     "linked": "Linked",
     "not_linked": "Not linked",
-    "self_registered": "Self-registered"
+    "self_registered": "Self-registered",
+    "server_config": "Server configuration"
   },
   "personal": {
     "title": "Personal Information",
@@ -27,7 +28,8 @@
     "name_placeholder": "Your name",
     "gender": "Gender",
     "gender_placeholder": "Not set",
-    "email_note": "Your email is your sign-in name and cannot be changed here — ask a super admin if it needs to move."
+    "email_note": "Your email is your sign-in name and cannot be changed here — ask a super admin if it needs to move.",
+    "super_admin_email_note": "The super admin signs in with the email set in the server configuration, so it is changed there."
   },
   "password": {
     "meta": "Changing it signs your other devices out.",

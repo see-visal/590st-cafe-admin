@@ -229,7 +229,7 @@ export function LocationPickerModal({
             <button
               type="submit"
               disabled={isSearching || !searchQuery.trim()}
-              className="flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-gray-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-black disabled:opacity-50"
+              className="flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-(--brand-ink) px-4 text-sm font-semibold text-white transition-colors hover:bg-black disabled:opacity-50"
             >
               {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {t("map.search", "Search")}

@@ -100,7 +100,7 @@ export default function StockAlertView() {
                 <Row key={alert.productId} striped={index % 2 === 1}>
                   <Cell>{(page - 1) * size + index + 1}</Cell>
                   <Cell className="font-semibold">{titleCase(alert.productName)}</Cell>
-                  <Cell className={isOut ? "font-semibold text-red-600" : undefined}>
+                  <Cell className={isOut ? "font-semibold text-red-700" : undefined}>
                     {onHand.toLocaleString()}
                   </Cell>
                   <Cell>{humanise(alert.unit)}</Cell>

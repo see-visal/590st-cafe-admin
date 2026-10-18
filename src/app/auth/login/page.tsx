@@ -1,17 +1,20 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import toast from "react-hot-toast";
+import type { z } from "zod";
 import {
   Check,
+  CircleAlert,
   Eye,
   EyeOff,
+  Loader2,
+  LockKeyhole,
   Mail,
   Phone,
   ShieldCheck,
-  UserRound,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -27,9 +30,12 @@ import {
 import { formatPhoneInput, PHONE_MAX_LENGTH, PHONE_PLACEHOLDER } from "@/lib/phone";
 import { parseForm } from "@/lib/validation";
 import { emailLoginSchema, otpSchema, phoneLoginSchema } from "@/lib/formSchemas";
+import { cn } from "@/lib/utils";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { useI18n } from "@/contexts/I18nContext";
 import { ForgotPasswordDialog } from "@/features/auth/components/ForgotPasswordDialog";
+import { LoginBrandVisual } from "@/features/auth/components/LoginBrandVisual";
+import { LogoMark } from "@/components/common/LogoMark";
 import {
   AUTH_DIALOG_BADGE_CLASS,
   AUTH_DIALOG_CLASS,
@@ -50,6 +56,58 @@ const LOGIN_METHOD_KEY = "loginMethod";
 
 const parseLoginMethod = (raw: string | null): LoginMethod =>
   raw === "PHONE" || raw === "TELEGRAM" ? "PHONE" : "EMAIL";
+
+type FieldName = "email" | "password" | "phoneNumber";
+type FieldErrors = Partial<Record<FieldName, string>>;
+
+const FIELD_IDS: Record<FieldName, string> = {
+  email: "login-email",
+  password: "login-password",
+  phoneNumber: "login-phone",
+};
+
+// Same schemas as before; their messages now sit under the field they belong to instead of in a toast.
+function issuesByField(error: z.ZodError): FieldErrors {
+  const errors: FieldErrors = {};
+  for (const issue of error.issues) {
+    const field = issue.path[0];
+    if ((field === "email" || field === "password" || field === "phoneNumber") && !errors[field]) {
+      errors[field] = issue.message;
+    }
+  }
+  return errors;
+}
+
+function focusFirstInvalid(errors: FieldErrors) {
+  const first = (Object.keys(FIELD_IDS) as FieldName[]).find((field) => errors[field]);
+  if (first) document.getElementById(FIELD_IDS[first])?.focus();
+}
+
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return (
+    <p id={id} className="mt-1.5 flex items-start gap-1.5 text-[13px] font-medium text-[#b42318] dark:text-[#fca5a5]">
+      <CircleAlert aria-hidden className="mt-px size-4 shrink-0" />
+      {message}
+    </p>
+  );
+}
+
+function FieldIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <Icon
+      aria-hidden
+      className="pointer-events-none absolute top-1/2 left-4 size-4.5 -translate-y-1/2 text-(--cafe-subtle)"
+    />
+  );
+}
+
+const fieldClass = (invalid: boolean, extra: string) =>
+  cn(
+    FIELD_CLASS,
+    extra,
+    invalid && "border-[#d92d20] hover:border-[#d92d20] focus:border-[#d92d20] focus:ring-[#d92d20]/15",
+  );
 
 export default function AuthPage() {
   const router = useRouter();
@@ -86,6 +144,8 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [rememberMe, setRememberMe] = useState(true);
   const [method, setMethod] = useLocalStorageState<LoginMethod>(
@@ -94,6 +154,16 @@ export default function AuthPage() {
   );
   const chooseMethod = (next: LoginMethod) => {
     setMethod(next);
+    setFieldErrors({});
+    setFormError(null);
+  };
+  const clearFieldError = (field: FieldName) => {
+    if (!fieldErrors[field]) return;
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   const [loginTicket, setLoginTicket] = useState<string | null>(null);
@@ -123,7 +193,7 @@ export default function AuthPage() {
     setLoginTicket(null);
     setOtp("");
     setPassword("");
-    toast.error(
+    setFormError(
       t(
         "auth.toast.customer_account",
         "This is a customer account. Customer accounts can't open the staff dashboard — sign in with an admin or barista account.",
@@ -133,9 +203,17 @@ export default function AuthPage() {
 
   const handleCredentials = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setFormError(null);
 
-    const credentials = parseForm(emailLoginSchema, { email, password });
-    if (!credentials) return;
+    const checked = emailLoginSchema.safeParse({ email, password });
+    if (!checked.success) {
+      const errors = issuesByField(checked.error);
+      setFieldErrors(errors);
+      focusFirstInvalid(errors);
+      return;
+    }
+    setFieldErrors({});
+    const credentials = checked.data;
 
     try {
       const result = await login({ ...credentials, remember: rememberMe }).unwrap();
@@ -145,7 +223,7 @@ export default function AuthPage() {
         await finishSignIn();
       }
     } catch (err) {
-      toast.error(
+      setFormError(
         apiErrorMessage(
           err as Parameters<typeof apiErrorMessage>[0],
           t(
@@ -159,14 +237,23 @@ export default function AuthPage() {
 
   const handlePhone = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const parsed = parseForm(phoneLoginSchema, { phoneNumber: phone });
-    if (!parsed) return;
+    setFormError(null);
+
+    const checked = phoneLoginSchema.safeParse({ phoneNumber: phone });
+    if (!checked.success) {
+      const errors = issuesByField(checked.error);
+      setFieldErrors(errors);
+      focusFirstInvalid(errors);
+      return;
+    }
+    setFieldErrors({});
+    const parsed = checked.data;
 
     try {
       const result = await loginPhone(parsed).unwrap();
       if (result.loginTicket) setLoginTicket(result.loginTicket);
     } catch (err) {
-      toast.error(
+      setFormError(
         apiErrorMessage(
           err as Parameters<typeof apiErrorMessage>[0],
           t(
@@ -228,231 +315,232 @@ export default function AuthPage() {
     setOtp("");
   };
 
+  const errorId = (field: FieldName) => `${FIELD_IDS[field]}-error`;
+  const describedBy = (field: FieldName, ...extra: string[]) =>
+    [fieldErrors[field] ? errorId(field) : null, ...extra].filter(Boolean).join(" ") || undefined;
+
+  // "Keep me logged in" applies to both sign-in methods; "Forgot password?" only to email.
+  const rememberRow: ReactNode = (
+    <div className="mt-5 short:mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+      <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm text-(--cafe-muted) select-none">
+        <input
+          type="checkbox"
+          className="peer sr-only"
+          checked={rememberMe}
+          onChange={(e) => setRememberMe(e.target.checked)}
+        />
+        <span
+          aria-hidden
+          className="grid size-5 place-items-center rounded-md border border-(--cafe-line-strong) bg-white text-transparent transition-colors peer-checked:border-(--cafe-espresso) peer-checked:bg-(--cafe-espresso) peer-checked:text-(--cafe-foam) peer-focus-visible:ring-2 peer-focus-visible:ring-(--cafe-caramel) peer-focus-visible:ring-offset-2 motion-reduce:transition-none"
+        >
+          <Check className="size-3.5" strokeWidth={3} />
+        </span>
+        {t("auth.login.remember_me", "Keep me logged in")}
+      </label>
+      {method === "EMAIL" ? (
+        <button
+          type="button"
+          onClick={() => setForgotOpen(true)}
+          className="rounded text-sm font-semibold text-(--cafe-caramel-text) underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-(--cafe-caramel) focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
+          {t("auth.login.forgot_password", "Forgot password?")}
+        </button>
+      ) : null}
+    </div>
+  );
+
+  const formAlert = formError ? (
+    <div
+      role="alert"
+      className="mt-5 flex items-start gap-2.5 rounded-xl border border-[#f4c7c2] bg-[#fef3f2] px-3.5 py-3 text-sm text-[#912018] dark:border-[#5b2323] dark:bg-[#2e1414] dark:text-[#fca5a5]"
+    >
+      <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+      <p>{formError}</p>
+    </div>
+  ) : null;
+
+  const submitClass = cn(SUBMIT_CLASS, "mt-6 short:mt-5 inline-flex items-center justify-center gap-2");
+
   return (
-    <main className="min-h-screen bg-[#1f1f1f] p-4 text-black sm:p-8">
-      <p className="mb-4 text-sm text-white/50">
-        {t("auth.login.page_label", "Login")}
-      </p>
-      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-[clamp(80rem,70vw,120rem)] overflow-hidden rounded-2xl bg-white lg:grid-cols-2">
-        <section className="flex items-center justify-center px-6 py-12">
-          <div className="w-full max-w-lg min-[1920px]:max-w-xl">
-            <div className="mb-12 flex justify-center">
-              <Image
-                src="/logos/logo-black.png"
-                alt="590st CAFE"
-                width={800}
-                height={539}
-                className="h-16 w-auto"
-                priority
-              />
-            </div>
+    <main className="flex min-h-dvh items-center bg-(--cafe-cream) px-3 py-4 text-(--cafe-espresso) sm:px-6 sm:py-8 short:sm:py-4">
+      <div className="mx-auto grid w-full max-w-[1180px] overflow-hidden rounded-[24px] bg-white shadow-[0_30px_70px_-40px_rgba(43,26,16,0.45)] ring-1 ring-(--cafe-line) sm:rounded-[28px] lg:min-h-[min(780px,calc(100dvh-4rem))] short:lg:min-h-[calc(100dvh-2rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+        <section className="flex items-center justify-center px-5 py-9 sm:px-12 sm:py-12 lg:px-14 short:sm:py-8">
+          <div className="w-full max-w-[400px]">
+            <LogoMark className="h-12 w-auto short:h-10" />
 
-            <div className="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-full bg-gray-200">
-              <UserRound className="h-12 w-12" strokeWidth={1.6} />
-            </div>
-
-            <div className="text-center">
-              <h1 className="text-2xl font-bold">
-                {t("auth.login.heading", "Login to your account")}
-              </h1>
-              <p className="mt-3 text-sm text-gray-500">
-                {loginMethods.find(({ value }) => value === method)?.hint}
-              </p>
-            </div>
+            <p className="mt-10 short:mt-6 text-xs font-semibold tracking-[0.18em] text-(--cafe-caramel-text) uppercase">
+              {t("auth.login.eyebrow", "Staff sign-in")}
+            </p>
+            <h1 className="mt-2 text-[2rem] leading-tight font-semibold tracking-tight sm:text-[2.25rem]">
+              {t("auth.login.heading", "Welcome back.")}
+            </h1>
+            <p className="mt-2 text-[15px] text-(--cafe-muted)">
+              {t("auth.login.subtitle", "Sign in to manage your café operations.")}
+            </p>
 
             <div
-              role="tablist"
+              role="group"
               aria-label={t("auth.login.method_aria", "Sign-in method")}
-              className="mt-8 grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1"
+              className="mt-8 short:mt-5 grid grid-cols-2 gap-1 rounded-xl bg-(--cafe-sand) p-1"
             >
               {loginMethods.map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}
                   type="button"
-                  role="tab"
-                  aria-selected={method === value}
+                  aria-pressed={method === value}
                   onClick={() => chooseMethod(value)}
-                  className={`flex h-10 items-center justify-center gap-2 rounded-md text-sm font-semibold transition-colors ${
+                  className={cn(
+                    "flex h-10 items-center justify-center gap-2 rounded-[10px] text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-(--cafe-caramel) focus-visible:outline-none motion-reduce:transition-none",
                     method === value
-                      ? "bg-white text-black shadow-sm"
-                      : "text-gray-500 hover:text-gray-800"
-                  }`}
+                      ? "bg-white text-(--cafe-espresso) shadow-[0_1px_3px_rgba(43,26,16,0.12)]"
+                      : "text-(--cafe-muted) hover:text-(--cafe-espresso)",
+                  )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon aria-hidden className="size-4" />
                   {label}
                 </button>
               ))}
             </div>
+            <p aria-live="polite" className="mt-3 short:mt-2 text-[13px] leading-relaxed text-(--cafe-muted)">
+              {loginMethods.find(({ value }) => value === method)?.hint}
+            </p>
 
-            <div className="mt-8">
-              {method === "PHONE" ? (
-                <form onSubmit={handlePhone} noValidate>
-                  <label className="block text-sm font-medium">
-                    {t("auth.login.phone_number", "Phone number")}
-                    <span className="relative mt-2 block">
-                      <input
-                        type="tel"
-                        inputMode="tel"
-                        className={`${FIELD_CLASS} px-11 tabular-nums`}
-                        placeholder={PHONE_PLACEHOLDER}
-                        value={phone}
-                        onChange={(e) =>
-                          setPhone(formatPhoneInput(e.target.value))
-                        }
-                        maxLength={PHONE_MAX_LENGTH}
-                        autoComplete="tel-national"
-                        required
-                      />
-                      <Phone className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
-                    </span>
-                  </label>
-                  <p className="mt-2 text-xs text-gray-500">
-                    {t(
-                      "auth.login.phone_help",
-                      "The number your admin invited. The code arrives in the Telegram chat that accepted the invite.",
-                    )}
-                  </p>
+            {method === "PHONE" ? (
+              <form onSubmit={handlePhone} noValidate className="mt-5 short:mt-4">
+                <label htmlFor={FIELD_IDS.phoneNumber} className="block text-sm font-medium">
+                  {t("auth.login.phone_number", "Phone number")}
+                </label>
+                <div className="relative mt-2">
+                  <input
+                    id={FIELD_IDS.phoneNumber}
+                    type="tel"
+                    inputMode="tel"
+                    className={fieldClass(Boolean(fieldErrors.phoneNumber), "pr-4 pl-11 tabular-nums")}
+                    placeholder={PHONE_PLACEHOLDER}
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(formatPhoneInput(e.target.value));
+                      clearFieldError("phoneNumber");
+                    }}
+                    maxLength={PHONE_MAX_LENGTH}
+                    autoComplete="tel-national"
+                    aria-invalid={Boolean(fieldErrors.phoneNumber)}
+                    aria-describedby={describedBy("phoneNumber", "login-phone-help")}
+                    required
+                  />
+                  <FieldIcon icon={Phone} />
+                </div>
+                <FieldError id={errorId("phoneNumber")} message={fieldErrors.phoneNumber} />
+                <p id="login-phone-help" className="mt-2 text-xs leading-relaxed text-(--cafe-muted)">
+                  {t(
+                    "auth.login.phone_help",
+                    "The number your admin invited. The code arrives in the Telegram chat that accepted the invite.",
+                  )}
+                </p>
 
-                  <button
-                    type="submit"
-                    disabled={isSendingPhoneCode}
-                    className={SUBMIT_CLASS}
-                  >
-                    {isSendingPhoneCode
-                      ? t("auth.shared.sending_code", "Sending code...")
-                      : t("auth.login.send_code", "Send code")}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleCredentials}>
-                  <div className="space-y-6">
-                    <label className="block text-sm font-medium">
-                      {t("fields.email", "Email")}
-                      <span className="relative mt-2 block">
-                        <input
-                          type="email"
-                          className={`${FIELD_CLASS} px-11`}
-                          placeholder="admin@590st.cafe"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          autoComplete="email"
-                          required
-                        />
-                        <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-700" />
-                      </span>
-                    </label>
+                {rememberRow}
+                {formAlert}
 
-                    <label className="block text-sm font-medium">
-                      {t("fields.password", "Password")}
-                      <span className="relative mt-2 block">
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          className={`${FIELD_CLASS} px-4 pr-11`}
-                          placeholder={t("fields.password", "Password")}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          autoComplete="current-password"
-                          required
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-700"
-                          onClick={() => setShowPassword((prev) => !prev)}
-                          aria-label={
-                            showPassword
-                              ? t("auth.shared.hide_password", "Hide password")
-                              : t("auth.shared.show_password", "Show password")
-                          }
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-5 w-5" />
-                          ) : (
-                            <Eye className="h-5 w-5" />
-                          )}
-                        </button>
-                      </span>
-                    </label>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoggingIn}
-                    className={SUBMIT_CLASS}
-                  >
-                    {isLoggingIn
-                      ? t("auth.shared.signing_in", "Signing in...")
-                      : t("auth.login.submit", "Login")}
-                  </button>
-                </form>
-              )}
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-              <label className="inline-flex cursor-pointer items-center gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                <span
-                  className={`grid h-5 w-5 place-items-center rounded border ${
-                    rememberMe
-                      ? "border-black bg-black text-[#befe35]"
-                      : "border-gray-300 bg-white"
-                  }`}
-                >
-                  {rememberMe && <Check className="h-4 w-4" />}
-                </span>
-                {t("auth.login.remember_me", "Keep me logged in")}
-              </label>
-              {method === "EMAIL" ? (
-                <button
-                  type="button"
-                  onClick={() => setForgotOpen(true)}
-                  className="text-sm font-medium text-gray-700 underline hover:text-black"
-                >
-                  {t("auth.login.forgot_password", "Forgot password?")}
+                <button type="submit" disabled={isSendingPhoneCode} className={submitClass}>
+                  {isSendingPhoneCode ? (
+                    <>
+                      <Loader2 aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />
+                      {t("auth.shared.sending_code", "Sending code...")}
+                    </>
+                  ) : (
+                    t("auth.login.send_code", "Send code")
+                  )}
                 </button>
-              ) : null}
-            </div>
+              </form>
+            ) : (
+              <form onSubmit={handleCredentials} noValidate className="mt-5 short:mt-4">
+                <label htmlFor={FIELD_IDS.email} className="block text-sm font-medium">
+                  {t("fields.email", "Email")}
+                </label>
+                <div className="relative mt-2">
+                  <input
+                    id={FIELD_IDS.email}
+                    type="email"
+                    inputMode="email"
+                    className={fieldClass(Boolean(fieldErrors.email), "pr-4 pl-11")}
+                    placeholder="admin@590st.cafe"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      clearFieldError("email");
+                    }}
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    aria-invalid={Boolean(fieldErrors.email)}
+                    aria-describedby={describedBy("email")}
+                    required
+                  />
+                  <FieldIcon icon={Mail} />
+                </div>
+                <FieldError id={errorId("email")} message={fieldErrors.email} />
+
+                <label htmlFor={FIELD_IDS.password} className="mt-5 short:mt-4 block text-sm font-medium">
+                  {t("fields.password", "Password")}
+                </label>
+                <div className="relative mt-2">
+                  <input
+                    id={FIELD_IDS.password}
+                    type={showPassword ? "text" : "password"}
+                    className={fieldClass(Boolean(fieldErrors.password), "pr-12 pl-11")}
+                    placeholder={t("fields.password", "Password")}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      clearFieldError("password");
+                    }}
+                    autoComplete="current-password"
+                    aria-invalid={Boolean(fieldErrors.password)}
+                    aria-describedby={describedBy("password")}
+                    required
+                  />
+                  <FieldIcon icon={LockKeyhole} />
+                  <button
+                    type="button"
+                    className="absolute top-1/2 right-1.5 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-(--cafe-subtle) transition-colors hover:bg-(--cafe-sand) hover:text-(--cafe-espresso) focus-visible:ring-2 focus-visible:ring-(--cafe-caramel) focus-visible:outline-none motion-reduce:transition-none"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-controls={FIELD_IDS.password}
+                    aria-label={
+                      showPassword
+                        ? t("auth.shared.hide_password", "Hide password")
+                        : t("auth.shared.show_password", "Show password")
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff aria-hidden className="size-4.5" />
+                    ) : (
+                      <Eye aria-hidden className="size-4.5" />
+                    )}
+                  </button>
+                </div>
+                <FieldError id={errorId("password")} message={fieldErrors.password} />
+
+                {rememberRow}
+                {formAlert}
+
+                <button type="submit" disabled={isLoggingIn} className={submitClass}>
+                  {isLoggingIn ? (
+                    <>
+                      <Loader2 aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />
+                      {t("auth.shared.signing_in", "Signing in...")}
+                    </>
+                  ) : (
+                    t("auth.login.submit", "Sign in")
+                  )}
+                </button>
+              </form>
+            )}
           </div>
         </section>
 
-        <section className="relative hidden overflow-hidden bg-[#f7f6f1] [container-type:size] lg:block">
-          <div className="absolute left-[10%] top-[13%] aspect-[13/18] w-[min(32cqw,25cqh)] -rotate-[28deg] rounded-lg bg-white p-[2.5cqmin] shadow-2xl">
-            <Poster
-              title="590st CAFE"
-              subtitle={t(
-                "auth.login.posters.iced_coffee_collection",
-                "Iced Coffee Collection",
-              )}
-              light
-            />
-          </div>
-          <div className="absolute right-[10%] top-[5%] aspect-[32/43] w-[min(50cqw,38cqh)] rotate-[28deg] rounded-lg bg-[#21140d] p-[3cqmin] shadow-2xl">
-            <Poster
-              title="590st CAFE"
-              subtitle={t("auth.login.posters.refreshing", "Refreshing!")}
-            />
-          </div>
-          <div className="absolute -bottom-[10%] left-[30%] aspect-[7/9] w-[min(35cqw,27cqh)] -rotate-[20deg] rounded-lg bg-[#3b291b] p-[2.5cqmin] shadow-2xl">
-            <Poster
-              title={t("auth.login.posters.iced_latte", "Iced Latte")}
-              subtitle={t("auth.login.posters.fresh_coffee", "Fresh coffee")}
-            />
-          </div>
-          <div className="absolute bottom-[6%] right-[4%] aspect-[2/3] w-[min(30cqw,23cqh)] rotate-[20deg] rounded-lg bg-[#f6df7a] p-[2.5cqmin] shadow-2xl">
-            <Poster
-              title={t("auth.login.posters.coffee", "Coffee")}
-              subtitle={t(
-                "auth.login.posters.best_with_everything",
-                "Best with everything",
-              )}
-              light
-            />
-          </div>
-        </section>
+        <div className="hidden p-3 lg:block">
+          <LoginBrandVisual />
+        </div>
       </div>
 
       <Dialog
@@ -471,9 +559,9 @@ export default function AuthPage() {
               <h1 className="text-xl font-bold">
                 {t("auth.otp.heading", "Enter your code")}
               </h1>
-              <p className="mt-3 text-sm text-gray-500">
+              <p className="mt-3 text-sm text-(--cafe-muted)">
                 {otpSentBefore}
-                <span className="font-medium text-gray-700">
+                <span className="font-medium text-(--cafe-espresso)">
                   {method === "PHONE" ? phone : email}
                 </span>
                 {otpSentAfter}
@@ -511,7 +599,7 @@ export default function AuthPage() {
                 type="button"
                 onClick={handleResend}
                 disabled={isResending}
-                className="text-gray-600 underline disabled:opacity-60"
+                className="text-(--cafe-muted) underline disabled:opacity-60"
               >
                 {isResending
                   ? t("states.sending", "Sending...")
@@ -520,7 +608,7 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={backToCredentials}
-                className="text-gray-600 underline"
+                className="text-(--cafe-muted) underline"
               >
                 {t("auth.otp.different_account", "Use a different account")}
               </button>
@@ -545,46 +633,5 @@ export default function AuthPage() {
         }}
       />
     </main>
-  );
-}
-
-function Poster({
-  title,
-  subtitle,
-  light = false,
-}: {
-  title: string;
-  subtitle: string;
-  light?: boolean;
-}) {
-  return (
-    <div
-      className={`h-full rounded-md border [container-type:inline-size] ${
-        light
-          ? "border-black/10 bg-white text-black"
-          : "border-white/10 bg-black/20 text-white"
-      }`}
-    >
-      <div className="flex h-full flex-col justify-between p-[8cqw]">
-        <Image
-          src={light ? "/logos/logo-black.png" : "/logos/logo-white.png"}
-          alt=""
-          width={800}
-          height={539}
-          className="h-auto w-[30cqw]"
-        />
-        <div>
-          <p className="text-[19cqw] font-black leading-none">{title}</p>
-          <p className="mt-[5cqw] text-[8cqw] font-semibold leading-tight text-[#d88a2d]">
-            {subtitle}
-          </p>
-        </div>
-        <div className="grid grid-cols-3 items-end gap-[5cqw]">
-          <span className="aspect-[1/2] rounded-full bg-[#d88a2d]" />
-          <span className="aspect-[5/12] rounded-full bg-[#e8d0a8]" />
-          <span className="aspect-[1/2] rounded-full bg-[#5a331d]" />
-        </div>
-      </div>
-    </div>
   );
 }

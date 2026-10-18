@@ -93,8 +93,8 @@ const STATUS_CLASSES: Record<OrderStatus, string> = {
   PAID: "bg-blue-100 text-blue-700",
   PREPARING: "bg-violet-100 text-violet-700",
   OUT_FOR_DELIVERY: "bg-cyan-100 text-cyan-700",
-  COMPLETED: "bg-green-100 text-green-700",
-  DELIVERED: "bg-green-100 text-green-700",
+  COMPLETED: "bg-green-100 text-green-800",
+  DELIVERED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-700",
 };
 

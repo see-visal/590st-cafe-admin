@@ -31,6 +31,7 @@ import {
   TriangleAlert,
   Upload,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -64,6 +65,7 @@ import { formatPhoneInput, PHONE_MAX_LENGTH, PHONE_PLACEHOLDER } from "@/lib/pho
 import { apiErrorMessage } from "@/store/api/baseApi";
 
 import { OperationalAlertsContent, useOperationalAlerts } from "./OperationalAlerts";
+import { ThemeToggle } from "./ThemeToggle";
 import { UserAvatar } from "./UserAvatar";
 import { MoneyInput, type MoneyInputProps } from "@/components/forms/MoneyInput";
 import { DATE_PICKER_TYPES, DatePickerInput, type DatePickerType } from "@/components/forms/DatePickerInput";
@@ -125,6 +127,7 @@ export function AdminTopActions() {
   return (
     <>
       <div className="header_top_actions">
+        <ThemeToggle />
         <button
           type="button"
           onClick={() => {
@@ -776,7 +779,7 @@ export function Thumbnail({ src, kind }: { src?: string | null; kind: ImageKind 
     <span
       className={cn(
         "relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg",
-        image ? "bg-gray-100" : "bg-[#f6f1f3] text-[#c9a3b4]"
+        image ? "bg-gray-100" : "bg-(--placeholder-bg) text-(--placeholder-ink)"
       )}
     >
       {image ? (
@@ -899,7 +902,7 @@ export function RowActions({
             type="button"
             onClick={onClick}
             disabled={isLoading}
-            className="grid h-7 w-7 place-items-center rounded-full bg-black text-[#befe35] transition hover:bg-gray-800 disabled:opacity-50"
+            className="grid h-7 w-7 place-items-center rounded-full bg-(--brand-ink) text-(--brand-lime) transition hover:bg-(--brand-ink-hover) disabled:opacity-50"
             aria-label={label}
             title={label}
           >
@@ -1130,25 +1133,26 @@ export function StatTile({
   value,
   hint,
   tone = "gray",
+  icon: Icon,
 }: {
   title: string;
   value: string;
   hint?: string;
   tone?: "green" | "yellow" | "orange" | "red" | "gray";
+  icon?: LucideIcon;
 }) {
-  const color = {
-    green: "text-green-600",
-    yellow: "text-yellow-600",
-    orange: "text-orange-500",
-    red: "text-red-500",
-    gray: "text-gray-800",
-  }[tone];
-
   return (
-    <div className="metric_card">
+    <div className={cn("metric_card", tone !== "gray" && `is_${tone}`)}>
       <div className="metric_card_content">
-        <p className="metric_title">{title}</p>
-        <p className={cn("metric_value", color)}>{value}</p>
+        <div className="metric_head">
+          <p className="metric_title">{title}</p>
+          {Icon ? (
+            <span aria-hidden className="metric_icon">
+              <Icon />
+            </span>
+          ) : null}
+        </div>
+        <p className="metric_value">{value}</p>
         {hint && <p className="metric_hint">{hint}</p>}
       </div>
     </div>
@@ -1936,18 +1940,7 @@ export function FormImageUpload({
   );
 }
 
-export function LogoMark() {
-  return (
-    <Image
-      src="/logos/logo-black.png"
-      alt="590st CAFE"
-      width={800}
-      height={539}
-      className="h-12 w-auto"
-      priority
-    />
-  );
-}
+export { LogoMark } from "./LogoMark";
 
 export function FilterIconLabel() {
   const { t } = useI18n();

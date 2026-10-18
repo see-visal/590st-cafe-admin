@@ -1,17 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import QRCode from "qrcode";
 import { Minus, Plus, Search, ShoppingBag, X } from "lucide-react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
-import { AdminTopActions, ErrorState, FormSelect, SkeletonBlock, listLoadState } from "@/components/common/AdminKit";
+import { AdminTopActions, ErrorState, FormSelect, SkeletonBlock, Thumbnail, listLoadState } from "@/components/common/AdminKit";
 import {
   PosPaymentModal,
   type PosCartItem,
   type PosPaymentMethod,
 } from "@/features/pos/components/PosPaymentModal";
+import { EMPTY_CART_COUNTS, PosProductCard, type CartCounts } from "@/features/pos/components/PosProductCard";
 import { SaleCompleteModal } from "@/components/common/InvoiceActions";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import {
@@ -207,6 +208,37 @@ export default function PosView() {
   const removeLine = (key: string) => {
     if (!pendingOrder && !confirmingRef.current) setCart((current) => current.filter((line) => line.key !== key));
   };
+
+  // The product card's minus takes one off the most recently added size of that product.
+  const decreaseProduct = (product: ProductResponse) => {
+    const line = [...cart].reverse().find((l) => l.product.id === product.id);
+    if (line) changeQuantity(line.key, -1);
+  };
+
+  // Product cards are memoised, so hand them stable callbacks that always run the latest cart logic.
+  const cartActions = useRef({ addToCart, decreaseProduct });
+  useLayoutEffect(() => {
+    cartActions.current = { addToCart, decreaseProduct };
+  });
+  const handleAddProduct = useCallback(
+    (product: ProductResponse, variant: ProductVariantResponse) => cartActions.current.addToCart(product, variant),
+    []
+  );
+  const handleDecreaseProduct = useCallback(
+    (product: ProductResponse) => cartActions.current.decreaseProduct(product),
+    []
+  );
+
+  const cartCounts = useMemo(() => {
+    const counts = new Map<string, { total: number; byVariant: Record<string, number> }>();
+    for (const line of cart) {
+      const entry = counts.get(line.product.id) ?? { total: 0, byVariant: {} };
+      entry.total += line.quantity;
+      entry.byVariant[line.variant.id] = (entry.byVariant[line.variant.id] ?? 0) + line.quantity;
+      counts.set(line.product.id, entry);
+    }
+    return counts as ReadonlyMap<string, CartCounts>;
+  }, [cart]);
 
   const resetBakongState = () => {
     setBakongQr(null);
@@ -457,24 +489,45 @@ export default function PosView() {
               ))}
             </div>
 
-            <label className="pos_search">
-              <Search />
+            <div className="pos_search">
+              <Search aria-hidden />
               <input
+                type="search"
+                aria-label={t("pos.catalog.search_placeholder", "Search product by name or SKU")}
                 placeholder={t("pos.catalog.search_placeholder", "Search product by name or SKU")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setSearch("");
+                }}
               />
-            </label>
+              {search ? (
+                <button
+                  type="button"
+                  className="pos_search_clear"
+                  aria-label={t("pos.catalog.clear_search", "Clear search")}
+                  onClick={() => setSearch("")}
+                >
+                  <X aria-hidden />
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="pos_product_grid_scroll">
             {products.isLoading ? (
               <div className="pos_product_grid" role="status" aria-label={t("pos.catalog.loading_aria_label", "Loading products")}>
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="space-y-3 rounded-xl bg-white p-3">
-                    <SkeletonBlock className="aspect-square w-full rounded-lg" />
-                    <SkeletonBlock className="h-4 w-3/4" />
-                    <SkeletonBlock className="h-4 w-1/3" />
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="pos_product_card">
+                    <div className="pos_product_media">
+                      <SkeletonBlock className="h-full w-full rounded-none" />
+                    </div>
+                    <div className="pos_product_body">
+                      <SkeletonBlock className="h-4 w-4/5" />
+                      <SkeletonBlock className="h-4 w-2/5" />
+                      <SkeletonBlock className="h-3 w-3/5" />
+                      <SkeletonBlock className="mt-1 h-10 w-full rounded-lg" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -483,93 +536,30 @@ export default function PosView() {
                 <ErrorState error={products.error} fallback={t("pos.catalog.load_error", "Could not load products.")} onRetry={refetch} isRetrying={productsQuery.isFetching} />
               </div>
             ) : visibleProducts.length === 0 ? (
-              <p className="p-8 text-sm text-gray-400">
-                {t("pos.catalog.empty", "No active products in this category.")}
-              </p>
+              <div className="pos_catalog_empty">
+                <Search aria-hidden />
+                {search.trim() ? (
+                  <>
+                    <p>{t("pos.catalog.no_match", "No products match “{term}”.", { term: search.trim() })}</p>
+                    <button type="button" className="btn_outline_black" onClick={() => setSearch("")}>
+                      {t("pos.catalog.clear_search", "Clear search")}
+                    </button>
+                  </>
+                ) : (
+                  <p>{t("pos.catalog.empty", "No active products in this category.")}</p>
+                )}
+              </div>
             ) : (
               <div className="pos_product_grid">
-                {visibleProducts.map((product) => {
-                  const outOfStock = Number(product.quantityOnHand) <= 0;
-                  const discountLabel = !product.discountActive || product.discountValue == null
-                    ? null
-                    : product.discountType === "PERCENTAGE"
-                      ? t("pos.product.discount_off", "{amount} off", { amount: `${Number(product.discountValue)}%` })
-                      : t("pos.product.discount_off", "{amount} off", { amount: `$${Number(product.discountValue).toFixed(2)}` });
-                  const activeVariants = [...product.variants]
-                    .filter((v) => v.status === "ACTIVE")
-                    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-                  const prices = activeVariants.map((v) => Number(v.finalPrice));
-                  const priceLabel =
-                    prices.length > 1 && Math.min(...prices) !== Math.max(...prices)
-                      ? `$${Math.min(...prices).toFixed(2)}–$${Math.max(...prices).toFixed(2)}`
-                      : `$${(prices[0] ?? 0).toFixed(2)}`;
-                  const onlyVariant = activeVariants.length === 1 ? activeVariants[0] : null;
-                  const inCart = cart
-                    .filter((line) => line.product.id === product.id)
-                    .reduce((sum, line) => sum + line.quantity, 0);
-
-                  return (
-                    <article
-                      key={product.id}
-                      className={cn("pos_product_card", outOfStock && "opacity-50")}
-                    >
-                      <div className="pos_product_content">
-                        <div className="pos_product_details">
-                          <div className="pos_product_title_row">
-                            <h2>{titleCase(product.name)}</h2>
-                            <strong>{priceLabel}</strong>
-                          </div>
-                          <div className="pos_product_meta">
-                            <span>{t("pos.product.in_stock", "In stock: {count}", { count: Number(product.quantityOnHand) })}</span>
-                            <span>{humanise(product.stockUnit)}</span>
-                          </div>
-                          {discountLabel ? (
-                            <div className="pos_discount_row">
-                              <span className="pos_discount_tag">{discountLabel}</span>
-                              {onlyVariant && Number(onlyVariant.price) > Number(onlyVariant.finalPrice) ? (
-                                <s>${Number(onlyVariant.price).toFixed(2)}</s>
-                              ) : null}
-                            </div>
-                          ) : null}
-                          {!onlyVariant ? (
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {activeVariants.map((variant) => (
-                                <button
-                                  key={variant.id}
-                                  type="button"
-                                  disabled={outOfStock}
-                                  onClick={() => addToCart(product, variant)}
-                                  className="rounded border border-gray-300 px-2 py-0.5 text-xs hover:bg-gray-100 disabled:opacity-50"
-                                >
-                                  {humanise(variant.name)} ${Number(variant.finalPrice).toFixed(2)}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                        {onlyVariant ? (
-                          <QuantityControl
-                            quantity={inCart}
-                            variant="product"
-                            onIncrement={() => {
-                              if (outOfStock) {
-                                toast.error(t("pos.toast.out_of_stock", "{name} is out of stock.", { name: product.name }));
-                                return;
-                              }
-                              addToCart(product, onlyVariant);
-                            }}
-                            onDecrement={() => {
-                              const line = [...cart]
-                                .reverse()
-                                .find((l) => l.product.id === product.id);
-                              if (line) changeQuantity(line.key, -1);
-                            }}
-                          />
-                        ) : null}
-                      </div>
-                    </article>
-                  );
-                })}
+                {visibleProducts.map((product) => (
+                  <PosProductCard
+                    key={product.id}
+                    product={product}
+                    counts={cartCounts.get(product.id) ?? EMPTY_CART_COUNTS}
+                    onAdd={handleAddProduct}
+                    onDecrease={handleDecreaseProduct}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -622,25 +612,30 @@ export default function PosView() {
             ) : (
               cart.map((line) => (
                 <article key={line.key} className="pos_cart_item">
+                  <Thumbnail src={line.product.imageUrl} kind="product" />
                   <div className="pos_cart_item_content">
                     <h3>
                       {titleCase(line.product.name)} ({humanise(line.variant.name)})
                     </h3>
+                    <div className="pos_cart_price">
+                      {line.product.discountActive ? (
+                        <span className="is_struck">
+                          ${Number(line.variant.price).toFixed(2)}
+                        </span>
+                      ) : null}
+                      <strong>${Number(line.variant.finalPrice).toFixed(2)}</strong>
+                      <span>{t("pos.cart.each", "each")}</span>
+                    </div>
                     <div className="pos_cart_item_bottom">
-                      <div className="pos_cart_price">
-                        {line.product.discountActive ? (
-                          <span className="is_struck">
-                            ${Number(line.variant.price).toFixed(2)}
-                          </span>
-                        ) : null}
-                        <strong>${Number(line.variant.finalPrice).toFixed(2)}</strong>
-                      </div>
                       <QuantityControl
                         quantity={line.quantity}
                         variant="cart"
                         onIncrement={() => changeQuantity(line.key, 1)}
                         onDecrement={() => changeQuantity(line.key, -1)}
                       />
+                      <strong className="pos_cart_line_total">
+                        ${(Number(line.variant.finalPrice) * line.quantity).toFixed(2)}
+                      </strong>
                     </div>
                   </div>
                   <div className="pos_cart_item_actions">

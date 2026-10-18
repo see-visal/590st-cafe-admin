@@ -14,11 +14,20 @@
     "search_placeholder": "Search product by name or SKU",
     "loading_aria_label": "Loading products",
     "load_error": "Could not load products.",
-    "empty": "No active products in this category."
+    "empty": "No active products in this category.",
+    "clear_search": "Clear search",
+    "no_match": "No products match “{term}”."
   },
   "product": {
     "discount_off": "{amount} off",
-    "in_stock": "In stock: {count}"
+    "per_unit": "per {unit}",
+    "stock": "{count} {unit} in stock",
+    "low_stock": "Low stock · {count} {unit}",
+    "out_of_stock": "Out of stock",
+    "add": "Add",
+    "add_to_order": "Add {name} to the order",
+    "add_variant": "Add {variant} {name}, {price}",
+    "quantity_of": "Quantity of {name}"
   },
   "quantity": {
     "decrease": "Decrease quantity",
@@ -42,7 +51,8 @@
   },
   "cart": {
     "empty": "Cart is empty. Tap a product to add it.",
-    "remove_item": "Remove {name}"
+    "remove_item": "Remove {name}",
+    "each": "each"
   },
   "totals": {
     "subtotal": "Subtotal:",

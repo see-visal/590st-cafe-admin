@@ -22,10 +22,13 @@ export default function ClientProvider({ children }: ClientProvidersProps) {
   useOpenNativePickers();
   return (
     <StoreProvider>
+      {/* Follows the device until someone picks a theme with the header toggle; the pick is kept in
+          localStorage ("theme") and applied by next-themes' inline script before the first paint. */}
       <ThemeProvider
         attribute="class"
-        defaultTheme="light"
-        enableSystem={false}
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
       >
         <I18nProvider>
           <FontProvider>

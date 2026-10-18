@@ -60,7 +60,7 @@ export function SidebarUser({ onNavigate }: { onNavigate?: () => void } = {}) {
           src={user?.avatarUrl}
           name={user?.fullName}
           sizes="36px"
-          className="h-9 w-9 bg-white text-sm font-semibold text-black"
+          className="h-9 w-9 bg-(--brand-lime) text-sm font-semibold text-(--brand-ink)"
         />
         <span className="sidebar_user_text min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-white">

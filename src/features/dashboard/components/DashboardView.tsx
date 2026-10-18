@@ -5,7 +5,7 @@ import { useCallback, useMemo } from "react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { AdminTopActions, StatTile } from "@/components/common/AdminKit";
-import { AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, Banknote, Clock3, Loader2, PackageMinus, Receipt } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -30,9 +30,6 @@ import { useRefreshOptions } from "@/contexts/AdminPreferencesContext";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { useI18n } from "@/contexts/I18nContext";
-
-const SERIES_CASH = "#2a78d6";
-const SERIES_BAKONG = "#eb6834";
 
 function currency(value: number) {
   return `$${value.toLocaleString("en-US", {
@@ -77,43 +74,38 @@ function PaymentMeter({ cash, bakong }: { cash: number; bakong: number }) {
     );
   }
 
+  const rows = [
+    { key: "cash", label: t("dashboard.payments.cash", "Cash"), amount: cash, pct: cashPct, series: "is_cash_series" },
+    { key: "bakong", label: "Bakong", amount: bakong, pct: bakongPct, series: "is_bakong_series" },
+  ];
+
   return (
     <div>
-      <div className="flex h-4 w-full gap-0.5 overflow-hidden rounded-full">
-        <div
-          style={{ width: `${cashPct}%`, background: SERIES_CASH }}
-          className="rounded-l-full"
-        />
-        <div
-          style={{ width: `${bakongPct}%`, background: SERIES_BAKONG }}
-          className="rounded-r-full"
-        />
+      <div
+        className="dashboard_payment_bar"
+        role="img"
+        aria-label={t("dashboard.payments.split_aria", "Cash {cash}%, Bakong {bakong}%", {
+          cash: cashPct.toFixed(0),
+          bakong: bakongPct.toFixed(0),
+        })}
+      >
+        {rows.map((row) =>
+          row.pct > 0 ? <span key={row.key} className={row.series} style={{ width: `${row.pct}%` }} /> : null,
+        )}
       </div>
-      <dl className="mt-4 space-y-2 text-sm">
-        <div className="flex items-center justify-between">
-          <dt className="flex items-center gap-2">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ background: SERIES_CASH }}
-            />
-            {t("dashboard.payments.cash", "Cash")}
-          </dt>
-          <dd className="font-semibold">
-            {currency(cash)} · {cashPct.toFixed(0)}%
-          </dd>
-        </div>
-        <div className="flex items-center justify-between">
-          <dt className="flex items-center gap-2">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ background: SERIES_BAKONG }}
-            />
-            Bakong
-          </dt>
-          <dd className="font-semibold">
-            {currency(bakong)} · {bakongPct.toFixed(0)}%
-          </dd>
-        </div>
+      <dl className="dashboard_payment_rows">
+        {rows.map((row) => (
+          <div key={row.key} className="dashboard_payment_row">
+            <dt>
+              <span aria-hidden className={`dashboard_payment_swatch ${row.series}`} />
+              {row.label}
+            </dt>
+            <dd>
+              <strong>{currency(row.amount)}</strong>
+              <span>{row.pct.toFixed(0)}%</span>
+            </dd>
+          </div>
+        ))}
       </dl>
     </div>
   );
@@ -254,6 +246,7 @@ export default function DashboardView() {
               : undefined
           }
           tone="green"
+          icon={Banknote}
         />
         <StatTile
           title={t("dashboard.stats.orders_today", "Orders Today")}
@@ -274,6 +267,7 @@ export default function DashboardView() {
               : undefined
           }
           tone="gray"
+          icon={Receipt}
         />
         <StatTile
           title={t("dashboard.stats.pending_orders", "Pending Orders")}
@@ -285,7 +279,8 @@ export default function DashboardView() {
                 : String(pending?.totalElements ?? 0)
           }
           hint={t("dashboard.stats.pending_hint", "Awaiting payment or pickup")}
-          tone={(pending?.totalElements ?? 0) > 0 ? "orange" : "gray"}
+          tone={(pending?.totalElements ?? 0) > 0 ? "yellow" : "gray"}
+          icon={Clock3}
         />
         <StatTile
           title={t("dashboard.stats.low_stock_items", "Low Stock Items")}
@@ -298,6 +293,7 @@ export default function DashboardView() {
           }
           hint={t("dashboard.low_stock.subtitle", "At or below reorder level")}
           tone={(lowStock?.totalElements ?? 0) > 0 ? "red" : "gray"}
+          icon={PackageMinus}
         />
       </div>
 
@@ -368,7 +364,7 @@ export default function DashboardView() {
                   data={series}
                   margin={{ left: -12, right: 8, top: 12 }}
                 >
-                  <CartesianGrid stroke="#e8e8e8" vertical={false} />
+                  <CartesianGrid vertical={false} />
                   <XAxis dataKey="day" tickLine={false} axisLine={false} />
                   <YAxis
                     tickLine={false}
@@ -378,7 +374,7 @@ export default function DashboardView() {
                     }
                   />
                   <Tooltip
-                    cursor={{ fill: "rgba(42, 120, 214, 0.08)" }}
+                    cursor={{ fill: "var(--chart-cursor)" }}
                     formatter={(value) => [
                       currency(Number(value ?? 0)),
                       t("dashboard.revenue.series", "Revenue"),
@@ -386,12 +382,18 @@ export default function DashboardView() {
                   />
                   <Bar
                     dataKey="revenue"
-                    fill={SERIES_CASH}
+                    className="dashboard_revenue_bar"
+                    fill="var(--chart-cash)"
                     radius={[4, 4, 0, 0]}
                   />
                 </BarChart>
               </ResponsiveContainer>
             )}
+            {!weeklyQuery.isLoading && !weeklyQuery.error && series.length > 0 && weekRevenue === 0 ? (
+              <p className="dashboard_chart_empty">
+                {t("dashboard.revenue.empty", "No sales in the last 7 days yet.")}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -421,14 +423,19 @@ export default function DashboardView() {
           )}
 
           {report && report.baristas.length > 0 ? (
-            <div className="dashboard_flow_summary mt-6">
-              {report.baristas.slice(0, 2).map((barista) => (
-                <div key={barista.baristaId}>
-                  <span>{titleCase(barista.baristaName)}</span>
-                  <strong>{currency(Number(barista.grandTotal))}</strong>
-                </div>
-              ))}
-            </div>
+            <>
+              <p className="dashboard_subheading">
+                {t("dashboard.payments.staff_heading", "Staff sales today")}
+              </p>
+              <div className="dashboard_flow_summary">
+                {report.baristas.slice(0, 2).map((barista) => (
+                  <div key={barista.baristaId}>
+                    <span>{titleCase(barista.baristaName)}</span>
+                    <strong>{currency(Number(barista.grandTotal))}</strong>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : null}
         </div>
       </section>

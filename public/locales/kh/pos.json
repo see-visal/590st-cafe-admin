@@ -14,11 +14,20 @@
     "search_placeholder": "ស្វែងរកផលិតផលតាមឈ្មោះ ឬ SKU",
     "loading_aria_label": "កំពុងផ្ទុកផលិតផល",
     "load_error": "មិនអាចផ្ទុកផលិតផលបានទេ។",
-    "empty": "មិនមានផលិតផលសកម្មក្នុងប្រភេទនេះទេ។"
+    "empty": "មិនមានផលិតផលសកម្មក្នុងប្រភេទនេះទេ។",
+    "clear_search": "សម្អាតការស្វែងរក",
+    "no_match": "រកមិនឃើញផលិតផលដែលត្រូវនឹង “{term}” ទេ។"
   },
   "product": {
     "discount_off": "បញ្ចុះ {amount}",
-    "in_stock": "មានក្នុងស្តុក៖ {count}"
+    "per_unit": "ក្នុងមួយ {unit}",
+    "stock": "មានក្នុងស្តុក {count} {unit}",
+    "low_stock": "ស្តុកជិតអស់ · {count} {unit}",
+    "out_of_stock": "អស់ពីស្តុក",
+    "add": "បន្ថែម",
+    "add_to_order": "បន្ថែម {name} ទៅការបញ្ជាទិញ",
+    "add_variant": "បន្ថែម {name} ({variant}) {price}",
+    "quantity_of": "បរិមាណ {name}"
   },
   "quantity": {
     "decrease": "បន្ថយបរិមាណ",
@@ -42,7 +51,8 @@
   },
   "cart": {
     "empty": "កន្ត្រកទទេ។ ចុចលើផលិតផលដើម្បីបន្ថែម។",
-    "remove_item": "ដក {name} ចេញ"
+    "remove_item": "ដក {name} ចេញ",
+    "each": "ក្នុងមួយ"
   },
   "totals": {
     "subtotal": "សរុបរង៖",
