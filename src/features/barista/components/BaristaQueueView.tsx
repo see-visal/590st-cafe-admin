@@ -65,13 +65,14 @@ import { useCurrentRole } from "@/store/api/useCurrentRole";
 import { useGetCurrentUserQuery } from "@/store/api/authApi";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import type { Currency, OrderResponse, OrderStatus } from "@/store/api/types";
-import { cn, formatByCurrency, formatLevel, fulfillmentLabel, humanise, timeAgo, titleCase } from "@/lib/utils";
+import { cn, formatByCurrency, fulfillmentLabel, humanise, timeAgo, titleCase } from "@/lib/utils";
 import { InvoiceActions, PrintInvoiceIconButton, toastPaidWithInvoice } from "@/components/common/InvoiceActions";
 import { useOrderInvoice } from "@/hooks/useOrderInvoice";
 import { buildCashPaymentSchema, parseForm } from "@/lib/validation";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useI18n } from "@/contexts/I18nContext";
+import { optionSummary } from "@/lib/drinkOptions";
 
 const money = (value: number | null | undefined) =>
   value == null ? "-" : `$${Number(value).toFixed(2)}`;
@@ -215,15 +216,13 @@ function OrderCard({
         {order.items.map((item) => (
           <div key={item.id} className="border-b border-dashed border-gray-200 pb-3">
             <p className="text-xs font-semibold text-gray-900">
-              {[
-                item.variantName ? humanise(item.variantName) : null,
-                item.sugarLevel && t("barista.labels.sugar", "Sugar {level}", { level: formatLevel(item.sugarLevel) }),
-                item.iceLevel && t("barista.labels.ice", "Ice {level}", { level: formatLevel(item.iceLevel) }),
-                item.milkType && item.milkType !== "NONE" ? humanise(item.milkType) : null,
-                ...item.extras.map((extra) => titleCase(extra.name)),
-              ]
-                .filter(Boolean)
-                .join(" · ") || t("barista.labels.standard", "Standard")}
+              {optionSummary({
+                variantName: item.variantName,
+                sugarLevel: item.sugarLevel,
+                iceLevel: item.iceLevel,
+                milkType: item.milkType,
+                extras: item.extras.map((extra) => ({ name: titleCase(extra.name) })),
+              }) || t("barista.labels.standard", "Standard")}
             </p>
             <div className="mt-1 flex items-center justify-between text-sm">
               <span className="text-gray-500">
@@ -981,16 +980,13 @@ export default function BaristaQueueView() {
                         {item.quantity}x {titleCase(item.productName)}
                       </p>
                       <p className="mt-0.5 text-xs text-gray-500">
-                        {[
-                          item.variantName ? humanise(item.variantName) : null,
-                          item.sugarLevel &&
-                            t("barista.labels.sugar", "Sugar {level}", { level: formatLevel(item.sugarLevel) }),
-                          item.iceLevel && t("barista.labels.ice", "Ice {level}", { level: formatLevel(item.iceLevel) }),
-                          item.milkType && item.milkType !== "NONE" ? humanise(item.milkType) : null,
-                          ...item.extras.map((extra) => titleCase(extra.name)),
-                        ]
-                          .filter(Boolean)
-                          .join(" · ") || t("barista.labels.standard", "Standard")}
+                        {optionSummary({
+                          variantName: item.variantName,
+                          sugarLevel: item.sugarLevel,
+                          iceLevel: item.iceLevel,
+                          milkType: item.milkType,
+                          extras: item.extras.map((extra) => ({ name: titleCase(extra.name) })),
+                        }) || t("barista.labels.standard", "Standard")}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">

@@ -67,21 +67,10 @@ export type SellUnit =
   | "PIECE";
 export type CategoryGroup = "FRESH_DRINK" | "BEVERAGE" | "SNACK";
 export type VariantLabel = "MEDIUM" | "LARGE" | "PIECE";
-export type SugarLevel =
-  | "ZERO"
-  | "TWENTY_FIVE"
-  | "FIFTY"
-  | "SEVENTY_FIVE"
-  | "HUNDRED";
-export type IceLevel = SugarLevel;
-export type MilkType =
-  | "NONE"
-  | "WHOLE_MILK"
-  | "SKIM_MILK"
-  | "OAT_MILK"
-  | "ALMOND_MILK"
-  | "SOY_MILK"
-  | "CONDENSED_MILK";
+// Same values as the API's SugarLevel / IceLevel / MilkType enums.
+export type SugarLevel = "ZERO" | "LESS" | "NORMAL" | "EXTRA";
+export type IceLevel = "NO_ICE" | "LESS_ICE" | "NORMAL" | "EXTRA_ICE";
+export type MilkType = "NONE" | "LESS" | "NORMAL" | "EXTRA";
 export type OrderAuditAction =
   | "CREATED"
   | "CASH_COLLECTED"

@@ -184,7 +184,8 @@ export default function RootLayout({
     >
       <body className="font-sans" suppressHydrationWarning>
         <ClientProvider>{children}</ClientProvider>
-        <Analytics />
+        {/* Vercel serves the analytics script only on its own hosting; elsewhere (Docker) it would 404 on every page. */}
+        {process.env.VERCEL ? <Analytics /> : null}
       </body>
     </html>
   );

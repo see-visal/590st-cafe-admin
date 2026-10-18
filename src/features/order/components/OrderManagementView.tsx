@@ -41,13 +41,14 @@ import {
   useStartPreparingOrderMutation,
 } from "@/store/api/orderApi";
 import type { OrderResponse, OrderStatus } from "@/store/api/types";
-import { formatByCurrency, formatLevel, fulfillmentLabel, humanise, titleCase } from "@/lib/utils";
+import { formatByCurrency, fulfillmentLabel, humanise, titleCase } from "@/lib/utils";
 import { InvoiceActions } from "@/components/common/InvoiceActions";
 import { useOrderInvoice } from "@/hooks/useOrderInvoice";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useI18n } from "@/contexts/I18nContext";
+import { optionSummary } from "@/lib/drinkOptions";
 
 type Translate = ReturnType<typeof useI18n>["t"];
 
@@ -454,15 +455,13 @@ export default function Orders() {
                     <tr key={item.id}>
                       <td>{titleCase(item.productName)}</td>
                       <td data-label={t("orders.detail.options", "Options")} className="text-xs text-muted-foreground">
-                        {[
-                          item.variantName ? humanise(item.variantName) : null,
-                          item.sugarLevel && t("orders.detail.sugar", "Sugar {level}", { level: formatLevel(item.sugarLevel) }),
-                          item.iceLevel && t("orders.detail.ice", "Ice {level}", { level: formatLevel(item.iceLevel) }),
-                          item.milkType && item.milkType !== "NONE" ? humanise(item.milkType) : null,
-                          ...item.extras.map((extra) => titleCase(extra.name)),
-                        ]
-                          .filter(Boolean)
-                          .join(" · ") || "-"}
+                        {optionSummary({
+                          variantName: item.variantName,
+                          sugarLevel: item.sugarLevel,
+                          iceLevel: item.iceLevel,
+                          milkType: item.milkType,
+                          extras: item.extras.map((extra) => ({ name: titleCase(extra.name) })),
+                        }) || "-"}
                       </td>
                       <td data-label={t("orders.detail.qty", "Qty")}>{item.quantity}</td>
                       <td data-label={t("orders.detail.unit_price", "Unit Price")}>{money(item.unitPrice)}</td>

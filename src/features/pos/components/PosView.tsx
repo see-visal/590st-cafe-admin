@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import QRCode from "qrcode";
-import { Minus, Plus, Search, ShoppingBag, X } from "lucide-react";
+import { Minus, Pencil, Plus, Search, ShoppingBag, X } from "lucide-react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { AdminTopActions, ErrorState, FormSelect, SkeletonBlock, Thumbnail, listLoadState } from "@/components/common/AdminKit";
@@ -13,6 +13,7 @@ import {
   type PosPaymentMethod,
 } from "@/features/pos/components/PosPaymentModal";
 import { EMPTY_CART_COUNTS, PosProductCard, type CartCounts } from "@/features/pos/components/PosProductCard";
+import { PosOptionsDialog, type PosExtra, type PosLineOptions } from "@/features/pos/components/PosOptionsDialog";
 import { SaleCompleteModal } from "@/components/common/InvoiceActions";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import {
@@ -36,8 +37,18 @@ import { useListProductsQuery } from "@/store/api/productApi";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { useListPublicTablesQuery } from "@/store/api/tableApi";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
-import type { Currency, OrderItemRequest, OrderResponse, ProductResponse, ProductVariantResponse } from "@/store/api/types";
-import { cn, humanise, titleCase } from "@/lib/utils";
+import type {
+  Currency,
+  IceLevel,
+  MilkType,
+  OrderItemRequest,
+  OrderResponse,
+  ProductResponse,
+  ProductVariantResponse,
+  SugarLevel,
+} from "@/store/api/types";
+import { cn, titleCase } from "@/lib/utils";
+import { hasDrinkOptions, optionSummary } from "@/lib/drinkOptions";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
@@ -50,7 +61,33 @@ type CartLine = {
   product: ProductResponse;
   variant: ProductVariantResponse;
   quantity: number;
+  // Drink choices (carts saved before these existed have none).
+  sugarLevel?: SugarLevel;
+  iceLevel?: IceLevel;
+  milkType?: MilkType;
+  extras?: PosExtra[];
 };
+
+// One line per product, size and set of drink choices, so "Large, less sugar" and "Large, no ice" stay apart.
+function lineKey(productId: string, options: PosLineOptions): string {
+  const extraIds = options.extras.map((extra) => extra.extraId).sort().join(",");
+  return [productId, options.variant.id, options.sugarLevel ?? "", options.iceLevel ?? "", options.milkType ?? "", extraIds].join(":");
+}
+
+// Extras are charged at their own price on top of the (possibly discounted) drink, as the API prices them.
+const extrasTotal = (line: CartLine) => (line.extras ?? []).reduce((sum, extra) => sum + extra.price, 0);
+const lineUnitPrice = (line: CartLine) => Number(line.variant.finalPrice) + extrasTotal(line);
+const lineUnitOriginal = (line: CartLine) => Number(line.variant.price) + extrasTotal(line);
+const lineOptions = (line: CartLine) =>
+  optionSummary({
+    variantName: line.product.variants.filter((v) => v.status === "ACTIVE").length > 1 ? line.variant.name : null,
+    sugarLevel: line.sugarLevel,
+    iceLevel: line.iceLevel,
+    milkType: line.milkType,
+    extras: (line.extras ?? []).map((extra) => ({ name: titleCase(extra.name) })),
+  });
+
+type OptionsRequest = { id: number; product: ProductResponse; initial: Partial<PosLineOptions>; editKey?: string };
 
 function accentFor(id: string): string {
   let hash = 0;
@@ -163,7 +200,7 @@ export default function PosView() {
     });
   }, [productPage, search]);
 
-  const addToCart = (product: ProductResponse, variant: ProductVariantResponse) => {
+  const addToCart = (product: ProductResponse, options: PosLineOptions) => {
     if (pendingOrder || confirmingRef.current) {
       toast.error(t("pos.toast.finish_payment_first", "Finish or cancel the payment before editing the order."));
       return;
@@ -173,7 +210,7 @@ export default function PosView() {
       toast.error(t("pos.toast.not_enough_stock", "{name} does not have enough stock.", { name: product.name }));
       return;
     }
-    const key = `${product.id}:${variant.id}`;
+    const key = lineKey(product.id, options);
 
     setCart((current) => {
       const existing = current.find((line) => line.key === key);
@@ -182,7 +219,50 @@ export default function PosView() {
           line.key === key ? { ...line, quantity: line.quantity + 1 } : line
         );
       }
-      return [...current, { key, product, variant, quantity: 1 }];
+      return [...current, { key, product, quantity: 1, ...options }];
+    });
+  };
+
+  const [optionsRequest, setOptionsRequest] = useState<OptionsRequest | null>(null);
+
+  // Opens the drink options, starting from how this drink was last made in the order ("same again" is one tap).
+  const openOptions = (product: ProductResponse, variant: ProductVariantResponse) => {
+    if (pendingOrder || confirmingRef.current) {
+      toast.error(t("pos.toast.finish_payment_first", "Finish or cancel the payment before editing the order."));
+      return;
+    }
+    const last = [...cart].reverse().find((line) => line.product.id === product.id);
+    setOptionsRequest({
+      id: Date.now(),
+      product,
+      initial: { variant, sugarLevel: last?.sugarLevel, iceLevel: last?.iceLevel, milkType: last?.milkType, extras: last?.extras ?? [] },
+    });
+  };
+
+  const editLine = (line: CartLine) => {
+    if (pendingOrder || confirmingRef.current) return;
+    setOptionsRequest({ id: Date.now(), product: line.product, initial: { ...line, extras: line.extras ?? [] }, editKey: line.key });
+  };
+
+  const confirmOptions = (options: PosLineOptions) => {
+    if (!optionsRequest) return;
+    const { product, editKey } = optionsRequest;
+    setOptionsRequest(null);
+    if (!editKey) {
+      addToCart(product, options);
+      return;
+    }
+    const key = lineKey(product.id, options);
+    setCart((current) => {
+      const edited = current.find((line) => line.key === editKey);
+      if (!edited) return current;
+      const twin = current.find((line) => line.key === key && line.key !== editKey);
+      // Changed to match another line: merge them; otherwise update the line where it is.
+      return twin
+        ? current
+            .filter((line) => line.key !== editKey)
+            .map((line) => (line.key === key ? { ...line, quantity: line.quantity + edited.quantity } : line))
+        : current.map((line) => (line.key === editKey ? { ...line, ...options, key } : line));
     });
   };
 
@@ -216,12 +296,17 @@ export default function PosView() {
   };
 
   // Product cards are memoised, so hand them stable callbacks that always run the latest cart logic.
-  const cartActions = useRef({ addToCart, decreaseProduct });
+  const cartActions = useRef({ addToCart, decreaseProduct, openOptions });
   useLayoutEffect(() => {
-    cartActions.current = { addToCart, decreaseProduct };
+    cartActions.current = { addToCart, decreaseProduct, openOptions };
   });
   const handleAddProduct = useCallback(
-    (product: ProductResponse, variant: ProductVariantResponse) => cartActions.current.addToCart(product, variant),
+    (product: ProductResponse, variant: ProductVariantResponse) =>
+      cartActions.current.addToCart(product, { variant, extras: [] }),
+    []
+  );
+  const handleCustomizeProduct = useCallback(
+    (product: ProductResponse, variant: ProductVariantResponse) => cartActions.current.openOptions(product, variant),
     []
   );
   const handleDecreaseProduct = useCallback(
@@ -314,9 +399,9 @@ export default function PosView() {
   };
 
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
-  const total = cart.reduce((sum, line) => sum + Number(line.variant.finalPrice) * line.quantity, 0);
+  const total = cart.reduce((sum, line) => sum + lineUnitPrice(line) * line.quantity, 0);
 
-  const grossTotal = cart.reduce((sum, line) => sum + Number(line.variant.price) * line.quantity, 0);
+  const grossTotal = cart.reduce((sum, line) => sum + lineUnitOriginal(line) * line.quantity, 0);
   const discount = Math.max(grossTotal - total, 0);
 
   const noteLabels: Record<string, string> = {
@@ -327,10 +412,10 @@ export default function PosView() {
 
   const paymentItems: PosCartItem[] = cart.map((line) => ({
     id: line.key,
-    name: `${titleCase(line.product.name)} (${humanise(line.variant.name)})`,
-    price: Number(line.variant.finalPrice) * line.quantity,
+    name: lineOptions(line) ? `${titleCase(line.product.name)} (${lineOptions(line)})` : titleCase(line.product.name),
+    price: lineUnitPrice(line) * line.quantity,
     originalPrice: line.product.discountActive
-      ? Number(line.variant.price) * line.quantity
+      ? lineUnitOriginal(line) * line.quantity
       : undefined,
     quantity: line.quantity,
     accent: accentFor(line.product.id),
@@ -342,6 +427,10 @@ export default function PosView() {
       productId: line.product.id,
       quantity: line.quantity,
       variantId: line.variant.id,
+      ...(line.sugarLevel ? { sugarLevel: line.sugarLevel } : {}),
+      ...(line.iceLevel ? { iceLevel: line.iceLevel } : {}),
+      ...(line.milkType ? { milkType: line.milkType } : {}),
+      ...(line.extras?.length ? { extraIds: line.extras.map((extra) => extra.extraId) } : {}),
     }));
     const order = await createOrder({
       items,
@@ -557,6 +646,7 @@ export default function PosView() {
                     product={product}
                     counts={cartCounts.get(product.id) ?? EMPTY_CART_COUNTS}
                     onAdd={handleAddProduct}
+                    onCustomize={handleCustomizeProduct}
                     onDecrease={handleDecreaseProduct}
                   />
                 ))}
@@ -614,16 +704,15 @@ export default function PosView() {
                 <article key={line.key} className="pos_cart_item">
                   <Thumbnail src={line.product.imageUrl} kind="product" />
                   <div className="pos_cart_item_content">
-                    <h3>
-                      {titleCase(line.product.name)} ({humanise(line.variant.name)})
-                    </h3>
+                    <h3>{titleCase(line.product.name)}</h3>
+                    {lineOptions(line) ? <p className="pos_cart_options">{lineOptions(line)}</p> : null}
                     <div className="pos_cart_price">
                       {line.product.discountActive ? (
                         <span className="is_struck">
-                          ${Number(line.variant.price).toFixed(2)}
+                          ${lineUnitOriginal(line).toFixed(2)}
                         </span>
                       ) : null}
-                      <strong>${Number(line.variant.finalPrice).toFixed(2)}</strong>
+                      <strong>${lineUnitPrice(line).toFixed(2)}</strong>
                       <span>{t("pos.cart.each", "each")}</span>
                     </div>
                     <div className="pos_cart_item_bottom">
@@ -634,11 +723,22 @@ export default function PosView() {
                         onDecrement={() => changeQuantity(line.key, -1)}
                       />
                       <strong className="pos_cart_line_total">
-                        ${(Number(line.variant.finalPrice) * line.quantity).toFixed(2)}
+                        ${(lineUnitPrice(line) * line.quantity).toFixed(2)}
                       </strong>
                     </div>
                   </div>
                   <div className="pos_cart_item_actions">
+                    {hasDrinkOptions(line.product) ? (
+                      <button
+                        type="button"
+                        className="pos_cart_action is_edit"
+                        aria-haspopup="dialog"
+                        aria-label={t("pos.cart.edit_item", "Change options for {name}", { name: line.product.name })}
+                        onClick={() => editLine(line)}
+                      >
+                        <Pencil />
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="pos_cart_action is_remove"
@@ -703,6 +803,16 @@ export default function PosView() {
           <span>{t("pos.actions.view_order", "View order")}</span>
           <b>${total.toFixed(2)}</b>
         </button>
+      ) : null}
+      {optionsRequest ? (
+        <PosOptionsDialog
+          key={optionsRequest.id}
+          product={optionsRequest.product}
+          initial={optionsRequest.initial}
+          mode={optionsRequest.editKey ? "edit" : "add"}
+          onConfirm={confirmOptions}
+          onClose={() => setOptionsRequest(null)}
+        />
       ) : null}
       <PosPaymentModal
         open={paymentOpen}

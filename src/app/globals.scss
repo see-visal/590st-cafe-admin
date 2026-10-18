@@ -1,5 +1,5 @@
 @use "sass:map";
-@import "tailwindcss";
+@use "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
 // Short windows (laptops at 768px tall and below): lets dense screens like the login page tighten their spacing.
@@ -724,7 +724,9 @@ body {
   }
 }
 
+// Toasts start below the header row so they never cover its buttons (theme, alerts, profile).
 .admin_toaster {
+  top: calc(72px + 12px) !important;
   @media (max-width: 1023px) {
     top: calc(64px + 12px) !important;
   }
@@ -4528,6 +4530,154 @@ body {
   span:not(.is_struck) {
     font-size: 0.75rem;
     color: var(--ink-muted);
+  }
+}
+.pos_cart_options {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+// Drink options dialog: size, sugar, ice, milk and extras for one item.
+.pos_options_body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.pos_options_group {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.pos_options_label {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.pos_options_choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pos_option_chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background-color: var(--surface);
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+  &:hover {
+    border-color: var(--ink-subtle);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--ink-strong);
+    outline-offset: 2px;
+  }
+  &.is_selected {
+    border-color: var(--brand-lime-strong);
+    background-color: var(--option-selected-bg);
+    color: var(--option-selected-ink);
+    font-weight: 600;
+  }
+}
+.pos_options_extras {
+  display: grid;
+  gap: 8px;
+}
+.pos_option_extra {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background-color: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  &:hover:not(:disabled) {
+    border-color: var(--ink-subtle);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--ink-strong);
+    outline-offset: 2px;
+  }
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  &.is_selected {
+    border-color: var(--brand-lime-strong);
+    background-color: var(--option-selected-bg);
+  }
+}
+.pos_option_extra_box {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+  .is_selected & {
+    border-color: var(--brand-lime-strong);
+    background-color: var(--brand-lime);
+    color: var(--brand-ink);
+  }
+}
+.pos_option_extra_name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.pos_option_extra_price {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--success-text);
+  font-variant-numeric: tabular-nums;
+}
+.pos_options_footer {
+  align-items: center;
+}
+.pos_options_total {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-right: auto;
+  span {
+    font-size: 0.8125rem;
+    color: var(--ink-muted);
+  }
+  strong {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ink-strong);
+    font-variant-numeric: tabular-nums;
   }
 }
 .pos_cart_line_total {

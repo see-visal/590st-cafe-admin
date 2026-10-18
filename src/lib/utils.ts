@@ -21,18 +21,6 @@ export function fulfillmentLabel(order: { fulfillmentMethod: string | null; tabl
   return order.fulfillmentMethod ? humanise(order.fulfillmentMethod) : "";
 }
 
-const LEVEL_PERCENT: Record<string, string> = {
-  ZERO: "0%",
-  TWENTY_FIVE: "25%",
-  FIFTY: "50%",
-  SEVENTY_FIVE: "75%",
-  HUNDRED: "100%",
-};
-
-export function formatLevel(level: string): string {
-  return LEVEL_PERCENT[level] ?? humanise(level);
-}
-
 export function formatSku(sku: string): string {
   return sku.toUpperCase();
 }

@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { Coffee, Minus, Plus } from "lucide-react";
 import type { ProductResponse, ProductVariantResponse } from "@/store/api/types";
 import { cn, humanise, titleCase } from "@/lib/utils";
+import { hasDrinkOptions } from "@/lib/drinkOptions";
 import { useI18n } from "@/contexts/I18nContext";
 
 // How much of one product is already in the order, in total and per size.
@@ -38,11 +39,14 @@ export const PosProductCard = memo(function PosProductCard({
   product,
   counts,
   onAdd,
+  onCustomize,
   onDecrease,
 }: {
   product: ProductResponse;
   counts: CartCounts;
   onAdd: (product: ProductResponse, variant: ProductVariantResponse) => void;
+  // Drinks with sugar/ice/milk or extras open the options dialog instead of adding straight away.
+  onCustomize: (product: ProductResponse, variant: ProductVariantResponse) => void;
   onDecrease: (product: ProductResponse) => void;
 }) {
   const { t } = useI18n();
@@ -52,6 +56,8 @@ export const PosProductCard = memo(function PosProductCard({
   const lowStock = !outOfStock && stock <= Number(product.reorderLevel);
   const stockUnit = humanise(product.stockUnit);
   const inCart = counts.total;
+  const customizable = hasDrinkOptions(product);
+  const pick = (variant: ProductVariantResponse) => (customizable ? onCustomize(product, variant) : onAdd(product, variant));
 
   const activeVariants = product.variants
     .filter((v) => v.status === "ACTIVE")
@@ -76,7 +82,7 @@ export const PosProductCard = memo(function PosProductCard({
       toast.error(t("pos.toast.out_of_stock", "{name} is out of stock.", { name: product.name }));
       return;
     }
-    if (onlyVariant) onAdd(product, onlyVariant);
+    if (onlyVariant) pick(onlyVariant);
   };
 
   return (
@@ -127,6 +133,7 @@ export const PosProductCard = memo(function PosProductCard({
                 type="button"
                 className="is_add"
                 disabled={outOfStock}
+                aria-haspopup={customizable ? "dialog" : undefined}
                 aria-label={
                   inCart > 0
                     ? t("pos.quantity.increase", "Increase quantity")
@@ -134,7 +141,7 @@ export const PosProductCard = memo(function PosProductCard({
                       ? undefined
                       : t("pos.product.add_to_order", "Add {name} to the order", { name })
                 }
-                onClick={() => onAdd(product, onlyVariant)}
+                onClick={() => pick(onlyVariant)}
               >
                 {inCart === 0 && outOfStock ? (
                   t("pos.product.out_of_stock", "Out of stock")
@@ -155,7 +162,8 @@ export const PosProductCard = memo(function PosProductCard({
                     key={variant.id}
                     type="button"
                     disabled={outOfStock}
-                    onClick={() => onAdd(product, variant)}
+                    aria-haspopup={customizable ? "dialog" : undefined}
+                    onClick={() => pick(variant)}
                     className={cn("pos_product_variant", count > 0 && "is_selected")}
                     aria-label={t("pos.product.add_variant", "Add {variant} {name}, {price}", {
                       variant: humanise(variant.name),

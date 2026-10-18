@@ -30,11 +30,11 @@ import { useI18n } from "@/contexts/I18nContext";
 
 type Period = "DAILY" | "MONTHLY" | "YEARLY";
 
+// "-$392.50" for a loss, not "$-392.50".
+const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+
 function formatUsd(value: number) {
-  return `$${Number(value).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return usd.format(Number(value));
 }
 
 const todayIso = shopDate;

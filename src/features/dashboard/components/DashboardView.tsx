@@ -31,11 +31,11 @@ import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { useI18n } from "@/contexts/I18nContext";
 
+// "-$392.50" for a loss, not "$-392.50".
+const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+
 function currency(value: number) {
-  return `$${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return usd.format(value);
 }
 
 function topProducts(orders: OrderResponse[]) {

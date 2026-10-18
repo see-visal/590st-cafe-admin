@@ -426,5 +426,30 @@
   "theme": {
     "switch_to_dark": "Switch to dark mode",
     "switch_to_light": "Switch to light mode"
+  },
+  "drink_options": {
+    "sugar": {
+      "ZERO": "No Sugar",
+      "LESS": "Less Sugar",
+      "NORMAL": "Normal Sugar",
+      "EXTRA": "Extra Sugar"
+    },
+    "ice": {
+      "NO_ICE": "No Ice",
+      "LESS_ICE": "Less Ice",
+      "NORMAL": "Normal Ice",
+      "EXTRA_ICE": "Extra Ice"
+    },
+    "milk": {
+      "NONE": "No Milk",
+      "LESS": "Less Milk",
+      "NORMAL": "Normal Milk",
+      "EXTRA": "Extra Milk"
+    },
+    "size": {
+      "MEDIUM": "Medium",
+      "LARGE": "Large",
+      "PIECE": "Piece"
+    }
   }
 }

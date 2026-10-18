@@ -52,7 +52,8 @@
   "cart": {
     "empty": "Cart is empty. Tap a product to add it.",
     "remove_item": "Remove {name}",
-    "each": "each"
+    "each": "each",
+    "edit_item": "Change options for {name}"
   },
   "totals": {
     "subtotal": "Subtotal:",
@@ -98,5 +99,16 @@
     "complete_sale": "Could not complete the sale.",
     "generate_qr": "Could not generate the payment QR.",
     "check_payment": "Could not check the payment."
+  },
+  "options": {
+    "subtitle": "Choose how to make it, then add it to the order.",
+    "size": "Size",
+    "sugar": "Sugar level",
+    "ice": "Ice level",
+    "milk": "Milk",
+    "extras": "Extras",
+    "each": "Each",
+    "add": "Add to order",
+    "update": "Update item"
   }
 }
