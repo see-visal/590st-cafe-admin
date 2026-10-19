@@ -46,6 +46,8 @@ import {
 } from "@/store/api/bannerApi";
 import type { BannerResponse, Status } from "@/store/api/types";
 import { titleCase } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dateFormat";
+import { enumLabel } from "@/lib/enumLabel";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
@@ -70,7 +72,7 @@ function formatDateTime(iso: string | null) {
   if (!iso) return "-";
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return iso;
-  return parsed.toLocaleString("en-GB", {
+  return formatLocalDate(parsed, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -273,8 +275,8 @@ export default function BannerManagementView() {
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
+          <option value="ACTIVE">{enumLabel(t, "status", "ACTIVE")}</option>
+          <option value="INACTIVE">{enumLabel(t, "status", "INACTIVE")}</option>
         </SelectField>
         <FilterActions onClear={() => { setSearchTerm(""); setStatusFilter(""); setPage(1); }} onSearch={refetch} />
       </FilterPanel>
@@ -322,7 +324,7 @@ export default function BannerManagementView() {
                     className="cursor-pointer disabled:cursor-not-allowed"
                   >
                     <StatusBadge
-                      label={banner.status === "ACTIVE" ? "Active" : "Inactive"}
+                      label={enumLabel(t, "status", banner.status)}
                       tone={banner.status === "ACTIVE" ? "success" : "danger"}
                     />
                   </button>
@@ -393,8 +395,8 @@ export default function BannerManagementView() {
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as Status })}
             >
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
+              <option value="ACTIVE">{enumLabel(t, "status", "ACTIVE")}</option>
+              <option value="INACTIVE">{enumLabel(t, "status", "INACTIVE")}</option>
             </FormSelect>
           ) : null}
           <div className="md:col-span-3">
@@ -446,7 +448,7 @@ export default function BannerManagementView() {
               <DetailItem label={t("banners.fields.display_order", "Display Order")}>{selected.sortOrder}</DetailItem>
               <DetailItem label={t("fields.status", "Status")}>
                 <StatusBadge
-                  label={selected.status === "ACTIVE" ? "Active" : "Inactive"}
+                  label={enumLabel(t, "status", selected.status)}
                   tone={selected.status === "ACTIVE" ? "success" : "danger"}
                 />
               </DetailItem>

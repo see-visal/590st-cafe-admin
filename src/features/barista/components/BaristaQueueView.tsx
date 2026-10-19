@@ -65,7 +65,9 @@ import { useCurrentRole } from "@/store/api/useCurrentRole";
 import { useGetCurrentUserQuery } from "@/store/api/authApi";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import type { Currency, OrderResponse, OrderStatus } from "@/store/api/types";
-import { cn, formatByCurrency, fulfillmentLabel, humanise, timeAgo, titleCase } from "@/lib/utils";
+import { cn, formatByCurrency, fulfillmentLabel, timeAgo, titleCase } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dateFormat";
+import { enumLabel } from "@/lib/enumLabel";
 import { InvoiceActions, PrintInvoiceIconButton, toastPaidWithInvoice } from "@/components/common/InvoiceActions";
 import { useOrderInvoice } from "@/hooks/useOrderInvoice";
 import { buildCashPaymentSchema, parseForm } from "@/lib/validation";
@@ -80,7 +82,7 @@ const money = (value: number | null | undefined) =>
 function formatDateTime(value: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString("en-GB", {
+  return formatLocalDate(parsed, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -207,7 +209,7 @@ function OrderCard({
           </OrderChip>
         ) : null}
         <OrderChip icon={order.paymentMethod === "BAKONG" ? QrCode : Banknote}>
-          {order.paymentMethod ? humanise(order.paymentMethod) : t("barista.card.payment_not_chosen", "Payment not chosen")}
+          {order.paymentMethod ? enumLabel(t, "payment_method", order.paymentMethod) : t("barista.card.payment_not_chosen", "Payment not chosen")}
         </OrderChip>
         <OrderEstimateChip order={order} />
       </div>
@@ -903,7 +905,7 @@ export default function BaristaQueueView() {
               </DetailItem>
               <DetailItem label={t("fields.payment_method", "Payment Method")}>
                 {detailOrder.paymentMethod
-                  ? humanise(detailOrder.paymentMethod)
+                  ? enumLabel(t, "payment_method", detailOrder.paymentMethod)
                   : t("barista.detail.not_chosen_yet", "Not chosen yet")}
               </DetailItem>
               <DetailItem label={t("barista.detail.paid_at", "Paid At")}>
@@ -912,7 +914,7 @@ export default function BaristaQueueView() {
               <DetailItem label={t("barista.detail.handled_by", "Handled By")}>
                 {detailOrder.handledByName
                   ? `${titleCase(detailOrder.handledByName)}${
-                      detailOrder.handledByRole ? ` (${humanise(detailOrder.handledByRole)})` : ""
+                      detailOrder.handledByRole ? ` (${enumLabel(t, "role", detailOrder.handledByRole)})` : ""
                     }`
                   : "-"}
               </DetailItem>

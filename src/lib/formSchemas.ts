@@ -82,7 +82,36 @@ export const staffInviteSchema = z.object({
   phoneNumber: requiredPhoneField(message("phone_required_invite", "Phone number is required to invite via Telegram.")),
 });
 
-export function attendanceSchema({ now, mustKeepCheckOut }: { now: string; mustKeepCheckOut: boolean }) {
+// Times are Cambodia wall-clock strings (yyyy-MM-ddTHH:mm[:ss]), so plain string comparison orders them.
+
+/** Check-in: starts a shift for someone who is not on shift yet. Mirrors AdminCheckInRequest. */
+export function checkInSchema({ now }: { now: string }) {
+  return z
+    .object({
+      baristaId: requiredChoice(message("staff_required", "Choose a staff member.")),
+      checkInAt: z.string().min(1, message("check_in_required", "Choose a check-in time.")),
+      note: optionalText("Note"),
+    })
+    .refine((v) => v.checkInAt <= now, { ...message("check_in_future", "Check-in can't be in the future."), path: ["checkInAt"] });
+}
+
+/** Check-out: closes the staff member's open shift, which started at `checkInAt`. Mirrors AdminCheckOutRequest. */
+export function checkOutSchema({ now, checkInAt }: { now: string; checkInAt: string }) {
+  return z
+    .object({
+      baristaId: requiredChoice(message("on_shift_staff_required", "Choose a staff member who is on shift.")),
+      checkOutAt: z.string().min(1, message("check_out_time_required", "Choose a check-out time.")),
+      note: optionalText("Note"),
+    })
+    .refine((v) => v.checkOutAt <= now, { ...message("check_out_future", "Check-out can't be in the future."), path: ["checkOutAt"] })
+    .refine((v) => v.checkOutAt > checkInAt, {
+      ...message("check_out_before_in", "Check-out must be after check-in."),
+      path: ["checkOutAt"],
+    });
+}
+
+/** Missed attendance (new past shift) and corrections (existing record). Not used for normal check-in or check-out. */
+export function attendanceSchema({ now, requireCheckOut }: { now: string; requireCheckOut: boolean }) {
   return z
     .object({
       baristaId: requiredChoice(message("staff_required", "Choose a staff member.")),
@@ -92,15 +121,15 @@ export function attendanceSchema({ now, mustKeepCheckOut }: { now: string; mustK
     })
     .refine((v) => v.checkInAt <= now, { ...message("check_in_future", "Check-in can't be in the future."), path: ["checkInAt"] })
     .refine((v) => !v.checkOutAt || v.checkOutAt <= now, {
-      ...message("check_out_future", "Check-out can't be in the future — leave it empty if still on shift."),
+      ...message("check_out_future", "Check-out can't be in the future."),
       path: ["checkOutAt"],
     })
     .refine((v) => !v.checkOutAt || v.checkOutAt > v.checkInAt, {
       ...message("check_out_before_in", "Check-out must be after check-in."),
       path: ["checkOutAt"],
     })
-    .refine((v) => !mustKeepCheckOut || Boolean(v.checkOutAt), {
-      ...message("check_out_required", "A completed shift must keep a check-out time."),
+    .refine((v) => !requireCheckOut || Boolean(v.checkOutAt), {
+      ...message("check_out_required", "A completed shift needs a check-out time."),
       path: ["checkOutAt"],
     });
 }

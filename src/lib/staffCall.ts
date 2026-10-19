@@ -1,3 +1,4 @@
+import { translate } from "@/contexts/translate";
 import type { StaffCallReason } from "@/store/api/types";
 
 export const STAFF_CALL_REASON_LABELS: Record<StaffCallReason, string> = {
@@ -10,8 +11,11 @@ export const STAFF_CALL_REASON_LABELS: Record<StaffCallReason, string> = {
   OTHER: "Something else",
 };
 
+// Shown to staff, so it follows the dashboard language (the quick replies below go to customers as written).
 export function staffCallReasonLabel(reason: StaffCallReason | null | undefined): string {
-  return reason ? STAFF_CALL_REASON_LABELS[reason] : "Needs assistance";
+  return reason
+    ? translate(`enums.call_reason.${reason}`, STAFF_CALL_REASON_LABELS[reason] ?? reason)
+    : translate("enums.call_reason.UNKNOWN", "Needs assistance");
 }
 
 export const STAFF_CALL_REPLY_LIMIT = 200;

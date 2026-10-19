@@ -1,3 +1,5 @@
+import { DEFAULT_LOCALE, type Locale } from "./locales";
+
 export type TranslationMessages = {
   [key: string]: string | TranslationMessages;
 };
@@ -24,12 +26,18 @@ export function interpolate(text: string, params?: TranslationParams): string {
   );
 }
 
-// The active messages, for code that runs outside React (form validation, API errors, live notices).
-// I18nProvider keeps this in sync with the selected language.
+// The active messages and language, for code that runs outside React (form validation, API errors,
+// live notices, date formatting). I18nProvider keeps them in sync with the selected language.
 let activeMessages: TranslationMessages = {};
+let activeLocale: Locale = DEFAULT_LOCALE;
 
-export function setActiveMessages(messages: TranslationMessages) {
+export function setActiveMessages(messages: TranslationMessages, locale: Locale = DEFAULT_LOCALE) {
   activeMessages = messages;
+  activeLocale = locale;
+}
+
+export function currentLocale(): Locale {
+  return activeLocale;
 }
 
 export function translate(key: string, fallback?: string, params?: TranslationParams): string {

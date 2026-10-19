@@ -5,7 +5,8 @@ import Image from "next/image";
 import toast from "react-hot-toast";
 import { Coffee, Minus, Plus } from "lucide-react";
 import type { ProductResponse, ProductVariantResponse } from "@/store/api/types";
-import { cn, humanise, titleCase } from "@/lib/utils";
+import { cn, titleCase } from "@/lib/utils";
+import { enumLabel } from "@/lib/enumLabel";
 import { hasDrinkOptions } from "@/lib/drinkOptions";
 import { useI18n } from "@/contexts/I18nContext";
 
@@ -54,7 +55,7 @@ export const PosProductCard = memo(function PosProductCard({
   const stock = Number(product.quantityOnHand);
   const outOfStock = stock <= 0;
   const lowStock = !outOfStock && stock <= Number(product.reorderLevel);
-  const stockUnit = humanise(product.stockUnit);
+  const stockUnit = enumLabel(t, "unit", product.stockUnit);
   const inCart = counts.total;
   const customizable = hasDrinkOptions(product);
   const pick = (variant: ProductVariantResponse) => (customizable ? onCustomize(product, variant) : onAdd(product, variant));
@@ -105,7 +106,7 @@ export const PosProductCard = memo(function PosProductCard({
         <p className="pos_product_price">
           <strong>{priceLabel}</strong>
           {originalPrice !== null ? <s>{money(originalPrice)}</s> : null}
-          <span>{t("pos.product.per_unit", "per {unit}", { unit: humanise(product.sellUnit) })}</span>
+          <span>{t("pos.product.per_unit", "per {unit}", { unit: enumLabel(t, "unit", product.sellUnit) })}</span>
         </p>
         <p className={cn("pos_product_stock", lowStock && "is_low", outOfStock && "is_out")}>
           {outOfStock
@@ -166,12 +167,12 @@ export const PosProductCard = memo(function PosProductCard({
                     onClick={() => pick(variant)}
                     className={cn("pos_product_variant", count > 0 && "is_selected")}
                     aria-label={t("pos.product.add_variant", "Add {variant} {name}, {price}", {
-                      variant: humanise(variant.name),
+                      variant: enumLabel(t, "variant", variant.name),
                       name,
                       price: money(Number(variant.finalPrice)),
                     })}
                   >
-                    <span>{humanise(variant.name)}</span>
+                    <span>{enumLabel(t, "variant", variant.name)}</span>
                     <b>{money(Number(variant.finalPrice))}</b>
                     {count > 0 ? (
                       <span key={count} className="pos_product_variant_count" aria-hidden>

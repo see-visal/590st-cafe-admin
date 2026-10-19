@@ -252,6 +252,9 @@
   },
   "fulfillment": {
     "pickup": "Pickup",
+    "delivery": "Delivery",
+    "dine_in": "Dine-in",
+    "table": "Table {number}",
     "phone": "Phone: {phone}",
     "view_pin": "View pinned location on map",
     "distance": "{distance} from the shop",
@@ -292,9 +295,11 @@
     "staff_required": "Choose a staff member.",
     "check_in_required": "Choose a check-in time.",
     "check_in_future": "Check-in can't be in the future.",
-    "check_out_future": "Check-out can't be in the future — leave it empty if still on shift.",
+    "check_out_future": "Check-out can't be in the future.",
+    "check_out_time_required": "Choose a check-out time.",
+    "on_shift_staff_required": "Choose a staff member who is on shift.",
     "check_out_before_in": "Check-out must be after check-in.",
-    "check_out_required": "A completed shift must keep a check-out time.",
+    "check_out_required": "A completed shift needs a check-out time.",
     "category_missing": "Create a category first — a product has to belong to one.",
     "category_required": "Choose a category.",
     "stock_unit_required": "Choose a stock unit.",
@@ -355,7 +360,9 @@
     "now": "Now",
     "this_month": "This month",
     "today": "Today",
-    "done": "Done"
+    "done": "Done",
+    "am": "AM",
+    "pm": "PM"
   },
   "welcome": {
     "back_name": "Welcome back, {name}",
@@ -450,6 +457,106 @@
       "MEDIUM": "Medium",
       "LARGE": "Large",
       "PIECE": "Piece"
+    }
+  },
+  "enums": {
+    "role": {
+      "SUPER_ADMIN": "Super Admin",
+      "ADMIN": "Admin",
+      "BARISTA": "Barista",
+      "CUSTOMER": "Customer"
+    },
+    "user_status": {
+      "ACTIVE": "Active",
+      "PENDING_VERIFICATION": "Pending Verification",
+      "DEACTIVATED": "Deactivated",
+      "SUSPENDED": "Suspended",
+      "BANNED": "Banned",
+      "DELETED": "Deleted"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive"
+    },
+    "order_status": {
+      "PENDING": "Pending",
+      "PAID": "Paid",
+      "PREPARING": "Preparing",
+      "OUT_FOR_DELIVERY": "Out For Delivery",
+      "COMPLETED": "Completed",
+      "DELIVERED": "Delivered",
+      "CANCELLED": "Cancelled"
+    },
+    "payment_method": {
+      "CASH": "Cash",
+      "BAKONG": "Bakong"
+    },
+    "gender": {
+      "MALE": "Male",
+      "FEMALE": "Female",
+      "OTHER": "Other"
+    },
+    "audit_action": {
+      "CREATED": "Created",
+      "CASH_COLLECTED": "Cash Collected",
+      "BAKONG_CONFIRMED": "Bakong Confirmed",
+      "BAKONG_BY_RECEIPT": "Bakong By Receipt",
+      "CANCELLED": "Cancelled",
+      "DELIVERY_FEE_SET": "Delivery Fee Set",
+      "ESTIMATE_SET": "Estimate Set",
+      "CASH_SELECTED": "Cash Selected",
+      "BAKONG_QR_GENERATED": "Bakong QR Generated",
+      "LOCATION_PINNED": "Location Pinned",
+      "STAFF_CALLED": "Staff Called",
+      "STAFF_CALL_ANSWERED": "Staff Call Answered",
+      "PREPARING": "Preparing",
+      "OUT_FOR_DELIVERY": "Out For Delivery",
+      "DELIVERED": "Delivered",
+      "COMPLETED": "Completed"
+    },
+    "variant": {
+      "MEDIUM": "Medium",
+      "LARGE": "Large",
+      "PIECE": "Piece"
+    },
+    "unit": {
+      "PACK": "Pack",
+      "BOX": "Box",
+      "CARTON": "Carton",
+      "PIECE": "Piece",
+      "PLATE": "Plate",
+      "BOTTLE": "Bottle",
+      "CAN": "Can",
+      "CUP": "Cup",
+      "PACKAGE": "Package",
+      "TANK": "Tank"
+    },
+    "category_group": {
+      "FRESH_DRINK": "Fresh Drink",
+      "BEVERAGE": "Beverage",
+      "SNACK": "Snack"
+    },
+    "table_size": {
+      "SMALL": "Small",
+      "MEDIUM": "Medium",
+      "LARGE": "Large"
+    },
+    "call_reason": {
+      "PAYMENT_HELP": "Help with payment",
+      "CHANGE_ORDER": "Change order",
+      "ORDER_DELAY": "Order taking too long",
+      "WRONG_OR_MISSING_ITEM": "Wrong or missing item",
+      "NAPKINS_UTENSILS": "Napkins, straws or cutlery",
+      "DELIVERY_HELP": "Delivery help",
+      "OTHER": "Something else",
+      "UNKNOWN": "Needs assistance"
+    },
+    "contact_topic": {
+      "GENERAL_INQUIRY": "General Inquiry",
+      "CATERING_EVENTS": "Catering Events",
+      "FEEDBACK_SUGGESTIONS": "Feedback Suggestions",
+      "PARTNERSHIP": "Partnership",
+      "ORDER_SUPPORT": "Order Support"
     }
   }
 }

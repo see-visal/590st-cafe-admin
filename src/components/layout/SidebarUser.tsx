@@ -6,7 +6,8 @@ import { LogOut } from "lucide-react";
 
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { useGetCurrentUserQuery, useLogoutMutation } from "@/store/api/authApi";
-import { humanise, titleCase } from "@/lib/utils";
+import { titleCase } from "@/lib/utils";
+import { enumLabel } from "@/lib/enumLabel";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useI18n } from "@/contexts/I18nContext";
 
@@ -23,7 +24,7 @@ export function SidebarUser({ onNavigate }: { onNavigate?: () => void } = {}) {
     : isLoading
       ? t("states.loading", "Loading...")
       : t("account.account", "Account");
-  const role = user?.role ? humanise(user.role) : (user?.email ?? "");
+  const role = user?.role ? enumLabel(t, "role", user.role) : (user?.email ?? "");
   const isOnProfile = pathname === "/profile";
 
   const handleLogout = async () => {

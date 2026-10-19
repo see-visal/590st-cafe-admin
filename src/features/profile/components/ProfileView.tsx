@@ -40,8 +40,9 @@ import {
 import { parseForm } from "@/lib/validation";
 import { changePasswordSchema, profileSchema } from "@/lib/formSchemas";
 import type { Gender, UpdateProfileRequest } from "@/store/api/types";
-import { humanise, statusTone } from "@/features/user/components/UserManagementView";
+import { statusTone } from "@/features/user/components/UserManagementView";
 import { titleCase } from "@/lib/utils";
+import { enumLabel } from "@/lib/enumLabel";
 import { formatPhoneInput, samePhone } from "@/lib/phone";
 
 const GENDERS: Gender[] = ["MALE", "FEMALE", "OTHER"];
@@ -268,10 +269,10 @@ export default function ProfileView() {
           >
             <div className="admin_modal_form_wrap p-2">
               <DetailGrid>
-                <DetailItem label={t("fields.role", "Role")}>{humanise(user.role)}</DetailItem>
+                <DetailItem label={t("fields.role", "Role")}>{enumLabel(t, "role", user.role)}</DetailItem>
                 <DetailItem label={t("fields.status", "Status")}>
                   <StatusBadge
-                    label={humanise(user.status)}
+                    label={enumLabel(t, "user_status", user.status)}
                     tone={statusTone(user.status)}
                   />
                 </DetailItem>
@@ -289,7 +290,7 @@ export default function ProfileView() {
                   {isSuperAdmin
                     ? t("profile.account.server_config", "Server configuration")
                     : user.createdByName
-                      ? `${titleCase(user.createdByName)} (${humanise(user.createdByRole ?? "")})`
+                      ? `${titleCase(user.createdByName)} (${enumLabel(t, "role", user.createdByRole)})`
                       : t("profile.account.self_registered", "Self-registered")}
                 </DetailItem>
               </DetailGrid>
@@ -329,7 +330,7 @@ export default function ProfileView() {
                 >
                   {GENDERS.map((option) => (
                     <option key={option} value={option}>
-                      {humanise(option)}
+                      {enumLabel(t, "gender", option)}
                     </option>
                   ))}
                 </FormSelect>

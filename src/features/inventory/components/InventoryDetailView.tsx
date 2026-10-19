@@ -24,7 +24,9 @@ import { useGetProductQuery } from "@/store/api/productApi";
 import { usePageSize } from "@/contexts/AdminPreferencesContext";
 import { useI18n } from "@/contexts/I18nContext";
 import type { StockMovementType } from "@/store/api/types";
-import { cn, formatSku, humanise, productPriceLabel, titleCase } from "@/lib/utils";
+import { cn, formatSku, productPriceLabel, titleCase } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dateFormat";
+import { enumLabel } from "@/lib/enumLabel";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
 
@@ -60,7 +62,7 @@ function QuantityChange({
 function formatDateTime(value: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString("en-GB", {
+  return formatLocalDate(parsed, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -148,12 +150,12 @@ export default function InventoryDetailView({ productId }: { productId: string }
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <StatTile
           title={t("inventory.detail.stats.on_hand", "On Hand")}
-          value={isLoadingItem ? "..." : `${onHand} ${item?.unit ? humanise(item.unit) : ""}`}
+          value={isLoadingItem ? "..." : `${onHand} ${item?.unit ? enumLabel(t, "unit", item.unit) : ""}`}
           tone={level === "OK" ? "green" : level === "LOW" ? "orange" : "red"}
         />
         <StatTile
           title={t("inventory.fields.reorder_level", "Reorder Level")}
-          value={isLoadingItem ? "..." : `${reorder} ${item?.unit ? humanise(item.unit) : ""}`}
+          value={isLoadingItem ? "..." : `${reorder} ${item?.unit ? enumLabel(t, "unit", item.unit) : ""}`}
           tone="gray"
         />
         <StatTile
@@ -209,7 +211,7 @@ export default function InventoryDetailView({ productId }: { productId: string }
                 </Cell>
                 <Cell>
                   {movement.performedByName ? titleCase(movement.performedByName) : "-"}
-                  {movement.performedByRole ? ` (${humanise(movement.performedByRole)})` : ""}
+                  {movement.performedByRole ? ` (${enumLabel(t, "role", movement.performedByRole)})` : ""}
                 </Cell>
                 <Cell>{movement.note || "-"}</Cell>
               </Row>

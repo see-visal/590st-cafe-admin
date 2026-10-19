@@ -51,8 +51,9 @@ import {
   useUpdateBaristaMutation,
   useUploadStaffAvatarMutation,
 } from "@/store/api/userApi";
-import { humanise, statusTone } from "@/features/user/components/UserManagementView";
+import { statusTone } from "@/features/user/components/UserManagementView";
 import { titleCase } from "@/lib/utils";
+import { enumLabel } from "@/lib/enumLabel";
 import type { Gender, TelegramLinkCodeResponse, UserResponse, UserStatus } from "@/store/api/types";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { formatPhone, formatPhoneInput } from "@/lib/phone";
@@ -350,8 +351,8 @@ export default function Staff() {
             setPage(1);
           }}
         >
-          <option value="BARISTA">Baristas</option>
-          {canManageAdmins && <option value="ADMIN">Admins</option>}
+          <option value="BARISTA">{t("staff.list.baristas", "Baristas")}</option>
+          {canManageAdmins && <option value="ADMIN">{t("staff.list.admins", "Admins")}</option>}
         </SelectField>
         <TextField
           label={t("staff.filters.name_or_email", "Name or Email")}
@@ -365,11 +366,11 @@ export default function Staff() {
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
-          <option value="ACTIVE">Active</option>
-          <option value="PENDING_VERIFICATION">Pending Verification</option>
-          <option value="DEACTIVATED">Deactivated</option>
-          <option value="SUSPENDED">Suspended</option>
-          <option value="BANNED">Banned</option>
+          <option value="ACTIVE">{enumLabel(t, "user_status", "ACTIVE")}</option>
+          <option value="PENDING_VERIFICATION">{enumLabel(t, "user_status", "PENDING_VERIFICATION")}</option>
+          <option value="DEACTIVATED">{enumLabel(t, "user_status", "DEACTIVATED")}</option>
+          <option value="SUSPENDED">{enumLabel(t, "user_status", "SUSPENDED")}</option>
+          <option value="BANNED">{enumLabel(t, "user_status", "BANNED")}</option>
         </SelectField>
         <FilterActions onClear={() => { setSearchTerm(""); setStatusFilter(""); setPage(1); }} onSearch={active.refetch} />
       </FilterPanel>
@@ -407,12 +408,12 @@ export default function Staff() {
                   <StaffIdentityCell name={member.fullName} email={member.email} avatarUrl={member.avatarUrl} />
                 </Cell>
                 <Cell className="tabular-nums whitespace-nowrap">{formatPhone(member.phoneNumber) || "-"}</Cell>
-                <Cell>{member.gender ? humanise(member.gender) : "-"}</Cell>
-                <Cell>{humanise(member.role)}</Cell>
+                <Cell>{member.gender ? enumLabel(t, "gender", member.gender) : "-"}</Cell>
+                <Cell>{enumLabel(t, "role", member.role)}</Cell>
                 <Cell>{member.createdByName ? titleCase(member.createdByName) : "-"}</Cell>
                 <Cell>
                   <StatusBadge
-                    label={humanise(member.status)}
+                    label={enumLabel(t, "user_status", member.status)}
                     tone={statusTone(member.status)}
                   />
                 </Cell>
@@ -467,8 +468,8 @@ export default function Staff() {
               const nextKind = event.target.value as StaffKind;
               if (nextKind === "BARISTA" || (nextKind === "ADMIN" && canManageAdmins)) setFormKind(nextKind);
             }}>
-            <option value="BARISTA">Barista</option>
-            {canManageAdmins && <option value="ADMIN">Admin</option>}
+            <option value="BARISTA">{enumLabel(t, "role", "BARISTA")}</option>
+            {canManageAdmins && <option value="ADMIN">{enumLabel(t, "role", "ADMIN")}</option>}
           </FormSelect>
           {!selected && (
             <FormSelect
@@ -548,10 +549,10 @@ export default function Staff() {
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as UserStatus })}
             >
-              <option value="ACTIVE">Active</option>
-              <option value="DEACTIVATED">Deactivated</option>
-              <option value="SUSPENDED">Suspended</option>
-              <option value="BANNED">Banned</option>
+              <option value="ACTIVE">{enumLabel(t, "user_status", "ACTIVE")}</option>
+              <option value="DEACTIVATED">{enumLabel(t, "user_status", "DEACTIVATED")}</option>
+              <option value="SUSPENDED">{enumLabel(t, "user_status", "SUSPENDED")}</option>
+              <option value="BANNED">{enumLabel(t, "user_status", "BANNED")}</option>
             </FormSelect>
           ) : null}
         </ModalGrid>
@@ -578,12 +579,12 @@ export default function Staff() {
               <DetailItem label={t("fields.email", "Email")}>{selected.email}</DetailItem>
               <DetailItem label={t("fields.phone_number", "Phone Number")}>{formatPhone(selected.phoneNumber) || "-"}</DetailItem>
               <DetailItem label={t("staff.fields.gender", "Gender")}>
-                {selected.gender ? humanise(selected.gender) : "-"}
+                {selected.gender ? enumLabel(t, "gender", selected.gender) : "-"}
               </DetailItem>
-              <DetailItem label={t("fields.role", "Role")}>{humanise(selected.role)}</DetailItem>
+              <DetailItem label={t("fields.role", "Role")}>{enumLabel(t, "role", selected.role)}</DetailItem>
               <DetailItem label={t("fields.status", "Status")}>
                 <StatusBadge
-                  label={humanise(selected.status)}
+                  label={enumLabel(t, "user_status", selected.status)}
                   tone={statusTone(selected.status)}
                 />
               </DetailItem>
@@ -604,7 +605,7 @@ export default function Staff() {
               </DetailItem>
               <DetailItem label={t("fields.created_by", "Created By")}>
                 {selected.createdByName
-                  ? `${titleCase(selected.createdByName)} (${humanise(selected.createdByRole ?? "")})`
+                  ? `${titleCase(selected.createdByName)} (${enumLabel(t, "role", selected.createdByRole)})`
                   : "-"}
               </DetailItem>
             </DetailGrid>

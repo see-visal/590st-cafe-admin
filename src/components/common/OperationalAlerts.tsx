@@ -36,7 +36,8 @@ import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
 import { useStaffCallAlerts } from "@/hooks/useStaffCallAlerts";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { useFeedbackAlerts } from "@/hooks/useFeedbackAlerts";
-import { cn, fulfillmentLabel, humanise, timeAgo, titleCase } from "@/lib/utils";
+import { cn, fulfillmentLabel, timeAgo, titleCase } from "@/lib/utils";
+import { enumLabel } from "@/lib/enumLabel";
 import { notify } from "@/components/common/AppToast";
 import { useI18n } from "@/contexts/I18nContext";
 import { Input } from "@/components/ui/input";
@@ -500,7 +501,7 @@ export function OperationalAlertsContent({
                     {order.customerName ? titleCase(order.customerName) : t("alerts.walk_in", "Walk-in")}
                   </span>
                   <span>·</span>
-                  <span>{order.paymentMethod ? humanise(order.paymentMethod) : t("alerts.unpaid", "Unpaid")}</span>
+                  <span>{order.paymentMethod ? enumLabel(t, "payment_method", order.paymentMethod) : t("alerts.unpaid", "Unpaid")}</span>
                 </span>
               </span>
               <span className="shrink-0 text-base font-bold tabular-nums text-(--ink)">
@@ -656,7 +657,7 @@ function StaffCallItem({
             <span className="font-medium text-(--ink)">
               {call.customerName ? titleCase(call.customerName) : t("alerts.walk_in", "Walk-in")}
             </span>{" "}
-            · {humanise(call.orderStatus)}
+            · {enumLabel(t, "order_status", call.orderStatus)}
             {call.fulfillmentMethod
               ? ` · ${fulfillmentLabel(call)}`
               : ""}

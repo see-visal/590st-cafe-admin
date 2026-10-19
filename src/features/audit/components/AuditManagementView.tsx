@@ -33,7 +33,9 @@ import {
   useRefreshOptions,
 } from "@/contexts/AdminPreferencesContext";
 import type { OrderResponse, OrderStatus, Role } from "@/store/api/types";
-import { cn, humanise, timeAgo, titleCase } from "@/lib/utils";
+import { cn, timeAgo, titleCase } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dateFormat";
+import { enumLabel } from "@/lib/enumLabel";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useI18n } from "@/contexts/I18nContext";
 
@@ -76,7 +78,7 @@ function formatDateTime(value: string | null | undefined) {
   if (!value) return "-";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString("en-GB", {
+  return formatLocalDate(parsed, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -245,7 +247,7 @@ export default function AuditManagementView() {
                   </Cell>
                   <Cell>{money(order.totalAmount)}</Cell>
                   <Cell>
-                    {order.paymentMethod ? humanise(order.paymentMethod) : "-"}
+                    {order.paymentMethod ? enumLabel(t, "payment_method", order.paymentMethod) : "-"}
                   </Cell>
                   <Cell>
                     <span className="block">
@@ -257,7 +259,7 @@ export default function AuditManagementView() {
                   </Cell>
                   <Cell>
                     <StatusBadge
-                      label={humanise(order.status)}
+                      label={enumLabel(t, "order_status", order.status)}
                       tone={orderTone(order.status)}
                     />
                   </Cell>
@@ -363,7 +365,7 @@ function OrderHistoryModal({
             </DetailItem>
             <DetailItem label={t("fields.status", "Status")}>
               <StatusBadge
-                label={humanise(order.status)}
+                label={enumLabel(t, "order_status", order.status)}
                 tone={orderTone(order.status)}
               />
             </DetailItem>
@@ -383,7 +385,7 @@ function OrderHistoryModal({
               actorRole: entry.actorRole,
               note: null,
               ...(ORDER_ACTIONS[entry.action] ?? {
-                label: humanise(entry.action),
+                label: enumLabel(t, "audit_action", entry.action),
                 tone: "neutral" as Tone,
               }),
             }))}
@@ -451,7 +453,7 @@ function ShiftHistoryModal({
               actorName: entry.actorName,
               actorRole: entry.actorRole,
               note: entry.note,
-              label: humanise(entry.action),
+              label: enumLabel(t, "audit_action", entry.action),
               tone: "info" as Tone,
             }))}
           />
@@ -549,7 +551,7 @@ function Timeline({
                   ? entry.actorRole
                     ? t("audit.timeline.by_role", "by {name} · {role}", {
                         name: titleCase(entry.actorName),
-                        role: humanise(entry.actorRole),
+                        role: enumLabel(t, "role", entry.actorRole),
                       })
                     : t("audit.timeline.by", "by {name}", {
                         name: titleCase(entry.actorName),

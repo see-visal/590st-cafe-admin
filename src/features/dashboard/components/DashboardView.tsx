@@ -25,6 +25,7 @@ import {
 } from "@/store/api/reportApi";
 import { shopDate } from "@/lib/shopDate";
 import { titleCase } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dateFormat";
 import type { OrderResponse } from "@/store/api/types";
 import { useRefreshOptions } from "@/contexts/AdminPreferencesContext";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
@@ -177,7 +178,7 @@ export default function DashboardView() {
     .filter((entry) => entry !== null);
   const completedOrders = useMemo(() => completed?.content ?? [], [completed]);
   const series = (weeklyQuery.data ?? []).map((day) => ({
-    day: new Date(`${day.date}T12:00:00`).toLocaleDateString("en-GB", {
+    day: formatLocalDate(new Date(`${day.date}T12:00:00`), {
       weekday: "short",
     }),
     revenue: Number(day.grandTotal),

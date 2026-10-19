@@ -15,9 +15,15 @@ export function humanise(value: string): string {
     .join(" ");
 }
 
-// "Table 02" for dine-in, otherwise "Pickup" / "Delivery".
+// "Table 02" for dine-in, otherwise "Pickup" / "Delivery", in the current language.
 export function fulfillmentLabel(order: { fulfillmentMethod: string | null; tableNumber?: string | null }): string {
-  if (order.fulfillmentMethod === "DINE_IN") return order.tableNumber ? `Table ${order.tableNumber}` : "Dine-in";
+  if (order.fulfillmentMethod === "DINE_IN") {
+    return order.tableNumber
+      ? translate("fulfillment.table", "Table {number}", { number: order.tableNumber })
+      : translate("fulfillment.dine_in", "Dine-in");
+  }
+  if (order.fulfillmentMethod === "PICKUP") return translate("fulfillment.pickup", "Pickup");
+  if (order.fulfillmentMethod === "DELIVERY") return translate("fulfillment.delivery", "Delivery");
   return order.fulfillmentMethod ? humanise(order.fulfillmentMethod) : "";
 }
 

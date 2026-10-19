@@ -53,7 +53,8 @@ import {
   useUploadProductImageMutation,
 } from "@/store/api/productApi";
 import type { ProductResponse, SellUnit, SkuMode, Status, StockUnit, VariantLabel } from "@/store/api/types";
-import { formatSku, humanise, productPriceLabel, titleCase } from "@/lib/utils";
+import { formatSku, productPriceLabel, titleCase } from "@/lib/utils";
+import { enumLabel } from "@/lib/enumLabel";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
@@ -386,8 +387,8 @@ export default function Products() {
             setPage(1);
           }}
         >
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
+          <option value="ACTIVE">{enumLabel(t, "status", "ACTIVE")}</option>
+          <option value="INACTIVE">{enumLabel(t, "status", "INACTIVE")}</option>
         </SelectField>
         <FilterActions onClear={() => { setSearchTerm(""); setStatusFilter(""); setCategoryFilter(""); setPage(1); }} onSearch={refetch} />
       </FilterPanel>
@@ -445,12 +446,12 @@ export default function Products() {
                         : undefined
                     }
                   >
-                    {Number(product.quantityOnHand)} {humanise(product.stockUnit)}
+                    {Number(product.quantityOnHand)} {enumLabel(t, "unit", product.stockUnit)}
                   </span>
                 </Cell>
                 <Cell>
                   <StatusBadge
-                    label={product.status === "ACTIVE" ? "Active" : "Inactive"}
+                    label={enumLabel(t, "status", product.status)}
                     tone={product.status === "ACTIVE" ? "success" : "danger"}
                   />
                 </Cell>
@@ -555,7 +556,7 @@ export default function Products() {
           >
             {STOCK_UNITS.map((unit) => (
               <option key={unit} value={unit}>
-                {humanise(unit)}
+                {enumLabel(t, "unit", unit)}
               </option>
             ))}
           </FormSelect>
@@ -568,7 +569,7 @@ export default function Products() {
           >
             {SELL_UNITS.map((unit) => (
               <option key={unit} value={unit}>
-                {humanise(unit)}
+                {enumLabel(t, "unit", unit)}
               </option>
             ))}
           </FormSelect>
@@ -611,7 +612,7 @@ export default function Products() {
             >
               {VARIANT_LABELS.map((label) => (
                 <option key={label} value={label}>
-                  {humanise(label)}
+                  {enumLabel(t, "variant", label)}
                 </option>
               ))}
             </FormSelect>
@@ -671,8 +672,8 @@ export default function Products() {
                 setFormFields({ ...formFields, status: e.target.value as Status })
               }
             >
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
+              <option value="ACTIVE">{enumLabel(t, "status", "ACTIVE")}</option>
+              <option value="INACTIVE">{enumLabel(t, "status", "INACTIVE")}</option>
             </FormSelect>
           ) : null}
           <FormInput
@@ -723,21 +724,21 @@ export default function Products() {
                   : t("products.detail.none", "None")}
               </DetailItem>
               <DetailItem label={t("products.fields.stock", "Stock")}>
-                {Number(selected.quantityOnHand)} {humanise(selected.stockUnit)}
+                {Number(selected.quantityOnHand)} {enumLabel(t, "unit", selected.stockUnit)}
               </DetailItem>
               <DetailItem label={t("products.fields.reorder_level", "Reorder Level")}>
-                {Number(selected.reorderLevel)} {humanise(selected.stockUnit)}
+                {Number(selected.reorderLevel)} {enumLabel(t, "unit", selected.stockUnit)}
               </DetailItem>
               <DetailItem label={t("fields.status", "Status")}>
                 <StatusBadge
-                  label={selected.status === "ACTIVE" ? "Active" : "Inactive"}
+                  label={enumLabel(t, "status", selected.status)}
                   tone={selected.status === "ACTIVE" ? "success" : "danger"}
                 />
               </DetailItem>
               <DetailItem label={t("products.fields.variants", "Variants")}>
                 {selected.variants.length > 0
                   ? selected.variants
-                      .map((variant) => `${humanise(variant.name)}: ${money(variant.finalPrice)}`)
+                      .map((variant) => `${enumLabel(t, "variant", variant.name)}: ${money(variant.finalPrice)}`)
                       .join(", ")
                   : t("products.detail.none_yet", "None yet")}
               </DetailItem>

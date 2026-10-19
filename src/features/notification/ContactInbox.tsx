@@ -25,6 +25,7 @@ import {
 import { SHOP_TIME_ZONE, parseShopDateTime } from "@/lib/estimate";
 import { formatPhone, phoneDigits } from "@/lib/phone";
 import { cn, timeAgo, titleCase } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dateFormat";
 
 type MessageStatus = ContactMessage["status"];
 
@@ -44,7 +45,7 @@ function isLong(text: string) {
 }
 
 function sentAtLabel(createdAt: string) {
-  return parseShopDateTime(createdAt).toLocaleString("en-GB", {
+  return formatLocalDate(parseShopDateTime(createdAt), {
     timeZone: SHOP_TIME_ZONE,
     day: "2-digit",
     month: "short",

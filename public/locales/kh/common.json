@@ -252,6 +252,9 @@
   },
   "fulfillment": {
     "pickup": "មកយកផ្ទាល់",
+    "delivery": "ដឹកជញ្ជូន",
+    "dine_in": "ញ៉ាំនៅហាង",
+    "table": "តុ {number}",
     "phone": "ទូរស័ព្ទ៖ {phone}",
     "view_pin": "មើលទីតាំងដែលបានដៅលើផែនទី",
     "distance": "ចម្ងាយ {distance} ពីហាង",
@@ -292,7 +295,9 @@
     "staff_required": "សូមជ្រើសរើសបុគ្គលិក។",
     "check_in_required": "សូមជ្រើសរើសម៉ោងចូលវេន។",
     "check_in_future": "ម៉ោងចូលវេនមិនអាចនៅពេលអនាគតបានទេ។",
-    "check_out_future": "ម៉ោងចេញពីវេនមិនអាចនៅពេលអនាគតបានទេ — ទុកទទេ ប្រសិនបើនៅក្នុងវេននៅឡើយ។",
+    "check_out_future": "ម៉ោងចេញពីវេនមិនអាចនៅពេលអនាគតបានទេ។",
+    "check_out_time_required": "សូមជ្រើសរើសម៉ោងចេញពីវេន។",
+    "on_shift_staff_required": "សូមជ្រើសរើសបុគ្គលិកដែលកំពុងនៅក្នុងវេន។",
     "check_out_before_in": "ម៉ោងចេញពីវេនត្រូវតែក្រោយម៉ោងចូលវេន។",
     "check_out_required": "វេនដែលបានបញ្ចប់ត្រូវតែមានម៉ោងចេញពីវេន។",
     "category_missing": "សូមបង្កើតប្រភេទជាមុនសិន — ផលិតផលត្រូវតែស្ថិតក្នុងប្រភេទណាមួយ។",
@@ -355,7 +360,9 @@
     "now": "ឥឡូវនេះ",
     "this_month": "ខែនេះ",
     "today": "ថ្ងៃនេះ",
-    "done": "រួចរាល់"
+    "done": "រួចរាល់",
+    "am": "ព្រឹក",
+    "pm": "ល្ងាច"
   },
   "welcome": {
     "back_name": "សូមស្វាគមន៍ការត្រឡប់មកវិញ {name}",
@@ -450,6 +457,106 @@
       "MEDIUM": "មធ្យម",
       "LARGE": "ធំ",
       "PIECE": "ដុំ"
+    }
+  },
+  "enums": {
+    "role": {
+      "SUPER_ADMIN": "អ្នកគ្រប់គ្រងជាន់ខ្ពស់",
+      "ADMIN": "អ្នកគ្រប់គ្រង",
+      "BARISTA": "បារីស្តា",
+      "CUSTOMER": "អតិថិជន"
+    },
+    "user_status": {
+      "ACTIVE": "សកម្ម",
+      "PENDING_VERIFICATION": "រង់ចាំការផ្ទៀងផ្ទាត់",
+      "DEACTIVATED": "បានបិទដំណើរការ",
+      "SUSPENDED": "បានផ្អាក",
+      "BANNED": "បានហាមឃាត់",
+      "DELETED": "បានលុប"
+    },
+    "status": {
+      "ACTIVE": "សកម្ម",
+      "INACTIVE": "អសកម្ម"
+    },
+    "order_status": {
+      "PENDING": "កំពុងរង់ចាំ",
+      "PAID": "បានបង់",
+      "PREPARING": "កំពុងរៀបចំ",
+      "OUT_FOR_DELIVERY": "កំពុងដឹកជញ្ជូន",
+      "COMPLETED": "បានបញ្ចប់",
+      "DELIVERED": "បានដឹកជញ្ជូនរួច",
+      "CANCELLED": "បានបោះបង់"
+    },
+    "payment_method": {
+      "CASH": "សាច់ប្រាក់",
+      "BAKONG": "Bakong"
+    },
+    "gender": {
+      "MALE": "ប្រុស",
+      "FEMALE": "ស្រី",
+      "OTHER": "ផ្សេងៗ"
+    },
+    "audit_action": {
+      "CREATED": "បានបង្កើត",
+      "CASH_COLLECTED": "បានទទួលសាច់ប្រាក់",
+      "BAKONG_CONFIRMED": "បានបញ្ជាក់ការបង់តាម Bakong",
+      "BAKONG_BY_RECEIPT": "បង់តាម Bakong ដោយបង្កាន់ដៃ",
+      "CANCELLED": "បានបោះបង់",
+      "DELIVERY_FEE_SET": "បានកំណត់ថ្លៃដឹកជញ្ជូន",
+      "ESTIMATE_SET": "បានកំណត់ពេលវេលាប៉ាន់ស្មាន",
+      "CASH_SELECTED": "បានជ្រើសរើសបង់សាច់ប្រាក់",
+      "BAKONG_QR_GENERATED": "បានបង្កើត QR Bakong",
+      "LOCATION_PINNED": "បានដៅទីតាំង",
+      "STAFF_CALLED": "បានហៅបុគ្គលិក",
+      "STAFF_CALL_ANSWERED": "បានឆ្លើយតបការហៅបុគ្គលិក",
+      "PREPARING": "កំពុងរៀបចំ",
+      "OUT_FOR_DELIVERY": "កំពុងដឹកជញ្ជូន",
+      "DELIVERED": "បានដឹកជញ្ជូនរួច",
+      "COMPLETED": "បានបញ្ចប់"
+    },
+    "variant": {
+      "MEDIUM": "មធ្យម",
+      "LARGE": "ធំ",
+      "PIECE": "ដុំ"
+    },
+    "unit": {
+      "PACK": "កញ្ចប់",
+      "BOX": "ប្រអប់",
+      "CARTON": "កេស",
+      "PIECE": "ដុំ",
+      "PLATE": "ចាន",
+      "BOTTLE": "ដប",
+      "CAN": "កំប៉ុង",
+      "CUP": "កែវ",
+      "PACKAGE": "កញ្ចប់ធំ",
+      "TANK": "ធុង"
+    },
+    "category_group": {
+      "FRESH_DRINK": "ភេសជ្ជៈស្រស់",
+      "BEVERAGE": "ភេសជ្ជៈ",
+      "SNACK": "អាហារសម្រន់"
+    },
+    "table_size": {
+      "SMALL": "តូច",
+      "MEDIUM": "មធ្យម",
+      "LARGE": "ធំ"
+    },
+    "call_reason": {
+      "PAYMENT_HELP": "ជំនួយការទូទាត់ប្រាក់",
+      "CHANGE_ORDER": "ផ្លាស់ប្តូរការបញ្ជាទិញ",
+      "ORDER_DELAY": "ការបញ្ជាទិញយូរពេក",
+      "WRONG_OR_MISSING_ITEM": "មុខទំនិញខុស ឬខ្វះ",
+      "NAPKINS_UTENSILS": "ក្រដាសជូតមាត់ បំពង់បឺត ឬស្លាបព្រា",
+      "DELIVERY_HELP": "ជំនួយការដឹកជញ្ជូន",
+      "OTHER": "ផ្សេងៗ",
+      "UNKNOWN": "ត្រូវការជំនួយ"
+    },
+    "contact_topic": {
+      "GENERAL_INQUIRY": "សំណួរទូទៅ",
+      "CATERING_EVENTS": "សេវាម្ហូបអាហារ និងព្រឹត្តិការណ៍",
+      "FEEDBACK_SUGGESTIONS": "មតិកែលម្អ និងសំណូមពរ",
+      "PARTNERSHIP": "ភាពជាដៃគូ",
+      "ORDER_SUPPORT": "ជំនួយការបញ្ជាទិញ"
     }
   }
 }

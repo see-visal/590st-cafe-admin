@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { format, isValid, parse } from "date-fns";
+import { km as dayPickerKhmer } from "react-day-picker/locale";
+import { dateFnsLocale } from "@/lib/dateFormat";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Calendar } from "@/components/ui/calendar";
@@ -35,7 +37,6 @@ export const DATE_PICKER_TYPES = new Set<string>(Object.keys(VALUE_FORMAT));
 
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1));
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
-const MONTHS = Array.from({ length: 12 }, (_, i) => format(new Date(2000, i, 1), "MMM"));
 
 function parseValue(type: DatePickerType, value?: string | number) {
   if (value == null || value === "") return undefined;
@@ -74,8 +75,9 @@ export function DatePickerInput({
   id?: string;
   "aria-label"?: string;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [open, setOpen] = useState(false);
+  const months = Array.from({ length: 12 }, (_, i) => format(new Date(2000, i, 1), "MMM", { locale: dateFnsLocale() }));
   const selected = parseValue(type, value);
   const minDate = parseValue(type, min);
   const maxDate = parseValue(type, max);
@@ -150,7 +152,7 @@ export function DatePickerInput({
           )}
         >
           <span className="truncate">
-            {selected ? format(selected, DISPLAY_FORMAT[type]) : placeholder ?? t(PLACEHOLDER[type][0], PLACEHOLDER[type][1])}
+            {selected ? format(selected, DISPLAY_FORMAT[type], { locale: dateFnsLocale() }) : placeholder ?? t(PLACEHOLDER[type][0], PLACEHOLDER[type][1])}
           </span>
           <CalendarDays className="form_field_icon" />
         </button>
@@ -168,7 +170,7 @@ export function DatePickerInput({
               </button>
             </div>
             <div className="date_picker_months_grid">
-              {MONTHS.map((label, month) => {
+              {months.map((label, month) => {
                 const isSelected = selected?.getFullYear() === viewYear && selected.getMonth() === month;
                 const isCurrent = now.getFullYear() === viewYear && now.getMonth() === month;
                 return (
@@ -191,6 +193,7 @@ export function DatePickerInput({
         ) : (
           <Calendar
             mode="single"
+            locale={locale === "kh" ? dayPickerKhmer : undefined}
             selected={selected}
             onSelect={pickDay}
             defaultMonth={selected ?? minDate ?? maxDate}
@@ -238,7 +241,7 @@ export function DatePickerInput({
                     className={cn(period === p && "is_selected")}
                     onClick={() => setTime("period", p)}
                   >
-                    {p}
+                    {p === "AM" ? t("date_picker.am", "AM") : t("date_picker.pm", "PM")}
                   </button>
                 ))}
               </div>

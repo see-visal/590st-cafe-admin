@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { orderCode, useOrderInvoice } from "@/hooks/useOrderInvoice";
 import type { OrderResponse } from "@/store/api/types";
-import { cn, formatByCurrency, humanise } from "@/lib/utils";
+import { cn, formatByCurrency } from "@/lib/utils";
+import { enumLabel } from "@/lib/enumLabel";
 import { translate, useI18n } from "@/contexts/I18nContext";
 
 const orderNumber = (order: Pick<OrderResponse, "id">) =>
@@ -158,7 +159,7 @@ export function SaleCompleteModal({
                 {formatByCurrency(sale.totalAmount, "USD")}
               </p>
               <p className="text-sm text-gray-500">
-                {t("invoice.paid_by", "Paid by {method}", { method: sale.paymentMethod ? humanise(sale.paymentMethod) : t("invoice.cash", "cash") })}
+                {t("invoice.paid_by", "Paid by {method}", { method: sale.paymentMethod ? enumLabel(t, "payment_method", sale.paymentMethod) : t("invoice.cash", "cash") })}
                 {sale.amountTendered != null
                   ? ` · ${t("invoice.received", "Received {amount}", { amount: formatByCurrency(sale.amountTendered, sale.amountTenderedCurrency) })}`
                   : ""}

@@ -19,7 +19,8 @@ import {
 } from "@/components/common/AdminKit";
 import { useListLowStockQuery } from "@/store/api/inventoryApi";
 import { usePageSize } from "@/contexts/AdminPreferencesContext";
-import { humanise, titleCase } from "@/lib/utils";
+import { titleCase } from "@/lib/utils";
+import { enumLabel } from "@/lib/enumLabel";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useI18n } from "@/contexts/I18nContext";
@@ -103,7 +104,7 @@ export default function StockAlertView() {
                   <Cell className={isOut ? "font-semibold text-red-700" : undefined}>
                     {onHand.toLocaleString()}
                   </Cell>
-                  <Cell>{humanise(alert.unit)}</Cell>
+                  <Cell>{enumLabel(t, "unit", alert.unit)}</Cell>
                   <Cell>{reorder.toLocaleString()}</Cell>
                   <Cell>{shortfall.toLocaleString()}</Cell>
                   <Cell>

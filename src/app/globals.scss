@@ -2110,6 +2110,11 @@ body {
     width: min(600px, calc(100% - 2rem)) !important;
     max-width: 600px !important;
   }
+
+  &.is_compact_form {
+    width: min(640px, calc(100% - 2rem)) !important;
+    max-width: 640px !important;
+  }
 }
 
 .leaflet-container {

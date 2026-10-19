@@ -47,6 +47,8 @@ import {
 } from "@/store/api/eventApi";
 import type { EventResponse, Status } from "@/store/api/types";
 import { titleCase } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dateFormat";
+import { enumLabel } from "@/lib/enumLabel";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
@@ -82,7 +84,7 @@ function formatDateTime(iso: string | null) {
   if (!iso) return "-";
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return iso;
-  return parsed.toLocaleString("en-GB", {
+  return formatLocalDate(parsed, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -279,8 +281,8 @@ export default function EventManagementView() {
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
+          <option value="ACTIVE">{enumLabel(t, "status", "ACTIVE")}</option>
+          <option value="INACTIVE">{enumLabel(t, "status", "INACTIVE")}</option>
         </SelectField>
         <FilterActions onClear={() => { setSearchTerm(""); setStatusFilter(""); setPage(1); }} onSearch={refetch} />
       </FilterPanel>
@@ -350,7 +352,7 @@ export default function EventManagementView() {
                   </Cell>
                   <Cell>
                     <StatusBadge
-                      label={event.status === "ACTIVE" ? "Active" : "Inactive"}
+                      label={enumLabel(t, "status", event.status)}
                       tone={event.status === "ACTIVE" ? "success" : "danger"}
                     />
                   </Cell>
@@ -480,8 +482,8 @@ export default function EventManagementView() {
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as Status })}
             >
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
+              <option value="ACTIVE">{enumLabel(t, "status", "ACTIVE")}</option>
+              <option value="INACTIVE">{enumLabel(t, "status", "INACTIVE")}</option>
             </FormSelect>
           ) : null}
           <FormInput
@@ -548,7 +550,7 @@ export default function EventManagementView() {
               <DetailItem label={t("events.form.ends_at", "Ends At")}>{formatDateTime(selected.endAt)}</DetailItem>
               <DetailItem label={t("fields.status", "Status")}>
                 <StatusBadge
-                  label={selected.status === "ACTIVE" ? "Active" : "Inactive"}
+                  label={enumLabel(t, "status", selected.status)}
                   tone={selected.status === "ACTIVE" ? "success" : "danger"}
                 />
               </DetailItem>

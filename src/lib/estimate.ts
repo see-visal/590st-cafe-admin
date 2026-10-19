@@ -1,4 +1,5 @@
 import type { OrderResponse, OrderStatus } from "@/store/api/types";
+import { formatLocalDate } from "@/lib/dateFormat";
 
 export const SHOP_TIME_ZONE = "Asia/Phnom_Penh";
 export const ESTIMATE_MAX_MINUTES = 240;
@@ -12,7 +13,7 @@ export function parseShopDateTime(value: string): Date {
 }
 
 export function formatShopClock(date: Date): string {
-  return date.toLocaleTimeString("en-US", { timeZone: SHOP_TIME_ZONE, hour: "numeric", minute: "2-digit" });
+  return formatLocalDate(date, { timeZone: SHOP_TIME_ZONE, hour: "numeric", minute: "2-digit" }, "en-US");
 }
 
 export function isOrderFinished(status: OrderStatus): boolean {

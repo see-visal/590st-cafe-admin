@@ -21,7 +21,8 @@ import {
 import type {
   DiscountType, ExtraResponse, ProductExtraResponse, ProductResponse, ProductVariantResponse, VariantLabel,
 } from "@/store/api/types";
-import { humanise, productPriceLabel, titleCase } from "@/lib/utils";
+import { productPriceLabel, titleCase } from "@/lib/utils";
+import { enumLabel } from "@/lib/enumLabel";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { parseForm } from "@/lib/validation";
@@ -103,16 +104,16 @@ function VariantForm({ productId, variant, takenLabels }: { productId: string; v
   }
   async function deleteVariant() {
     if (!variant) return;
-    if (!(await confirm({ title: t("products.config.confirm.delete_variant_title", "Delete variant"), description: t("products.config.confirm.delete_variant_description", "Delete the {name} variant?", { name: humanise(variant.name) }), confirmLabel: t("actions.delete", "Delete"), tone: "danger" }))) return;
+    if (!(await confirm({ title: t("products.config.confirm.delete_variant_title", "Delete variant"), description: t("products.config.confirm.delete_variant_description", "Delete the {name} variant?", { name: enumLabel(t, "variant", variant.name) }), confirmLabel: t("actions.delete", "Delete"), tone: "danger" }))) return;
     try { await remove({ productId, id: variant.id }).unwrap(); toast.success(t("products.config.toast.variant_deleted", "Variant deleted")); }
     catch (error) { toast.error(apiErrorMessage(error as never, t("products.config.errors.delete_variant", "Could not delete variant."))); }
   }
 
   return <form onSubmit={submit} className="space-y-3 rounded-lg border p-4">
-    <h3 className="font-semibold">{variant ? `${humanise(variant.name)} (${variant.status.toLowerCase()})` : t("products.config.variant.add_title", "Add a variant")}</h3>
+    <h3 className="font-semibold">{variant ? `${enumLabel(t, "variant", variant.name)} (${enumLabel(t, "status", variant.status).toLowerCase()})` : t("products.config.variant.add_title", "Add a variant")}</h3>
     <div className="grid gap-3 md:grid-cols-3">
       <FormSelect label={t("products.fields.variant", "Variant")} value={name} onChange={(event) => setName(event.target.value as VariantLabel)} disabled={Boolean(variant)}>
-        {VARIANT_LABELS.map((label) => <option key={label} value={label}>{humanise(label)}</option>)}
+        {VARIANT_LABELS.map((label) => <option key={label} value={label}>{enumLabel(t, "variant", label)}</option>)}
       </FormSelect>
       <label className="text-sm">{t("products.config.price_usd", "Price (USD)")}<MoneyInput wrapperClassName="mt-1" className={inputClass} required value={price} onValueChange={setPrice} /></label>
       <label className="text-sm">{t("products.config.variant.display_order", "Display order")}<input className={inputClass} required type="number" step="1" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} /></label>

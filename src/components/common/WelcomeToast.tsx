@@ -77,7 +77,7 @@ export function LoginWelcome() {
           t={t}
           greeting={timeOfDayGreeting()}
           title={name ? translate("welcome.back_name", "Welcome back, {name}", { name }) : translate("welcome.back", "Welcome back")}
-          description={translate("welcome.signed_in_as", "Signed in as {role}", { role: humanise(user.role) })}
+          description={translate("welcome.signed_in_as", "Signed in as {role}", { role: translate(`enums.role.${user.role}`, humanise(user.role)) })}
           fullName={user.fullName}
           avatarUrl={user.avatarUrl}
         />

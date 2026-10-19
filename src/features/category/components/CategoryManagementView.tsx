@@ -31,7 +31,7 @@ import {
 } from "@/components/common/AdminKit";
 import { apiErrorMessage } from "@/store/api/baseApi";
 import { usePageSize } from "@/contexts/AdminPreferencesContext";
-import { useI18n } from "@/contexts/I18nContext";
+import { translate, useI18n } from "@/contexts/I18nContext";
 import {
   useCreateCategoryMutation,
   useDeleteCategoryMutation,
@@ -41,7 +41,9 @@ import {
 import { useListProductsQuery } from "@/store/api/productApi";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import type { CategoryGroup, CategoryResponse, Status } from "@/store/api/types";
-import { humanise, titleCase } from "@/lib/utils";
+import { titleCase } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dateFormat";
+import { enumLabel } from "@/lib/enumLabel";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useCatalogAlerts } from "@/hooks/useCatalogAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
@@ -69,8 +71,7 @@ function formatCreatedDate(date: string | null) {
   if (!date) return "-";
   const parsed = new Date(date);
   if (Number.isNaN(parsed.getTime())) return date;
-  return parsed
-    .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+  return formatLocalDate(parsed, { day: "2-digit", month: "short", year: "numeric" })
     .replace(/ /g, "-");
 }
 
@@ -79,7 +80,7 @@ function statusTone(status: Status): "success" | "danger" {
 }
 
 function statusLabel(status: Status) {
-  return status === "ACTIVE" ? "Active" : "Inactive";
+  return translate(`enums.status.${status}`, status === "ACTIVE" ? "Active" : "Inactive");
 }
 
 export default function Categories() {
@@ -257,8 +258,8 @@ export default function Categories() {
           value={filterStatus}
           onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
         >
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
+          <option value="ACTIVE">{enumLabel(t, "status", "ACTIVE")}</option>
+          <option value="INACTIVE">{enumLabel(t, "status", "INACTIVE")}</option>
         </SelectField>
         <FilterActions onClear={() => { setSearchTerm(""); setFilterStatus(""); setPage(1); }} onSearch={refetch} />
       </FilterPanel>
@@ -352,7 +353,7 @@ export default function Categories() {
           >
             {CATEGORY_GROUPS.map((group) => (
               <option key={group} value={group}>
-                {humanise(group)}
+                {enumLabel(t, "category_group", group)}
               </option>
             ))}
           </FormSelect>
@@ -365,8 +366,8 @@ export default function Categories() {
                 setFormFields({ ...formFields, status: e.target.value as Status })
               }
             >
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
+              <option value="ACTIVE">{enumLabel(t, "status", "ACTIVE")}</option>
+              <option value="INACTIVE">{enumLabel(t, "status", "INACTIVE")}</option>
             </FormSelect>
           ) : null}
         </ModalGrid>
@@ -391,7 +392,7 @@ export default function Categories() {
               <DetailItem label={t("categories.fields.category_name", "Category Name")}>{titleCase(selected.name)}</DetailItem>
               <DetailItem label={t("fields.description", "Description")}>{selected.description || "-"}</DetailItem>
               <DetailItem label={t("categories.fields.menu_group", "Menu Group")}>
-                {selected.categoryGroup ? humanise(selected.categoryGroup) : t("categories.form.menu_group_internal", "Internal (not on the customer menu)")}
+                {selected.categoryGroup ? enumLabel(t, "category_group", selected.categoryGroup) : t("categories.form.menu_group_internal", "Internal (not on the customer menu)")}
               </DetailItem>
               <DetailItem label={t("categories.fields.total_products", "Total Products")}>
                 {productCountByCategory.get(selected.id) ?? 0}

@@ -39,7 +39,9 @@ import {
   useUpdateTableStatusMutation,
 } from "@/store/api/tableApi";
 import type { OrderResponse, OrderStatus, TableActivityResponse, TableResponse, TableSize, TableStatus } from "@/store/api/types";
-import { cn, humanise, timeAgo, titleCase } from "@/lib/utils";
+import { cn, timeAgo, titleCase } from "@/lib/utils";
+import { staffCallReasonLabel } from "@/lib/staffCall";
+import { enumLabel } from "@/lib/enumLabel";
 import { parseForm } from "@/lib/validation";
 import { tableSchema } from "@/lib/formSchemas";
 
@@ -446,7 +448,7 @@ function TableDetail({
         </span>
       </div>
       <p className="table_detail_sub">
-        {humanise(table.size)} · {t("tables.detail.seats", "seats {count}", { count: table.capacity })}
+        {enumLabel(t, "table_size", table.size)} · {t("tables.detail.seats", "seats {count}", { count: table.capacity })}
       </p>
 
       <div className="table_detail_section">
@@ -498,7 +500,7 @@ function TableDetail({
               <li key={`${call.orderId}-${call.calledAt}`}>
                 <BellRing aria-hidden />
                 <span>
-                  <b>{humanise(call.reason)}</b>
+                  <b>{staffCallReasonLabel(call.reason)}</b>
                   {call.note ? ` · ${call.note}` : ""}
                 </span>
                 <small>{timeAgo(call.calledAt)}</small>
@@ -594,7 +596,7 @@ function TableOrderCard({ order, onPrint, isPrinting }: { order: OrderResponse; 
           <li key={item.id}>
             <span>
               {item.quantity}x {titleCase(item.productName)}
-              {item.variantName ? <small> · {humanise(item.variantName)}</small> : null}
+              {item.variantName ? <small> · {enumLabel(t, "variant", item.variantName)}</small> : null}
             </span>
             <b>{money(item.subtotal)}</b>
           </li>

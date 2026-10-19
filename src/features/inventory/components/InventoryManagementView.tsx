@@ -46,7 +46,8 @@ import {
 import { useListProductsQuery } from "@/store/api/productApi";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import type { InventoryResponse, StockStrategy } from "@/store/api/types";
-import { downloadBlob, humanise, titleCase } from "@/lib/utils";
+import { downloadBlob, titleCase } from "@/lib/utils";
+import { enumLabel } from "@/lib/enumLabel";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { filteredPage, filteredQueryArgs } from "@/hooks/useFilteredPaging";
@@ -146,9 +147,9 @@ export default function Inventory() {
         name: product.name,
         sku: product.sku,
         currentStock: Number(product.quantityOnHand),
-        unit: humanise(product.stockUnit),
+        unit: enumLabel(t, "unit", product.stockUnit),
       })),
-    [productPage]
+    [productPage, t]
   );
 
   const matchingInventory = useMemo(
@@ -175,7 +176,7 @@ export default function Inventory() {
           name: item.productName,
           sku: "-",
           currentStock: Number(item.quantityOnHand),
-          unit: humanise(item.unit),
+          unit: enumLabel(t, "unit", item.unit),
         }
       : null;
     setSelectedProduct(option);
@@ -332,7 +333,7 @@ export default function Inventory() {
                   <Cell>{view.offset + index + 1}</Cell>
                   <Cell className="font-semibold">{titleCase(item.productName)}</Cell>
                   <Cell>{Number(item.quantityOnHand).toLocaleString()}</Cell>
-                  <Cell>{humanise(item.unit)}</Cell>
+                  <Cell>{enumLabel(t, "unit", item.unit)}</Cell>
                   <Cell>{Number(item.reorderLevel).toLocaleString()}</Cell>
                   <Cell>
                     <StatusBadge label={levelLabel[level]} tone={LEVEL_TONE[level]} />

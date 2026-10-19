@@ -29,22 +29,23 @@ import {
   useUpdateExchangeRateMutation,
 } from "@/store/api/reportApi";
 import { useI18n } from "@/contexts/I18nContext";
+import { enumLabel } from "@/lib/enumLabel";
+import { localeInfo } from "@/contexts/locales";
 import {
   DEFAULT_PREFERENCES,
   PAGE_SIZE_OPTIONS,
   REFRESH_SECONDS_OPTIONS,
   useAdminPreferences,
 } from "@/contexts/AdminPreferencesContext";
-import { humanise, statusTone } from "@/features/user/components/UserManagementView";
+import { statusTone } from "@/features/user/components/UserManagementView";
 import { MoneyInput } from "@/components/forms/MoneyInput";
 import { formatAmount } from "@/lib/moneyInput";
 import { parseForm } from "@/lib/validation";
 import { exchangeRateSchema } from "@/lib/formSchemas";
+import { formatLocalDate } from "@/lib/dateFormat";
 
-const LANGUAGES = [
-  { code: "en", label: "English" },
-  { code: "kh", label: "ខ្មែរ" },
-] as const;
+// Same languages as the header selector, listed English first here.
+const LANGUAGES = (["en", "kh"] as const).map(localeInfo);
 
 function refreshLabel(seconds: number, t: ReturnType<typeof useI18n>["t"]) {
   if (seconds === 0) return t("settings.refresh.off", "Off");
@@ -92,7 +93,7 @@ export default function Settings() {
   };
 
   const rateUpdatedAt = rate
-    ? new Date(rate.updatedAt).toLocaleString("en-GB", {
+    ? formatLocalDate(new Date(rate.updatedAt), {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -150,8 +151,8 @@ export default function Settings() {
                     <h4 className="truncate text-sm font-semibold text-gray-900">{currentUser.fullName}</h4>
                     <p className="mt-1 truncate text-xs text-gray-500">{currentUser.email}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <StatusBadge label={humanise(currentUser.role)} tone="neutral" />
-                      <StatusBadge label={humanise(currentUser.status)} tone={statusTone(currentUser.status)} />
+                      <StatusBadge label={enumLabel(t, "role", currentUser.role)} tone="neutral" />
+                      <StatusBadge label={enumLabel(t, "user_status", currentUser.status)} tone={statusTone(currentUser.status)} />
                     </div>
                   </div>
                 </div>

@@ -44,6 +44,7 @@ import {
 } from "@/store/api/baristaOrderApi";
 import type { Currency, OrderResponse } from "@/store/api/types";
 import { formatByCurrency, titleCase } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dateFormat";
 import { buildCashPaymentSchema, deliveryFeeSchema, parseForm } from "@/lib/validation";
 import { useDefaultPageSize, useRefreshOptions } from "@/contexts/AdminPreferencesContext";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
@@ -62,7 +63,7 @@ function formatDateTime(value: string | null) {
   if (!value) return "-";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString("en-GB", {
+  return formatLocalDate(parsed, {
     day: "2-digit",
     month: "short",
     hour: "2-digit",

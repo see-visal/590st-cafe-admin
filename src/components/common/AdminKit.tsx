@@ -60,6 +60,8 @@ import {
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useI18n } from "@/contexts/I18nContext";
+import { LOCALES, localeInfo } from "@/contexts/locales";
+import { dateFnsLocale } from "@/lib/dateFormat";
 import { cn, downloadBlob, formatSku, titleCase } from "@/lib/utils";
 import { formatPhoneInput, PHONE_MAX_LENGTH, PHONE_PLACEHOLDER } from "@/lib/phone";
 import { apiErrorMessage } from "@/store/api/baseApi";
@@ -74,25 +76,6 @@ export type FieldOption = {
   label: string;
   value: string;
 };
-
-const LANGUAGES = [
-  {
-    code: "kh",
-    shortLabel: "KH",
-    label: "ខ្មែរ",
-    flag: "/images/cambodia.svg",
-    flagAltKey: "language.flag_cambodia",
-    flagAlt: "Cambodia",
-  },
-  {
-    code: "en",
-    shortLabel: "ENG",
-    label: "English",
-    flag: "/images/english.svg",
-    flagAltKey: "language.flag_english",
-    flagAlt: "English",
-  },
-] as const;
 
 function LanguageFlag({
   src,
@@ -119,8 +102,7 @@ export function AdminTopActions() {
   const alerts = useOperationalAlerts();
   const [open, setOpen] = useState(false);
   const { locale, setLocale, t } = useI18n();
-  const currentLang =
-    LANGUAGES.find((lang) => lang.code === locale) ?? LANGUAGES[0];
+  const currentLang = localeInfo(locale);
   const pathname = usePathname();
   const onAlertsPage = pathname === "/notifications";
 
@@ -157,7 +139,7 @@ export function AdminTopActions() {
             align="end"
             className="header_lang_menu min-w-[10rem] rounded-lg border border-black bg-white p-1 shadow-md"
           >
-            {LANGUAGES.map((lang) => {
+            {LOCALES.map((lang) => {
               const isActive = locale === lang.code;
               return (
                 <DropdownMenuItem
@@ -386,8 +368,8 @@ export function DateField({
 
   const displayValue = range?.from
     ? range.to
-      ? `${format(range.from, "dd MMM yyyy")} - ${format(range.to, "dd MMM yyyy")}`
-      : format(range.from, "dd MMM yyyy")
+      ? `${format(range.from, "dd MMM yyyy", { locale: dateFnsLocale() })} - ${format(range.to, "dd MMM yyyy", { locale: dateFnsLocale() })}`
+      : format(range.from, "dd MMM yyyy", { locale: dateFnsLocale() })
     : placeholder ?? t("form.date_range", "Start Date - End Date");
 
   return (
@@ -451,7 +433,7 @@ export function FormDateField({
   };
 
   const displayValue = date
-    ? format(date, "dd MMM yyyy")
+    ? format(date, "dd MMM yyyy", { locale: dateFnsLocale() })
     : placeholder ?? t("form.select_date", "Select date");
 
   return (
@@ -1265,6 +1247,8 @@ export function FormModal({
   submitLabel,
   onSubmit,
   isLoading = false,
+  submitDisabled = false,
+  size = "default",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1273,6 +1257,9 @@ export function FormModal({
   submitLabel?: string;
   onSubmit?: () => Promise<void> | void;
   isLoading?: boolean;
+  submitDisabled?: boolean;
+  /** "compact" suits short forms of two or three fields. */
+  size?: "default" | "compact";
 }) {
   const { t } = useI18n();
   const handleSubmit = async () => {
@@ -1283,7 +1270,7 @@ export function FormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="admin_modal sm:max-w-[900px]">
+      <DialogContent className={cn("admin_modal sm:max-w-[900px]", size === "compact" && "is_compact_form")}>
         <DialogHeader className="admin_modal_header">
           <DialogTitle className="admin_modal_title">{title}</DialogTitle>
         </DialogHeader>
@@ -1300,7 +1287,7 @@ export function FormModal({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isLoading}
+            disabled={isLoading || submitDisabled}
             className="btn_primary_yellow"
           >
             {isLoading ? t("states.processing", "Processing...") : submitLabel ?? t("actions.submit", "Submit")}
@@ -1856,6 +1843,7 @@ export function FormTextarea({
   placeholder,
   required = false,
   rows = 4,
+  maxLength,
 }: {
   label: string;
   value?: string;
@@ -1863,6 +1851,7 @@ export function FormTextarea({
   placeholder?: string;
   required?: boolean;
   rows?: number;
+  maxLength?: number;
 }) {
   return (
     <label className="form_field">
@@ -1876,6 +1865,7 @@ export function FormTextarea({
         placeholder={placeholder}
         required={required}
         rows={rows}
+        maxLength={maxLength}
         className="form_field_control form_field_textarea"
       />
     </label>

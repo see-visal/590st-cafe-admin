@@ -41,7 +41,9 @@ import {
   useStartPreparingOrderMutation,
 } from "@/store/api/orderApi";
 import type { OrderResponse, OrderStatus } from "@/store/api/types";
-import { formatByCurrency, fulfillmentLabel, humanise, titleCase } from "@/lib/utils";
+import { formatByCurrency, fulfillmentLabel, titleCase } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dateFormat";
+import { enumLabel } from "@/lib/enumLabel";
 import { InvoiceActions } from "@/components/common/InvoiceActions";
 import { useOrderInvoice } from "@/hooks/useOrderInvoice";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
@@ -59,21 +61,21 @@ function formatDate(value: string | null) {
   if (!value) return "-";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return formatLocalDate(parsed, { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function formatTime(value: string | null) {
   if (!value) return "";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return formatLocalDate(parsed, { hour: "2-digit", minute: "2-digit" });
 }
 
 function formatDateTime(value: string | null) {
   if (!value) return "-";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString("en-GB", {
+  return formatLocalDate(parsed, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -279,13 +281,13 @@ export default function Orders() {
             setPage(1);
           }}
         >
-          <option value="PENDING">Unpaid</option>
-          <option value="PAID">Paid</option>
-          <option value="PREPARING">Preparing</option>
-          <option value="OUT_FOR_DELIVERY">Out for delivery</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="DELIVERED">Delivered</option>
-          <option value="CANCELLED">Cancelled</option>
+          <option value="PENDING">{t("alerts.unpaid", "Unpaid")}</option>
+          <option value="PAID">{enumLabel(t, "order_status", "PAID")}</option>
+          <option value="PREPARING">{enumLabel(t, "order_status", "PREPARING")}</option>
+          <option value="OUT_FOR_DELIVERY">{enumLabel(t, "order_status", "OUT_FOR_DELIVERY")}</option>
+          <option value="COMPLETED">{enumLabel(t, "order_status", "COMPLETED")}</option>
+          <option value="DELIVERED">{enumLabel(t, "order_status", "DELIVERED")}</option>
+          <option value="CANCELLED">{enumLabel(t, "order_status", "CANCELLED")}</option>
         </SelectField>
         <FilterActions onClear={() => { setFilterStatus(""); setPage(1); }} onSearch={refetch} />
       </FilterPanel>
@@ -312,14 +314,14 @@ export default function Orders() {
                 <Cell>{order.handledByName ? titleCase(order.handledByName) : "-"}</Cell>
                 <Cell className="max-w-[11rem] truncate">{summariseItems(order)}</Cell>
                 <Cell className="whitespace-nowrap font-semibold">{money(order.totalAmount)}</Cell>
-                <Cell className="whitespace-nowrap">{order.paymentMethod ? humanise(order.paymentMethod) : "-"}</Cell>
+                <Cell className="whitespace-nowrap">{order.paymentMethod ? enumLabel(t, "payment_method", order.paymentMethod) : "-"}</Cell>
                 <Cell className="whitespace-nowrap">
                   <span className="block">{formatDate(order.createdAt)}</span>
                   <span className="block text-[11px] text-gray-500">{formatTime(order.createdAt)}</span>
                 </Cell>
                 <Cell>
                   <div className="flex flex-col items-start gap-1">
-                    <StatusBadge label={humanise(order.status)} tone={statusTone(order.status)} />
+                    <StatusBadge label={enumLabel(t, "order_status", order.status)} tone={statusTone(order.status)} />
                     {order.fulfillmentMethod === "DELIVERY" && order.deliveryFeeSetAt == null && (
                       <StatusBadge label={t("orders.badge.delivery_fee_needed", "Delivery fee needed")} tone="warning" />
                     )}
@@ -367,15 +369,15 @@ export default function Orders() {
                 <span className="font-mono text-xs">#{selected.id.slice(0, 8).toUpperCase()}</span>
               </DetailItem>
               <DetailItem label={t("fields.status", "Status")}>
-                <StatusBadge label={humanise(selected.status)} tone={statusTone(selected.status)} />
+                <StatusBadge label={enumLabel(t, "order_status", selected.status)} tone={statusTone(selected.status)} />
               </DetailItem>
               <DetailItem label={t("fields.customer", "Customer")}>{selected.customerName ? titleCase(selected.customerName) : t("orders.common.walk_in", "Walk-in")}</DetailItem>
               <DetailItem label={t("orders.table.handled_by", "Handled By")}>
                 {selected.handledByName ? titleCase(selected.handledByName) : "-"}
-                {selected.handledByRole ? ` (${humanise(selected.handledByRole)})` : ""}
+                {selected.handledByRole ? ` (${enumLabel(t, "role", selected.handledByRole)})` : ""}
               </DetailItem>
               <DetailItem label={t("fields.payment_method", "Payment Method")}>
-                {selected.paymentMethod ? humanise(selected.paymentMethod) : t("orders.detail.not_paid", "Not paid")}
+                {selected.paymentMethod ? enumLabel(t, "payment_method", selected.paymentMethod) : t("orders.detail.not_paid", "Not paid")}
               </DetailItem>
               <DetailItem label={t("fields.total", "Total")}>{money(selected.totalAmount)}</DetailItem>
               <DetailItem label={t("orders.detail.amount_tendered", "Amount Tendered")}>
@@ -499,10 +501,10 @@ export default function Orders() {
               <tbody>
                 {history.map((entry) => (
                   <tr key={entry.id}>
-                    <td>{humanise(entry.action)}</td>
+                    <td>{enumLabel(t, "audit_action", entry.action)}</td>
                     <td data-label={t("orders.history.actor", "Actor")}>
                       {entry.actorName ?? "-"}
-                      {entry.actorRole ? ` (${humanise(entry.actorRole)})` : ""}
+                      {entry.actorRole ? ` (${enumLabel(t, "role", entry.actorRole)})` : ""}
                     </td>
                     <td data-label={t("orders.history.when", "When")}>{formatDateTime(entry.createdAt)}</td>
                   </tr>

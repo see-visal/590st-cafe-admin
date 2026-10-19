@@ -2,6 +2,7 @@
 
 import { shopDate } from "@/lib/shopDate";
 import { titleCase } from "@/lib/utils";
+import { formatLocalDate } from "@/lib/dateFormat";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import BaristaReportView from "./BaristaReportView";
 import { PageShell } from "@/components/common/PageShell";
@@ -132,7 +133,7 @@ function AdminReportView() {
           >
             {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
               <option key={m} value={String(m)}>
-                {new Date(2000, m - 1).toLocaleString("en-GB", { month: "long" })}
+                {formatLocalDate(new Date(2000, m - 1), { month: "long" })}
               </option>
             ))}
           </SelectField>

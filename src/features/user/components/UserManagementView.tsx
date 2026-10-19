@@ -36,6 +36,7 @@ import { usePageSize, useRefreshOptions } from "@/contexts/AdminPreferencesConte
 import { useListUsersQuery, useUpdateUserStatusMutation, useUpdateUserMutation, useDeleteUserMutation } from "@/store/api/userApi";
 import type { Gender, Role, UserResponse, UserStatus } from "@/store/api/types";
 import { humanise, titleCase } from "@/lib/utils";
+import { enumLabel } from "@/lib/enumLabel";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { formatPhone, formatPhoneInput } from "@/lib/phone";
 import { usePersistentState } from "@/hooks/usePersistentState";
@@ -184,7 +185,7 @@ export default function UserManagementView({
       toast.success(
         t("users.toast.status_updated", "{name} is now {status}", {
           name: selected.fullName,
-          status: humanise(nextStatus),
+          status: enumLabel(t, "user_status", nextStatus),
         })
       );
       setStatusOpen(false);
@@ -224,9 +225,9 @@ export default function UserManagementView({
               setPage(1);
             }}
           >
-            <option value="ADMIN">Admin</option>
-            <option value="BARISTA">Barista</option>
-            <option value="CUSTOMER">Customer</option>
+            <option value="ADMIN">{enumLabel(t, "role", "ADMIN")}</option>
+            <option value="BARISTA">{enumLabel(t, "role", "BARISTA")}</option>
+            <option value="CUSTOMER">{enumLabel(t, "role", "CUSTOMER")}</option>
           </SelectField>
         )}
         <SelectField
@@ -237,7 +238,7 @@ export default function UserManagementView({
         >
           {USER_STATUSES.map((status) => (
             <option key={status} value={status}>
-              {humanise(status)}
+              {enumLabel(t, "user_status", status)}
             </option>
           ))}
         </SelectField>
@@ -269,7 +270,7 @@ export default function UserManagementView({
                 <Cell className="font-semibold">{titleCase(user.fullName)}</Cell>
                 <Cell>{user.email}</Cell>
                 <Cell className="tabular-nums whitespace-nowrap">{formatPhone(user.phoneNumber) || "-"}</Cell>
-                <Cell>{humanise(user.role)}</Cell>
+                <Cell>{enumLabel(t, "role", user.role)}</Cell>
                 <Cell>
                   <StatusBadge
                     label={user.telegramLinked ? t("users.telegram.linked", "Linked") : t("users.telegram.not_linked", "Not linked")}
@@ -279,7 +280,7 @@ export default function UserManagementView({
                 <Cell>
                   <button type="button" aria-label={t("users.table.change_status_aria", "Change status for {name}", { name: user.fullName })} disabled={isUpdating || isDeleting}
                     onClick={() => { setSelected(user); setNextStatus(user.status); setStatusOpen(true); }}>
-                    <StatusBadge label={humanise(user.status)} tone={statusTone(user.status)} />
+                    <StatusBadge label={enumLabel(t, "user_status", user.status)} tone={statusTone(user.status)} />
                   </button>
                 </Cell>
                 <Cell>
@@ -345,7 +346,7 @@ export default function UserManagementView({
           >
             {USER_STATUSES.map((status) => (
               <option key={status} value={status}>
-                {humanise(status)}
+                {enumLabel(t, "user_status", status)}
               </option>
             ))}
           </FormSelect>
@@ -381,12 +382,12 @@ export default function UserManagementView({
               <DetailItem label={t("fields.email", "Email")}>{selected.email || "-"}</DetailItem>
               <DetailItem label={t("fields.phone_number", "Phone Number")}>{formatPhone(selected.phoneNumber) || "-"}</DetailItem>
               <DetailItem label={t("users.fields.gender", "Gender")}>
-                {selected.gender ? humanise(selected.gender) : "-"}
+                {selected.gender ? enumLabel(t, "gender", selected.gender) : "-"}
               </DetailItem>
-              <DetailItem label={t("fields.role", "Role")}>{humanise(selected.role)}</DetailItem>
+              <DetailItem label={t("fields.role", "Role")}>{enumLabel(t, "role", selected.role)}</DetailItem>
               <DetailItem label={t("fields.status", "Status")}>
                 <StatusBadge
-                  label={humanise(selected.status)}
+                  label={enumLabel(t, "user_status", selected.status)}
                   tone={statusTone(selected.status)}
                 />
               </DetailItem>
@@ -396,7 +397,7 @@ export default function UserManagementView({
               </DetailItem>
               <DetailItem label={t("fields.created_by", "Created By")}>
                 {selected.createdByName
-                  ? `${titleCase(selected.createdByName)} (${humanise(selected.createdByRole ?? "")})`
+                  ? `${titleCase(selected.createdByName)} (${enumLabel(t, "role", selected.createdByRole)})`
                   : t("users.detail.self_registered", "Self-registered")}
               </DetailItem>
             </DetailGrid>
