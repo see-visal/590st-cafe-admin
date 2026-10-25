@@ -229,19 +229,20 @@ export function LocationPickerModal({
             <button
               type="submit"
               disabled={isSearching || !searchQuery.trim()}
-              className="flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-(--brand-ink) px-4 text-sm font-semibold text-white transition-colors hover:bg-black disabled:opacity-50"
+              className="flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-(--brand-ink) bg-(--brand-ink) px-4 text-sm font-semibold text-(--ink-inverse) transition-colors hover:bg-(--brand-ink-hover) disabled:opacity-50 dark:border-(--line)"
             >
               {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {t("map.search", "Search")}
             </button>
           </form>
 
+          {/* Theme tokens, not bg-black/text-black/gray-900: the dark theme remaps those to light shades. */}
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={handleLocateMe}
               disabled={isLocating}
-              className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-full bg-black px-3 text-sm font-semibold text-[#befe35] transition-colors hover:bg-gray-900 disabled:opacity-50"
+              className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-full border border-(--brand-ink) bg-(--brand-ink) px-3 text-sm font-semibold text-(--brand-lime) transition-colors hover:bg-(--brand-ink-hover) disabled:opacity-50 dark:border-(--line)"
             >
               {isLocating ? (
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
@@ -257,8 +258,8 @@ export function LocationPickerModal({
               className={cn(
                 "flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors",
                 atShop
-                  ? "border-[#7ec900] bg-[#befe35] text-black"
-                  : "border-gray-900 bg-white text-gray-900 hover:bg-gray-50"
+                  ? "border-(--brand-lime-strong) bg-(--brand-lime) text-(--brand-ink)"
+                  : "border-(--ink-strong) bg-(--surface) text-(--ink-strong) hover:bg-(--surface-hover)"
               )}
             >
               <Store className="h-4 w-4 shrink-0" />
