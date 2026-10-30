@@ -312,7 +312,7 @@ const TONE: Record<
 };
 
 const ALERT_ITEM =
-  "group flex items-center gap-3 rounded-xl border bg-white p-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[border-color,box-shadow] duration-150 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+  "group flex items-center gap-2 rounded-xl border bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[border-color,box-shadow] duration-150 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:gap-3 sm:p-3.5";
 
 export function AlertSection({
   id,
@@ -335,7 +335,7 @@ export function AlertSection({
 }) {
   const headingId = useId();
   return (
-    <section id={id} aria-labelledby={headingId} className={cn("rounded-2xl border p-4 sm:p-5", TONE[tone].section)}>
+    <section id={id} aria-labelledby={headingId} className={cn("rounded-2xl border p-3 sm:p-5", TONE[tone].section)}>
       <h3 id={headingId} className="flex items-center gap-3">
         <span aria-hidden className={cn("grid size-9 shrink-0 place-items-center rounded-xl", TONE[tone].icon)}>
           <Icon className="size-4.5" />
@@ -497,7 +497,7 @@ export function OperationalAlertsContent({
                     )}
                 </span>
                 <span className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-slate-600">
-                  <span className="font-medium text-(--ink)">
+                  <span className="wrap-anywhere font-medium text-(--ink)">
                     {order.customerName ? titleCase(order.customerName) : t("alerts.walk_in", "Walk-in")}
                   </span>
                   <span>·</span>
@@ -577,7 +577,7 @@ export function OperationalAlertsContent({
               >
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="wrap-break-word text-sm font-semibold text-(--ink)">
+                    <span className="wrap-anywhere text-sm font-semibold text-(--ink)">
                       {titleCase(message.fullName)}
                     </span>
                     <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
@@ -633,7 +633,7 @@ function StaffCallItem({
   };
 
   return (
-    <div className="rounded-xl border border-red-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+    <div className="rounded-xl border border-red-200 bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1 basis-60">
           <span className="flex flex-wrap items-center gap-2">
@@ -689,7 +689,7 @@ function StaffCallItem({
                 type="button"
                 disabled={disabled}
                 onClick={() => void send(text)}
-                className="rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-800 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:opacity-50"
+                className="rounded-full border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-800 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:opacity-50 sm:py-1"
               >
                 {text}
               </button>
@@ -704,10 +704,10 @@ function StaffCallItem({
             disabled={disabled}
             className="bg-white"
           />
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
-              className="inline-flex h-9 items-center rounded-lg px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-lg px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 sm:h-9 sm:flex-none"
               disabled={disabled}
               onClick={() => {
                 setReplying(false);
@@ -718,7 +718,7 @@ function StaffCallItem({
             </button>
             <button
               type="submit"
-              className="inline-flex h-9 items-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-50"
+              className="inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-50 sm:h-9 sm:flex-none"
               disabled={disabled}
             >
               {reply.trim() ? t("alerts.send_reply", "Send reply") : t("alerts.answer_silently", "Answer without message")}

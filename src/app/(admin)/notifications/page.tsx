@@ -18,8 +18,9 @@ export default function Page() {
   useEffect(() => {
     if (count !== undefined) markSeen();
   }, [count, markSeen]);
+  // Positioned so the scroller contains the sr-only labels; unpositioned, they stretch the document past the shell.
   return (
-    <PageShell>
+    <PageShell contentClassName="relative">
       <PageHeader
         title={t("notifications.title", "Current alerts")}
         breadcrumbs={[

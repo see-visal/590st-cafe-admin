@@ -33,11 +33,14 @@ const PAGE_SIZE = 10;
 const HIGHLIGHT_MS = 5000;
 
 const BUTTON =
-  "inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0";
+  "inline-flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 sm:h-9 [&_svg]:size-4 [&_svg]:shrink-0";
 const BUTTON_PRIMARY = "bg-sky-700 text-white hover:bg-sky-800 focus-visible:ring-sky-500";
 const BUTTON_RESOLVE = "bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-500";
 const BUTTON_OUTLINE =
   "bg-white text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 focus-visible:ring-slate-400";
+// On phones the main actions take a full row and the rest share one, stacking when their labels don't fit.
+const ACTION_WIDE = "flex-1 basis-full sm:flex-none sm:basis-auto";
+const ACTION_HALF = "flex-1 basis-[calc(50%-0.25rem)] sm:flex-none sm:basis-auto";
 
 // Long messages start folded so one essay doesn't push every other message off screen.
 function isLong(text: string) {
@@ -159,24 +162,24 @@ export function ContactInbox() {
         totalPages > 1 ? (
           <nav
             aria-label={t("notifications.contact.pagination", "Message pages")}
-            className="mt-3 flex items-center justify-between gap-3 text-sm"
+            className="mt-3 flex items-center justify-between gap-2 text-sm sm:gap-3"
           >
             <button
               type="button"
               disabled={page <= 1}
               onClick={() => setPage(page - 1)}
-              className={cn(BUTTON, BUTTON_OUTLINE)}
+              className={cn(BUTTON, BUTTON_OUTLINE, "shrink-0")}
             >
               {t("actions.previous", "Previous")}
             </button>
-            <span className="text-slate-600">
+            <span className="min-w-0 text-center text-slate-600">
               {t("notifications.contact.page_of", "Page {page} of {total}", { page, total: totalPages })}
             </span>
             <button
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage(page + 1)}
-              className={cn(BUTTON, BUTTON_OUTLINE)}
+              className={cn(BUTTON, BUTTON_OUTLINE, "shrink-0")}
             >
               {t("actions.next", "Next")}
             </button>
@@ -201,7 +204,7 @@ export function ContactInbox() {
                 setPage(1);
               }}
               className={cn(
-                "inline-flex h-8 items-center rounded-lg px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500",
+                "inline-flex h-9 items-center rounded-lg px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 sm:h-8",
                 active ? "bg-sky-700 text-white" : "text-slate-600 hover:bg-sky-50",
               )}
             >
@@ -288,19 +291,21 @@ function MessageCard({
       tabIndex={-1}
       aria-labelledby={titleId}
       className={cn(
-        "rounded-xl border bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition-shadow duration-300",
+        "rounded-xl border bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition-shadow duration-300 sm:p-4",
         isNew ? "border-sky-200" : "border-slate-200",
         highlighted && "ring-2 ring-sky-500 ring-offset-2",
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-        <h4 id={titleId} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-          {isNew && (
-            <span className="size-2 shrink-0 rounded-full bg-sky-600">
-              <span className="sr-only">{t("notifications.contact.unread", "Needs a reply")}: </span>
-            </span>
-          )}
-          <span className="wrap-break-word text-[15px] font-semibold text-(--ink)">{name}</span>
+        <h4 id={titleId} className="flex min-w-0 flex-1 basis-60 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="flex min-w-0 items-center gap-2">
+            {isNew && (
+              <span className="size-2 shrink-0 rounded-full bg-sky-600">
+                <span className="sr-only">{t("notifications.contact.unread", "Needs a reply")}: </span>
+              </span>
+            )}
+            <span className="wrap-anywhere text-[15px] font-semibold text-(--ink)">{name}</span>
+          </span>
           <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
             {contactTopicLabel(message.topic)}
           </span>
@@ -311,27 +316,30 @@ function MessageCard({
             </span>
           )}
         </h4>
-        <time dateTime={message.createdAt} className="shrink-0 text-xs font-medium text-slate-500">
+        <time dateTime={message.createdAt} className="text-xs font-medium text-slate-500">
           {timeAgo(message.createdAt)} · {sentAtLabel(message.createdAt)}
         </time>
       </div>
 
       <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-slate-600">
-        <span className="wrap-break-word">{message.email}</span>
+        <span className="wrap-anywhere">{message.email}</span>
         {message.phoneNumber && <span>{formatPhone(message.phoneNumber)}</span>}
         {accountName && (
-          <span>{t("notifications.contact.account", "Account: {name}", { name: accountName })}</span>
+          <span className="wrap-anywhere">{t("notifications.contact.account", "Account: {name}", { name: accountName })}</span>
         )}
       </p>
 
-      <p
-        className={cn(
-          "mt-3 whitespace-pre-wrap wrap-break-word rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-(--ink)",
-          long && !expanded && "line-clamp-4",
-        )}
-      >
-        {message.message}
-      </p>
+      {/* The padding sits outside the clamped text, or the cut-off line shows through it. */}
+      <div className="mt-3 rounded-lg bg-slate-50 p-3">
+        <p
+          className={cn(
+            "whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-(--ink)",
+            long && !expanded && "line-clamp-4",
+          )}
+        >
+          {message.message}
+        </p>
+      </div>
       {long && (
         <button
           type="button"
@@ -346,27 +354,26 @@ function MessageCard({
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-        <a href={replyMailto(message)} className={cn(BUTTON, BUTTON_PRIMARY)}>
+        <a href={replyMailto(message)} className={cn(BUTTON, BUTTON_PRIMARY, ACTION_WIDE)}>
           <Mail aria-hidden />
           {t("notifications.contact.reply_by_email", "Reply by email")}
         </a>
         {message.phoneNumber && (
-          <a href={`tel:${phoneDigits(message.phoneNumber)}`} className={cn(BUTTON, BUTTON_OUTLINE)}>
+          <a href={`tel:${phoneDigits(message.phoneNumber)}`} className={cn(BUTTON, BUTTON_OUTLINE, ACTION_HALF)}>
             <Phone aria-hidden />
             {t("notifications.contact.call", "Call")}
           </a>
         )}
-        <button type="button" onClick={onCopyEmail} className={cn(BUTTON, BUTTON_OUTLINE)}>
+        <button type="button" onClick={onCopyEmail} className={cn(BUTTON, BUTTON_OUTLINE, ACTION_HALF)}>
           <Copy aria-hidden />
           {t("notifications.contact.copy_email", "Copy email")}
         </button>
-        <span className="hidden flex-1 sm:block" />
         {isNew ? (
           <button
             type="button"
             disabled={busy}
             onClick={() => onChangeStatus("RESOLVED")}
-            className={cn(BUTTON, BUTTON_RESOLVE)}
+            className={cn(BUTTON, BUTTON_RESOLVE, ACTION_WIDE, "sm:ml-auto")}
           >
             {busy ? <Loader2 aria-hidden className="animate-spin motion-reduce:animate-none" /> : <CircleCheck aria-hidden />}
             {t("notifications.contact.mark_resolved", "Mark resolved")}
@@ -376,7 +383,7 @@ function MessageCard({
             type="button"
             disabled={busy}
             onClick={() => onChangeStatus("NEW")}
-            className={cn(BUTTON, BUTTON_OUTLINE)}
+            className={cn(BUTTON, BUTTON_OUTLINE, ACTION_WIDE, "sm:ml-auto")}
           >
             {busy ? <Loader2 aria-hidden className="animate-spin motion-reduce:animate-none" /> : <RotateCcw aria-hidden />}
             {t("notifications.contact.reopen", "Reopen")}
