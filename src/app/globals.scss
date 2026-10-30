@@ -2499,6 +2499,16 @@ body {
     align-items: center;
     gap: 8px;
     font-size: 0.75rem;
+    // The smallest phones (320px wide) can't fit the full row: tighten it, and wrap rather than clip
+    // the last-page button if page numbers grow long.
+    @media (max-width: 379px) {
+      flex-wrap: wrap;
+      gap: 4px;
+      .pagination_btn:not(.is_icon) {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+    }
   }
   .pagination_ellipsis {
     padding: 0 8px;

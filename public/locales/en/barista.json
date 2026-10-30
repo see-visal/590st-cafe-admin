@@ -15,7 +15,8 @@
     "preparing": "Preparing",
     "out_for_delivery": "Out for Delivery",
     "completed": "Completed",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "all": "All Orders"
   },
   "empty": {
     "awaiting_payment": "Nothing waiting to be paid.",
@@ -23,7 +24,10 @@
     "preparing": "Nothing on the bar.",
     "out_for_delivery": "Nothing out for delivery.",
     "completed": "No completed orders yet.",
-    "cancelled": "No cancelled orders."
+    "cancelled": "No cancelled orders.",
+    "all": "No orders yet.",
+    "filtered": "No orders match these filters.",
+    "filtered_hint": "Try another search, date range or order type."
   },
   "card": {
     "view_order": "View order {id}",
@@ -100,5 +104,41 @@
     "note_from_customer": "Note from customer",
     "items": "Items ({count})",
     "unit_price_each": "{price} each"
+  },
+  "tabs": {
+    "label": "Order status"
+  },
+  "filters": {
+    "search_label": "Search orders",
+    "search_placeholder": "Invoice # or customer",
+    "clear_search": "Clear search",
+    "date_label": "Order date",
+    "any_date": "Any date",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "last_7_days": "Last 7 days",
+    "last_30_days": "Last 30 days",
+    "apply": "Apply",
+    "order_type": "Order type",
+    "all_types": "All types",
+    "ordered_from": "Ordered from",
+    "served_as": "Served as",
+    "payment": "Payment",
+    "all_payments": "All payments",
+    "sort": "Sort orders",
+    "newest": "Newest",
+    "oldest": "Oldest",
+    "toggle": "Filters",
+    "clear": "Clear filters"
+  },
+  "payment": {
+    "paid": "Paid",
+    "unpaid": "Unpaid",
+    "due": "Due"
+  },
+  "results": {
+    "showing": "Showing {from}–{to} of {total} orders",
+    "updated": "Updated {time}",
+    "refresh": "Refresh the queue"
   }
 }

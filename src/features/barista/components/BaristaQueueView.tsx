@@ -1,23 +1,20 @@
 "use client";
 import { OrderFulfillmentDetails } from "@/components/common/OrderFulfillmentDetails";
-import { OrderEstimateChip, OrderEstimateEditor } from "@/components/common/OrderEstimateEditor";
+import { OrderEstimateEditor } from "@/components/common/OrderEstimateEditor";
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import * as TabsPrimitive from "@radix-ui/react-tabs";
 import {
-  Armchair,
   Banknote,
   Bike,
+  CheckCheck,
   ChefHat,
-  ChevronDown,
-  Clock,
-  Eye,
-  Globe,
+  ClipboardList,
+  Loader2,
   MessageSquareText,
-  QrCode,
-  ShoppingBag,
-  Store,
-  X,
+  RefreshCw,
+  SearchX,
 } from "lucide-react";
 import { PageShell } from "@/components/common/PageShell";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -26,22 +23,26 @@ import {
   DetailGrid,
   DetailItem,
   DetailModal,
+  ErrorState,
   FormInput,
   FormModal,
   FormSelect,
   ModalGrid,
+  PaginationFooter,
   SkeletonBlock,
   StatTile,
   listLoadState,
   MoneyField,
 } from "@/components/common/AdminKit";
-import { apiErrorMessage } from "@/store/api/baseApi";
+import { apiErrorMessage, baseApi } from "@/store/api/baseApi";
 import {
   useCancelBaristaOrderMutation,
   useCompleteBaristaOrderMutation,
   useDispatchBaristaOrderMutation,
   useMarkDeliveredBaristaOrderMutation,
   useCollectBaristaCashMutation,
+  useGetBaristaOrderQuery,
+  useGetBaristaOrderStatusSummaryQuery,
   useListAllBaristaOrdersQuery,
   usePayOrderCashMutation,
   useSetBaristaOrderDeliveryFeeMutation,
@@ -54,6 +55,8 @@ import {
   useCompleteOrderMutation,
   useDispatchAdminOrderMutation,
   useMarkDeliveredAdminOrderMutation,
+  useGetOrderQuery,
+  useGetOrderStatusSummaryQuery,
   useListOrdersQuery,
   usePayAdminOrderCashMutation,
   useSetOrderDeliveryFeeMutation,
@@ -64,331 +67,159 @@ import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { useCurrentRole } from "@/store/api/useCurrentRole";
 import { useGetCurrentUserQuery } from "@/store/api/authApi";
 import { useStaffOrderAlerts } from "@/hooks/useStaffOrderAlerts";
-import type { Currency, OrderResponse, OrderStatus } from "@/store/api/types";
-import { cn, formatByCurrency, fulfillmentLabel, timeAgo, titleCase } from "@/lib/utils";
+import { useAppDispatch } from "@/store/hooks";
+import type {
+  Currency,
+  OrderResponse,
+  OrderSearchParams,
+  OrderStatus,
+  PageResponse,
+  SortDirection,
+} from "@/store/api/types";
+import { cn, formatByCurrency, titleCase } from "@/lib/utils";
 import { formatLocalDate } from "@/lib/dateFormat";
 import { enumLabel } from "@/lib/enumLabel";
-import { InvoiceActions, PrintInvoiceIconButton, toastPaidWithInvoice } from "@/components/common/InvoiceActions";
-import { useOrderInvoice } from "@/hooks/useOrderInvoice";
+import { shopDate } from "@/lib/shopDate";
+import { InvoiceActions, toastPaidWithInvoice } from "@/components/common/InvoiceActions";
+import { orderCode, useOrderInvoice } from "@/hooks/useOrderInvoice";
 import { buildCashPaymentSchema, parseForm } from "@/lib/validation";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useNow } from "@/hooks/useNow";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useI18n } from "@/contexts/I18nContext";
 import { optionSummary } from "@/lib/drinkOptions";
+import {
+  DEFAULT_QUEUE_PAGE_SIZE,
+  EMPTY_FILTERS,
+  HISTORY_TABS,
+  QUEUE_PAGE_SIZES,
+  QUEUE_TABS,
+  TAB_STATUSES,
+  formatShopDateTime,
+  hasActiveFilters,
+  money,
+  readFilters,
+  readTab,
+  statusTotals,
+  toSearchParams,
+  type QueueFilters,
+  type QueueTab,
+} from "../queue";
+import { QueueStatusTabs } from "./QueueStatusTabs";
+import { QueueFilterBar } from "./QueueFilterBar";
+import { QueueOrderCard, QueueStatusBadge, type CardAction } from "./QueueOrderCard";
 
-const money = (value: number | null | undefined) =>
-  value == null ? "-" : `$${Number(value).toFixed(2)}`;
+type Roles = { isAdmin: boolean; isBarista: boolean };
 
-function formatDateTime(value: string) {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return formatLocalDate(parsed, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+type QueueListArgs = OrderSearchParams & {
+  status?: OrderStatus[];
+  direction: SortDirection;
+  page: number;
+  size: number;
+};
+
+const LIVE_POLL_MS = 15_000;
+const HISTORY_POLL_MS = 30_000;
+const CLOCK_TICK_MS = 30_000;
+// Cards keep their own height rather than stretching to the tallest one in the row.
+const CARD_GRID = "grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] items-start gap-4";
+
+// Each staff role reads orders through its own endpoints; the other role's query stays skipped.
+function useQueueOrders(args: QueueListArgs, { isAdmin, isBarista }: Roles, pollingInterval: number) {
+  const admin = useListOrdersQuery(args, { skip: !isAdmin, pollingInterval });
+  const barista = useListAllBaristaOrdersQuery(args, { skip: !isBarista, pollingInterval });
+  return isAdmin ? admin : barista;
 }
 
-const STATUS_CLASSES: Record<OrderStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-700",
-  PAID: "bg-blue-100 text-blue-700",
-  PREPARING: "bg-violet-100 text-violet-700",
-  OUT_FOR_DELIVERY: "bg-cyan-100 text-cyan-700",
-  COMPLETED: "bg-green-100 text-green-800",
-  DELIVERED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-red-100 text-red-700",
-};
+function useStatusSummary(args: OrderSearchParams | undefined, { isAdmin, isBarista }: Roles) {
+  const admin = useGetOrderStatusSummaryQuery(args, { skip: !isAdmin, pollingInterval: LIVE_POLL_MS });
+  const barista = useGetBaristaOrderStatusSummaryQuery(args, { skip: !isBarista, pollingInterval: LIVE_POLL_MS });
+  return isAdmin ? admin : barista;
+}
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  PENDING: "UNPAID",
-  PAID: "PAID",
-  PREPARING: "PREPARING",
-  OUT_FOR_DELIVERY: "OUT FOR DELIVERY",
-  COMPLETED: "COMPLETED",
-  DELIVERED: "DELIVERED",
-  CANCELLED: "CANCELLED",
-};
+function useOrderDetail(id: string | null, skip: boolean, { isAdmin, isBarista }: Roles) {
+  const admin = useGetOrderQuery(id ?? "", { skip: skip || !id || !isAdmin });
+  const barista = useGetBaristaOrderQuery(id ?? "", { skip: skip || !id || !isBarista });
+  return (isAdmin ? admin : barista).currentData;
+}
 
-function OrderCard({
-  order,
-  actionLabel,
-  onAction,
-  onCancel,
-  onOpen,
-  isBusy,
-  highlight,
-  hint,
-  secondaryLabel,
-  onSecondary,
-}: {
-  order: OrderResponse;
-  actionLabel?: string;
-  secondaryLabel?: string;
-  onSecondary?: () => void;
-  hint?: string;
-  onAction?: () => void;
-  onCancel?: () => void;
-  onOpen?: () => void;
-  isBusy?: boolean;
-  highlight?: boolean;
-}) {
+function QueueSkeleton({ cards }: { cards: number }) {
   const { t } = useI18n();
   return (
-    <article
-      className={cn(
-        "rounded-xl border bg-white p-4 shadow-xs",
-        highlight ? "border-blue-300 ring-1 ring-blue-100" : "border-gray-200"
-      )}
-    >
-      <div className="flex items-start justify-between">
-        <button
-          type="button"
-          onClick={onOpen}
-          className="group min-w-0 text-left"
-          aria-label={t("barista.card.view_order", "View order {id}", { id: order.id.slice(0, 8).toUpperCase() })}
+    <div role="status" aria-label={t("states.loading_label", "Loading")} className={CARD_GRID}>
+      {Array.from({ length: cards }, (_, index) => (
+        <div
+          key={index}
+          aria-hidden
+          className="space-y-3 rounded-xl border border-l-4 border-gray-200 border-l-gray-200 bg-white p-3.5"
         >
-          <h4 className="inline-flex items-center gap-1.5 text-base font-bold text-gray-900 group-hover:underline">
-            {order.customerName ? titleCase(order.customerName) : t("barista.labels.walk_in", "Walk-in")}
-            <Eye className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-          </h4>
-          <p className="font-mono text-xs text-gray-400">
-            #{order.id.slice(0, 8).toUpperCase()}
-          </p>
-        </button>
-        <div className="flex items-center gap-2">
-          <PrintInvoiceIconButton order={order} />
-          <span
-            className={cn(
-              "rounded-full px-3 py-1 text-xs font-semibold",
-              STATUS_CLASSES[order.status]
-            )}
-          >
-            {STATUS_LABELS[order.status]}
-          </span>
-          {order.fulfillmentMethod === "DELIVERY" && order.deliveryFeeSetAt == null && (
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-              {t("barista.card.fee_needed", "Fee needed")}
-            </span>
-          )}
-          {order.paymentMethod === "CASH" &&
-            order.paidAt == null &&
-            order.status !== "PENDING" &&
-            order.status !== "CANCELLED" && (
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                {t("barista.card.cash_due", "Cash due")}
-              </span>
-            )}
-          {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={isBusy}
-              aria-label={t("barista.card.cancel_order", "Cancel order")}
-              className="text-red-500 hover:text-red-700 disabled:opacity-50"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+          <SkeletonBlock className="h-4 w-1/2" />
+          <SkeletonBlock className="h-3 w-2/3" />
+          <div className="flex gap-1.5">
+            <SkeletonBlock className="h-4 w-14" />
+            <SkeletonBlock className="h-4 w-16" />
+            <SkeletonBlock className="h-4 w-20" />
+          </div>
+          <SkeletonBlock className="h-3.5 w-full" />
+          <SkeletonBlock className="h-3.5 w-5/6" />
+          <SkeletonBlock className="h-9 w-full" />
         </div>
-      </div>
-
-      <div className="mt-3 flex items-center justify-between text-xs text-gray-400">
-        <span>{formatDateTime(order.createdAt)}</span>
-        <span className="flex items-center gap-1">
-          {timeAgo(order.createdAt)} <Clock className="h-3.5 w-3.5" />
-        </span>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <OrderChip icon={order.customerId ? Globe : Store}>{order.customerId ? t("barista.card.online", "Online") : t("barista.labels.walk_in", "Walk-in")}</OrderChip>
-        {order.fulfillmentMethod ? (
-          <OrderChip icon={order.fulfillmentMethod === "DELIVERY" ? Bike : order.fulfillmentMethod === "DINE_IN" ? Armchair : ShoppingBag}>
-            {fulfillmentLabel(order)}
-          </OrderChip>
-        ) : null}
-        <OrderChip icon={order.paymentMethod === "BAKONG" ? QrCode : Banknote}>
-          {order.paymentMethod ? enumLabel(t, "payment_method", order.paymentMethod) : t("barista.card.payment_not_chosen", "Payment not chosen")}
-        </OrderChip>
-        <OrderEstimateChip order={order} />
-      </div>
-
-      <div className="mt-4 space-y-3">
-        {order.items.map((item) => (
-          <div key={item.id} className="border-b border-dashed border-gray-200 pb-3">
-            <p className="text-xs font-semibold text-gray-900">
-              {optionSummary({
-                variantName: item.variantName,
-                sugarLevel: item.sugarLevel,
-                iceLevel: item.iceLevel,
-                milkType: item.milkType,
-                extras: item.extras.map((extra) => ({ name: titleCase(extra.name) })),
-              }) || t("barista.labels.standard", "Standard")}
-            </p>
-            <div className="mt-1 flex items-center justify-between text-sm">
-              <span className="text-gray-500">
-                <span className="font-bold text-gray-900">{item.quantity}x</span>{" "}
-                {titleCase(item.productName)}
-              </span>
-              <span className="font-bold text-gray-900">{money(item.subtotal)}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <OrderFulfillmentDetails order={order} />
-      {order.note ? (
-        <div className="mt-3 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
-          <MessageSquareText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-          <p className="min-w-0 text-xs font-medium whitespace-pre-line wrap-break-word text-amber-900">
-            {order.note}
-          </p>
-        </div>
-      ) : null}
-
-      <div className="mt-4 flex flex-col items-end gap-3">
-        <p className="text-sm text-gray-500">
-          {t("fields.total", "Total")} : <span className="font-bold text-gray-900">{money(order.totalAmount)}</span>
-        </p>
-        {actionLabel ? (
-          <div className="flex flex-wrap justify-end gap-2">
-            {secondaryLabel ? (
-              <button
-                type="button"
-                onClick={onSecondary}
-                disabled={isBusy}
-                className="btn_outline_black text-xs font-medium disabled:opacity-50"
-              >
-                {secondaryLabel}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={onAction}
-              disabled={isBusy}
-              className="btn_primary_black text-xs font-medium disabled:opacity-50"
-            >
-              {actionLabel}
-            </button>
-          </div>
-        ) : hint ? (
-          <p className="w-full rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">{hint}</p>
-        ) : null}
-      </div>
-    </article>
-  );
-}
-
-function OrderChip({ icon: Icon, children }: { icon: typeof Globe; children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
-      <Icon className="h-3 w-3" />
-      {children}
-    </span>
-  );
-}
-
-function QueueColumn({
-  title,
-  accent,
-  orders,
-  isLoading,
-  emptyLabel,
-  renderCard,
-  fullWidth = false,
-}: {
-  title: string;
-  accent: string;
-  orders: OrderResponse[];
-  isLoading: boolean;
-  emptyLabel: string;
-  renderCard: (order: OrderResponse) => React.ReactNode;
-  fullWidth?: boolean;
-}) {
-  const { t } = useI18n();
-  return (
-    <div className={cn(fullWidth && "col-span-full")}>
-      <div className="mb-4 flex items-center gap-2">
-        <span className={cn("h-2.5 w-6 rounded-full", accent)} />
-        <h3 className="text-base font-bold text-gray-900">{title}</h3>
-        <span className="text-sm text-gray-400">({orders.length})</span>
-      </div>
-      <div className="space-y-4">
-        {isLoading ? (
-          <div role="status" aria-label={t("barista.queue.loading", "Loading {title}", { title })} className="space-y-4">
-            {[0, 1].map((i) => (
-              <div key={i} className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
-                <SkeletonBlock className="h-5 w-2/3" />
-                <SkeletonBlock className="h-3 w-1/3" />
-                <SkeletonBlock className="h-4 w-full" />
-                <SkeletonBlock className="ml-auto h-9 w-32" />
-              </div>
-            ))}
-          </div>
-        ) : orders.length === 0 ? (
-          <p className="py-8 text-sm text-gray-400">{emptyLabel}</p>
-        ) : fullWidth ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">{orders.map(renderCard)}</div>
-        ) : (
-          orders.map(renderCard)
-        )}
-      </div>
+      ))}
     </div>
   );
 }
 
-function useQueue(
-  status: OrderStatus,
-  {
-    isAdmin,
-    isBarista,
-    size,
-    pollingInterval,
-  }: {
-    isAdmin: boolean;
-    isBarista: boolean;
-    size: number;
-    pollingInterval?: number;
-  }
-) {
-  const params = { status, page: 1, size } as const;
-  const admin = useListOrdersQuery(params, { skip: !isAdmin, pollingInterval });
-  const barista = useListAllBaristaOrdersQuery(params, {
-    skip: !isBarista,
-    pollingInterval,
-  });
-  return isAdmin ? admin : barista;
+function QueueEmpty({ title, hint, onClear }: { title: string; hint?: string; onClear?: () => void }) {
+  const { t } = useI18n();
+  const Icon = onClear ? SearchX : ClipboardList;
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
+      <Icon className="h-8 w-8 text-gray-400" aria-hidden />
+      <p className="text-sm font-semibold text-gray-900">{title}</p>
+      {hint ? <p className="max-w-sm text-xs text-gray-500">{hint}</p> : null}
+      {onClear ? (
+        <button type="button" onClick={onClear} className="btn_outline_black mt-2">
+          {t("barista.filters.clear", "Clear filters")}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 export default function BaristaQueueView() {
   const { t } = useI18n();
+  const dispatch = useAppDispatch();
   const { isAdmin, isBarista, isLoading: isLoadingRole } = useCurrentRole();
   const { confirm, confirmDialog } = useConfirmDialog();
   const roles = { isAdmin, isBarista };
+  const now = useNow(CLOCK_TICK_MS);
+  const resultsTopRef = useRef<HTMLDivElement>(null);
 
-  const pendingQuery = useQueue("PENDING", { ...roles, size: 50, pollingInterval: 15000 });
-  const paidQuery = useQueue("PAID", { ...roles, size: 50, pollingInterval: 10000 });
-  const preparingQuery = useQueue("PREPARING", { ...roles, size: 50, pollingInterval: 15000 });
-  const outForDeliveryQuery = useQueue("OUT_FOR_DELIVERY", { ...roles, size: 50, pollingInterval: 15000 });
-  const completedQuery = useQueue("COMPLETED", { ...roles, size: 20, pollingInterval: 30000 });
-  const deliveredQuery = useQueue("DELIVERED", { ...roles, size: 20, pollingInterval: 30000 });
-  const cancelledQuery = useQueue("CANCELLED", { ...roles, size: 20 });
+  // The tab, filters and page survive refreshes, polling and visits to other pages in this session.
+  const [storedTab, setTab] = usePersistentState<QueueTab>("barista-queue:tab", "ALL");
+  const [storedFilters, setFilters] = usePersistentState<QueueFilters>("barista-queue:filters", EMPTY_FILTERS);
+  const [storedDirection, setDirection] = usePersistentState<SortDirection>("barista-queue:direction", "DESC");
+  const [page, setPage] = usePersistentState("barista-queue:page", 1);
+  const [storedSize, setSize] = usePersistentState("barista-queue:size", DEFAULT_QUEUE_PAGE_SIZE);
+  const tab = readTab(storedTab);
+  const filters = useMemo(() => readFilters(storedFilters), [storedFilters]);
+  const direction: SortDirection = storedDirection === "ASC" ? "ASC" : "DESC";
+  const size = (QUEUE_PAGE_SIZES as readonly number[]).includes(storedSize) ? storedSize : DEFAULT_QUEUE_PAGE_SIZE;
+  const filtering = hasActiveFilters(filters);
+  const searchParams = useMemo(() => toSearchParams(filters), [filters]);
 
-  useStaffOrderAlerts(
-    useCallback(() => {
-      void pendingQuery.refetch();
-      void paidQuery.refetch();
-      void preparingQuery.refetch();
-      void outForDeliveryQuery.refetch();
-      void completedQuery.refetch();
-      void deliveredQuery.refetch();
-      void cancelledQuery.refetch();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+  const listQuery = useQueueOrders(
+    { ...searchParams, status: TAB_STATUSES[tab], direction, page, size },
+    roles,
+    HISTORY_TABS.has(tab) ? HISTORY_POLL_MS : LIVE_POLL_MS
   );
+  // Stat tiles describe the whole shop right now; tab counts follow the filters. With no filters both
+  // use the same arguments, so they share one request.
+  const overallSummary = useStatusSummary(undefined, roles);
+  const filteredSummary = useStatusSummary(filtering ? searchParams : undefined, roles);
 
-  const { error, refetch } = pendingQuery;
+  // The order events invalidate every order query, which refetches the list and both summaries.
+  useStaffOrderAlerts(useCallback(() => {}, []));
 
   const [baristaPayCash, { isLoading: isPayingBarista }] = usePayOrderCashMutation();
   const [baristaCollectCash, { isLoading: isCollectingBarista }] = useCollectBaristaCashMutation();
@@ -481,8 +312,36 @@ export default function BaristaQueueView() {
   const [cashOrder, setCashOrder] = useState<OrderResponse | null>(null);
   const [amountTendered, setAmountTendered] = useState("");
   const [cashCurrency, setCashCurrency] = useState<Currency>("USD");
-  const [detailOrder, setDetailOrder] = useState<OrderResponse | null>(null);
-  const [showCancelled, setShowCancelled] = usePersistentState("barista-queue:showCancelled", false);
+
+  // While another page of the same list loads, the current cards stay on screen (dimmed) instead of
+  // collapsing to skeletons, so the list doesn't jump. A new tab or filter still starts from skeletons.
+  const listKey = JSON.stringify([tab, searchParams, direction, size]);
+  const [shownPage, setShownPage] = useState<{ key: string; data: PageResponse<OrderResponse> } | null>(null);
+  if (listQuery.currentData && shownPage?.data !== listQuery.currentData) {
+    setShownPage({ key: listKey, data: listQuery.currentData });
+  }
+  const pageData = listQuery.currentData ?? (shownPage?.key === listKey ? shownPage.data : undefined);
+  const isChangingPage = listQuery.currentData === undefined && pageData !== undefined;
+  const orders = useMemo(() => pageData?.content ?? [], [pageData]);
+  const list = listLoadState({ ...listQuery, currentData: pageData });
+
+  // The detail dialog shows the order as listed, so it updates with each refresh. If the order moves to
+  // another tab while the dialog is open, it is fetched by id instead.
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailSnapshot, setDetailSnapshot] = useState<OrderResponse | null>(null);
+  const listedDetail = detailId ? orders.find((order) => order.id === detailId) : undefined;
+  const fetchedDetail = useOrderDetail(detailId, listedDetail != null, roles);
+  const detailOrder = listedDetail ?? fetchedDetail ?? detailSnapshot;
+  const openDetail = (order: OrderResponse) => {
+    setDetailId(order.id);
+    setDetailSnapshot(order);
+  };
+
+  // A page can empty out when its orders move on (or a filter narrows the list); step back to the last page.
+  const totalPages = pageData?.totalPages ?? 0;
+  if (totalPages > 0 && page > totalPages) {
+    setPage(totalPages);
+  }
 
   const payableDue = (order: OrderResponse, targetCurrency: Currency): number =>
     targetCurrency === "USD" || !khrPerUsdRate
@@ -507,19 +366,41 @@ export default function BaristaQueueView() {
 
   const cashDue = cashOrder ? payableDue(cashOrder, cashCurrency) : 0;
 
-  const pending = pendingQuery.data?.content ?? [];
-  const paid = paidQuery.data?.content ?? [];
-  const preparing = preparingQuery.data?.content ?? [];
-  const outForDelivery = outForDeliveryQuery.data?.content ?? [];
-  const completed = [
-    ...(completedQuery.data?.content ?? []),
-    ...(deliveredQuery.data?.content ?? []),
-  ];
-  const cancelled = cancelledQuery.data?.content ?? [];
+  const overallTotals = overallSummary.data ? statusTotals(overallSummary.data) : undefined;
+  const awaitingCount = overallTotals?.count(["PENDING"]);
+  const toMake = overallTotals?.count(["PAID", "PREPARING"]);
+  const unpaidValue = overallTotals?.amount("PENDING");
+  const tabCounts = useMemo(() => {
+    if (!filteredSummary.data) return undefined;
+    const totals = statusTotals(filteredSummary.data);
+    return Object.fromEntries(QUEUE_TABS.map((queueTab) => [queueTab, totals.count(TAB_STATUSES[queueTab])])) as Record<
+      QueueTab,
+      number
+    >;
+  }, [filteredSummary.data]);
 
-  const unpaidValue = pending.reduce((sum, order) => sum + Number(order.totalAmount), 0);
-  const toMake =
-    (paidQuery.data?.totalElements ?? 0) + (preparingQuery.data?.totalElements ?? 0);
+  const selectTab = (next: string) => {
+    setTab(readTab(next));
+    setPage(1);
+  };
+  const updateFilters = useCallback(
+    (next: QueueFilters) => {
+      setFilters(next);
+      setPage(1);
+    },
+    [setFilters, setPage]
+  );
+  const changeDirection = (next: SortDirection) => {
+    setDirection(next);
+    setPage(1);
+  };
+  const changePage = (next: number) => {
+    setPage(next);
+    resultsTopRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  };
+  const refreshQueue = () => {
+    dispatch(baseApi.util.invalidateTags([{ type: "Order", id: isAdmin ? "LIST" : "BARISTA_ALL" }]));
+  };
 
   const handlePayCash = async () => {
     if (!cashOrder) return;
@@ -554,7 +435,7 @@ export default function BaristaQueueView() {
       description: t(
         "barista.confirm.cancel_description",
         "Cancel order #{id}? Only unpaid orders can be cancelled.",
-        { id: order.id.slice(0, 8).toUpperCase() }
+        { id: orderCode(order.id) }
       ),
       confirmLabel: t("barista.confirm.cancel_confirm", "Cancel order"),
       tone: "danger",
@@ -620,12 +501,159 @@ export default function BaristaQueueView() {
   const handleSetEstimate = async (order: OrderResponse, minutes: number) => {
     try {
       const updated = await setEstimate({ id: order.id, body: { minutes } }).unwrap();
-      setDetailOrder((current) => (current?.id === updated.id ? updated : current));
+      setDetailSnapshot((current) => (current?.id === updated.id ? updated : current));
       toast.success(t("barista.toast.estimate_set", "Estimated time set to {minutes} min", { minutes }));
     } catch (err) {
       toast.error(apiErrorMessage(err as never, t("barista.errors.save_estimate", "Could not save the estimated time.")));
     }
   };
+
+  // The next step for an order at its current status — the same buttons the status columns used to offer.
+  const cardActions = (
+    order: OrderResponse
+  ): { primary?: CardAction; secondary?: CardAction; hint?: string; onCancel?: () => void } => {
+    switch (order.status) {
+      case "PENDING": {
+        const step = awaitingPaymentStep(order);
+        const onCancel = canCancel(order) ? () => handleCancel(order) : undefined;
+        if (step.kind === "waiting") return { hint: step.hint, onCancel };
+        return {
+          primary: {
+            label: step.label,
+            icon: step.kind === "fee" ? Bike : step.kind === "prepare" ? ChefHat : Banknote,
+            onClick: () => {
+              if (step.kind === "fee") openDetail(order);
+              else if (step.kind === "prepare") void handleStartPreparing(order);
+              else openCashModal(order);
+            },
+          },
+          secondary:
+            step.kind === "prepare"
+              ? { label: t("barista.actions.take_cash", "Take Cash"), onClick: () => openCashModal(order) }
+              : undefined,
+          onCancel,
+        };
+      }
+      case "PAID":
+        return {
+          primary: {
+            label: t("barista.actions.start_preparing", "Start Preparing"),
+            icon: ChefHat,
+            onClick: () => void handleStartPreparing(order),
+          },
+        };
+      case "PREPARING": {
+        const needsCash =
+          order.paymentMethod === "CASH" && order.paidAt == null && order.fulfillmentMethod !== "DELIVERY";
+        if (needsCash) {
+          return {
+            primary: {
+              label: t("barista.actions.collect_cash", "Collect Cash"),
+              icon: Banknote,
+              onClick: () => openCashModal(order),
+            },
+          };
+        }
+        return {
+          primary:
+            order.fulfillmentMethod === "DELIVERY"
+              ? {
+                  label: t("barista.actions.out_for_delivery", "Out for Delivery"),
+                  icon: Bike,
+                  onClick: () => void handleComplete(order),
+                }
+              : {
+                  label: t("barista.actions.mark_completed", "Mark Completed"),
+                  icon: CheckCheck,
+                  onClick: () => void handleComplete(order),
+                },
+        };
+      }
+      case "OUT_FOR_DELIVERY": {
+        const needsCash = order.paymentMethod === "CASH" && order.paidAt == null;
+        return {
+          primary: needsCash
+            ? {
+                label: t("barista.actions.collect_cash", "Collect Cash"),
+                icon: Banknote,
+                onClick: () => openCashModal(order),
+              }
+            : {
+                label: t("barista.actions.mark_delivered", "Mark Delivered"),
+                icon: CheckCheck,
+                onClick: () => void handleDelivered(order),
+              },
+        };
+      }
+      default:
+        return {};
+    }
+  };
+
+  const emptyTitle: Record<QueueTab, string> = {
+    ALL: t("barista.empty.all", "No orders yet."),
+    AWAITING_PAYMENT: t("barista.empty.awaiting_payment", "Nothing waiting to be paid."),
+    NEW_PAID: t("barista.empty.new_paid", "No new paid orders."),
+    PREPARING: t("barista.empty.preparing", "Nothing on the bar."),
+    OUT_FOR_DELIVERY: t("barista.empty.out_for_delivery", "Nothing out for delivery."),
+    COMPLETED: t("barista.empty.completed", "No completed orders yet."),
+    CANCELLED: t("barista.empty.cancelled", "No cancelled orders."),
+  };
+
+  const total = pageData?.totalElements ?? 0;
+  const firstShown = pageData && total > 0 ? (pageData.page - 1) * pageData.size + 1 : 0;
+  const lastShown = pageData ? firstShown + pageData.content.length - 1 : 0;
+  const updatedAt = listQuery.fulfilledTimeStamp
+    ? formatLocalDate(new Date(listQuery.fulfilledTimeStamp), { hour: "2-digit", minute: "2-digit" })
+    : null;
+
+  let results;
+  if (isLoadingRole || list.isLoading) {
+    results = <QueueSkeleton cards={Math.min(size, 8)} />;
+  } else if (list.error) {
+    results = (
+      <ErrorState
+        error={list.error}
+        fallback={t("barista.errors.load_queue", "Could not load the queue.")}
+        onRetry={listQuery.refetch}
+        isRetrying={listQuery.isFetching}
+      />
+    );
+  } else if (orders.length === 0) {
+    results = filtering ? (
+      <QueueEmpty
+        title={t("barista.empty.filtered", "No orders match these filters.")}
+        hint={t("barista.empty.filtered_hint", "Try another search, date range or order type.")}
+        onClear={() => updateFilters(EMPTY_FILTERS)}
+      />
+    ) : (
+      <QueueEmpty title={emptyTitle[tab]} />
+    );
+  } else {
+    results = (
+      <div
+        className={cn(CARD_GRID, "transition-opacity", isChangingPage && "pointer-events-none opacity-60")}
+        aria-busy={isChangingPage || undefined}
+      >
+        {orders.map((order) => {
+          const actions = cardActions(order);
+          return (
+            <QueueOrderCard
+              key={order.id}
+              order={order}
+              now={now}
+              primary={actions.primary}
+              secondary={actions.secondary}
+              hint={actions.hint}
+              onCancel={actions.onCancel}
+              onOpen={() => openDetail(order)}
+              isBusy={isBusy}
+            />
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <PageShell>
@@ -641,15 +669,19 @@ export default function BaristaQueueView() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatTile
           title={t("barista.stats.awaiting_payment", "Awaiting Payment")}
-          value={String(pendingQuery.data?.totalElements ?? 0)}
-          tone={pending.length > 0 ? "orange" : "gray"}
+          value={awaitingCount == null ? "–" : String(awaitingCount)}
+          tone={awaitingCount ? "orange" : "gray"}
         />
         <StatTile
           title={t("barista.stats.drinks_to_make", "Drinks To Make")}
-          value={String(toMake)}
-          tone={toMake > 0 ? "yellow" : "gray"}
+          value={toMake == null ? "–" : String(toMake)}
+          tone={toMake ? "yellow" : "gray"}
         />
-        <StatTile title={t("barista.stats.unpaid_value", "Unpaid Value")} value={money(unpaidValue)} tone="gray" />
+        <StatTile
+          title={t("barista.stats.unpaid_value", "Unpaid Value")}
+          value={unpaidValue == null ? "–" : money(unpaidValue)}
+          tone="gray"
+        />
       </div>
 
       {!isLoadingRole && !isAdmin && !isBarista ? (
@@ -658,174 +690,79 @@ export default function BaristaQueueView() {
         </div>
       ) : null}
 
-      {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {apiErrorMessage(error as never, t("barista.errors.load_queue", "Could not load the queue."))}{" "}
-          <button type="button" onClick={refetch} className="underline">
-            {t("actions.retry", "Retry")}
-          </button>
-        </div>
-      ) : null}
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <QueueColumn
-          title={t("barista.queue.awaiting_payment", "Awaiting Payment")}
-          accent="bg-amber-500"
-          orders={pending}
-          isLoading={isLoadingRole || listLoadState(pendingQuery).isLoading}
-          emptyLabel={t("barista.empty.awaiting_payment", "Nothing waiting to be paid.")}
-          renderCard={(order) => {
-            const step = awaitingPaymentStep(order);
-            return (
-              <OrderCard
-                key={order.id}
-                order={order}
-                isBusy={isBusy}
-                actionLabel={step.kind === "waiting" ? undefined : step.label}
-                hint={step.kind === "waiting" ? step.hint : undefined}
-                onAction={() => {
-                  if (step.kind === "fee") setDetailOrder(order);
-                  else if (step.kind === "prepare") handleStartPreparing(order);
-                  else if (step.kind === "cash") openCashModal(order);
-                }}
-                secondaryLabel={step.kind === "prepare" ? t("barista.actions.take_cash", "Take Cash") : undefined}
-                onSecondary={() => openCashModal(order)}
-                onCancel={canCancel(order) ? () => handleCancel(order) : undefined}
-                onOpen={() => setDetailOrder(order)}
-              />
-            );
-          }}
-        />
-
-        <QueueColumn
-          title={t("barista.queue.new_paid", "New — Paid")}
-          accent="bg-blue-500"
-          orders={paid}
-          isLoading={isLoadingRole || listLoadState(paidQuery).isLoading}
-          emptyLabel={t("barista.empty.new_paid", "No new paid orders.")}
-          renderCard={(order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              isBusy={isBusy}
-              highlight
-              actionLabel={t("barista.actions.start_preparing", "Start Preparing")}
-              onAction={() => handleStartPreparing(order)}
-              onOpen={() => setDetailOrder(order)}
+      <TabsPrimitive.Root
+        // Page changes scroll back to here; the toolbar itself can't be the target, as a stuck sticky
+        // element already counts as in view.
+        ref={resultsTopRef}
+        value={tab}
+        onValueChange={selectTab}
+        // Arrow keys move between tabs and Enter opens one, so browsing the tabs doesn't load each of them.
+        activationMode="manual"
+        className="flex flex-col gap-4"
+      >
+        {/* Pinned while scrolling on tablets and desktops, but not on short screens (a phone held
+            sideways), where it would cover most of the cards. */}
+        <div className="z-20 flex flex-col gap-3 rounded-(--radius-card) border border-(--line-subtle) bg-(--surface) p-3 shadow-xs sm:p-4 md:[@media(min-height:600px)]:sticky md:[@media(min-height:600px)]:top-0">
+          <QueueStatusTabs value={tab} counts={tabCounts} />
+          <div className="border-t border-(--line-subtle) pt-3">
+            <QueueFilterBar
+              filters={filters}
+              onChange={updateFilters}
+              direction={direction}
+              onDirectionChange={changeDirection}
+              today={shopDate(new Date(now))}
             />
-          )}
-        />
-
-        <QueueColumn
-          title={t("barista.queue.preparing", "Preparing")}
-          accent="bg-violet-500"
-          orders={preparing}
-          isLoading={isLoadingRole || listLoadState(preparingQuery).isLoading}
-          emptyLabel={t("barista.empty.preparing", "Nothing on the bar.")}
-          renderCard={(order) => {
-            const needsCash =
-              order.paymentMethod === "CASH" &&
-              order.paidAt == null &&
-              order.fulfillmentMethod !== "DELIVERY";
-            return (
-              <OrderCard
-                key={order.id}
-                order={order}
-                isBusy={isBusy}
-                actionLabel={
-                  needsCash
-                    ? t("barista.actions.collect_cash", "Collect Cash")
-                    : order.fulfillmentMethod === "DELIVERY"
-                      ? t("barista.actions.out_for_delivery", "Out for Delivery")
-                      : t("barista.actions.mark_completed", "Mark Completed")
-                }
-                onAction={() => {
-                  if (needsCash) {
-                    openCashModal(order);
-                  } else {
-                    handleComplete(order);
-                  }
-                }}
-                onOpen={() => setDetailOrder(order)}
-              />
-            );
-          }}
-        />
-
-        <QueueColumn
-          title={t("barista.queue.out_for_delivery", "Out for Delivery")}
-          accent="bg-cyan-500"
-          orders={outForDelivery}
-          isLoading={isLoadingRole || listLoadState(outForDeliveryQuery).isLoading}
-          emptyLabel={t("barista.empty.out_for_delivery", "Nothing out for delivery.")}
-          renderCard={(order) => {
-            const needsCash = order.paymentMethod === "CASH" && order.paidAt == null;
-            return (
-              <OrderCard
-                key={order.id}
-                order={order}
-                isBusy={isBusy}
-                actionLabel={
-                  needsCash
-                    ? t("barista.actions.collect_cash", "Collect Cash")
-                    : t("barista.actions.mark_delivered", "Mark Delivered")
-                }
-                onAction={() => {
-                  if (needsCash) {
-                    openCashModal(order);
-                  } else {
-                    handleDelivered(order);
-                  }
-                }}
-                onOpen={() => setDetailOrder(order)}
-              />
-            );
-          }}
-        />
-
-        <QueueColumn
-          fullWidth
-          title={t("barista.queue.completed", "Completed")}
-          accent="bg-green-500"
-          orders={completed}
-          isLoading={isLoadingRole || listLoadState(completedQuery).isLoading}
-          emptyLabel={t("barista.empty.completed", "No completed orders yet.")}
-          renderCard={(order) => (
-            <OrderCard key={order.id} order={order} onOpen={() => setDetailOrder(order)} />
-          )}
-        />
-      </div>
-
-      <div className="rounded-xl border border-gray-200 bg-white">
-        <button
-          type="button"
-          onClick={() => setShowCancelled((prev) => !prev)}
-          aria-expanded={showCancelled}
-          className="flex w-full items-center gap-2 p-4 text-left"
-        >
-          <span className="h-2.5 w-6 rounded-full bg-red-500" />
-          <h3 className="text-base font-bold text-gray-900">{t("barista.queue.cancelled", "Cancelled")}</h3>
-          <span className="text-sm text-gray-400">
-            ({cancelledQuery.data?.totalElements ?? 0})
-          </span>
-          <ChevronDown className="dropdown_chevron ml-auto h-4 w-4 text-gray-400" aria-hidden />
-        </button>
-        {showCancelled ? (
-          <div className="grid grid-cols-1 gap-4 border-t border-gray-100 p-4 md:grid-cols-2 xl:grid-cols-4">
-            {cancelled.length === 0 ? (
-              <p className="text-sm text-gray-400">{t("barista.empty.cancelled", "No cancelled orders.")}</p>
-            ) : (
-              cancelled.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onOpen={() => setDetailOrder(order)}
-                />
-              ))
-            )}
           </div>
-        ) : null}
-      </div>
+        </div>
+
+        <TabsPrimitive.Content value={tab} className="flex flex-col gap-3 outline-none">
+          <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-500">
+            <p>
+              {total > 0
+                ? t("barista.results.showing", "Showing {from}–{to} of {total} orders", {
+                    from: firstShown,
+                    to: lastShown,
+                    total,
+                  })
+                : null}
+            </p>
+            <div className="flex items-center gap-2">
+              {updatedAt ? <span>{t("barista.results.updated", "Updated {time}", { time: updatedAt })}</span> : null}
+              <button
+                type="button"
+                onClick={refreshQueue}
+                disabled={isLoadingRole || (!isAdmin && !isBarista) || listQuery.isFetching}
+                aria-label={t("barista.results.refresh", "Refresh the queue")}
+                title={t("barista.results.refresh", "Refresh the queue")}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-60"
+              >
+                {listQuery.isFetching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <RefreshCw className="h-4 w-4" aria-hidden />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {results}
+
+          {total > 0 ? (
+            <PaginationFooter
+              page={pageData?.page ?? page}
+              totalPages={totalPages || 1}
+              size={size}
+              totalElements={total}
+              sizeOptions={QUEUE_PAGE_SIZES}
+              onPageChange={changePage}
+              onSizeChange={(next) => {
+                setSize(next);
+                setPage(1);
+              }}
+            />
+          ) : null}
+        </TabsPrimitive.Content>
+      </TabsPrimitive.Root>
 
       <FormModal
         open={cashOrder !== null}
@@ -873,9 +810,12 @@ export default function BaristaQueueView() {
       </FormModal>
 
       <DetailModal
-        open={detailOrder !== null}
+        open={detailId !== null}
         onOpenChange={(open) => {
-          if (!open) setDetailOrder(null);
+          if (!open) {
+            setDetailId(null);
+            setDetailSnapshot(null);
+          }
         }}
         title={t("barista.detail.title", "Order Detail")}
       >
@@ -883,25 +823,16 @@ export default function BaristaQueueView() {
           <div className="admin_modal_form_wrap">
             <DetailGrid>
               <DetailItem label={t("fields.order", "Order")}>
-                <span className="font-mono">
-                  #{detailOrder.id.slice(0, 8).toUpperCase()}
-                </span>
+                <span className="font-mono">#{orderCode(detailOrder.id)}</span>
               </DetailItem>
               <DetailItem label={t("fields.status", "Status")}>
-                <span
-                  className={cn(
-                    "inline-block rounded-full px-3 py-1 text-xs font-semibold",
-                    STATUS_CLASSES[detailOrder.status]
-                  )}
-                >
-                  {STATUS_LABELS[detailOrder.status]}
-                </span>
+                <QueueStatusBadge status={detailOrder.status} />
               </DetailItem>
               <DetailItem label={t("fields.customer", "Customer")}>
                 {detailOrder.customerName ? titleCase(detailOrder.customerName) : t("barista.labels.walk_in", "Walk-in")}
               </DetailItem>
               <DetailItem label={t("barista.detail.placed", "Placed")}>
-                {formatDateTime(detailOrder.createdAt)}
+                {formatShopDateTime(detailOrder.createdAt)}
               </DetailItem>
               <DetailItem label={t("fields.payment_method", "Payment Method")}>
                 {detailOrder.paymentMethod
@@ -909,7 +840,7 @@ export default function BaristaQueueView() {
                   : t("barista.detail.not_chosen_yet", "Not chosen yet")}
               </DetailItem>
               <DetailItem label={t("barista.detail.paid_at", "Paid At")}>
-                {detailOrder.paidAt ? formatDateTime(detailOrder.paidAt) : t("barista.detail.not_paid_yet", "Not paid yet")}
+                {detailOrder.paidAt ? formatShopDateTime(detailOrder.paidAt) : t("barista.detail.not_paid_yet", "Not paid yet")}
               </DetailItem>
               <DetailItem label={t("barista.detail.handled_by", "Handled By")}>
                 {detailOrder.handledByName
@@ -943,6 +874,7 @@ export default function BaristaQueueView() {
             <InvoiceActions order={detailOrder} className="mt-4" />
 
             <OrderFulfillmentDetails
+              key={detailOrder.id}
               order={detailOrder}
               onSetDeliveryFee={(fee) => handleSetDeliveryFee(detailOrder, fee)}
               isSettingFee={isSettingFee}

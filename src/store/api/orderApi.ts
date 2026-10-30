@@ -8,17 +8,24 @@ import type {
   EstimatedTimeRequest,
   OrderAuditLogResponse,
   OrderResponse,
+  OrderSearchParams,
   OrderStatus,
+  OrderStatusSummary,
   PageQuery,
   PageResponse,
+  SortDirection,
   StaffCallResponse,
   UUID,
 } from "./types";
 
-interface OrderListQuery extends PageQuery {
+interface OrderSummaryQuery extends OrderSearchParams {
   baristaId?: UUID;
   customerId?: UUID;
-  status?: OrderStatus;
+}
+
+interface OrderListQuery extends PageQuery, OrderSummaryQuery {
+  status?: OrderStatus | OrderStatus[];
+  direction?: SortDirection;
 }
 
 const ORDER_QUEUE_TAGS = [
@@ -106,6 +113,18 @@ export const orderApi = baseApi.injectEndpoints({
               { type: "Order" as const, id: "LIST" },
             ]
           : [{ type: "Order" as const, id: "LIST" }],
+    }),
+
+    getOrderStatusSummary: builder.query<
+      OrderStatusSummary[],
+      OrderSummaryQuery | void
+    >({
+      query: (params) => ({
+        url: "/api/admin/orders/status-summary",
+        params: params ?? undefined,
+      }),
+      transformResponse: unwrap<OrderStatusSummary[]>,
+      providesTags: [{ type: "Order", id: "LIST" }],
     }),
 
     getOrder: builder.query<OrderResponse, UUID>({
@@ -320,6 +339,7 @@ export const {
   useGenerateAdminBakongQrMutation,
   useConfirmAdminBakongPaymentMutation,
   useListOrdersQuery,
+  useGetOrderStatusSummaryQuery,
   useGetOrderQuery,
   useGetOrderHistoryQuery,
   useListAwaitingPickupQuery,

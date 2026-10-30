@@ -7,15 +7,23 @@ import type {
   DeliveryFeeRequest,
   EstimatedTimeRequest,
   OrderResponse,
+  OrderSearchParams,
   OrderStatus,
+  OrderStatusSummary,
   PageQuery,
   PageResponse,
+  SortDirection,
   StaffCallResponse,
   UUID,
 } from "./types";
 
 interface BaristaOrderListQuery extends PageQuery {
   status?: OrderStatus;
+}
+
+interface BaristaOrderSearchQuery extends PageQuery, OrderSearchParams {
+  status?: OrderStatus | OrderStatus[];
+  direction?: SortDirection;
 }
 
 const QUEUE_TAGS = [
@@ -51,7 +59,7 @@ export const baristaOrderApi = baseApi.injectEndpoints({
 
     listAllBaristaOrders: builder.query<
       PageResponse<OrderResponse>,
-      BaristaOrderListQuery | void
+      BaristaOrderSearchQuery | void
     >({
       query: (params) => ({
         url: "/api/barista/orders/all",
@@ -68,6 +76,18 @@ export const baristaOrderApi = baseApi.injectEndpoints({
               { type: "Order" as const, id: "BARISTA_ALL" },
             ]
           : [{ type: "Order" as const, id: "BARISTA_ALL" }],
+    }),
+
+    getBaristaOrderStatusSummary: builder.query<
+      OrderStatusSummary[],
+      OrderSearchParams | void
+    >({
+      query: (params) => ({
+        url: "/api/barista/orders/all/status-summary",
+        params: params ?? undefined,
+      }),
+      transformResponse: unwrap<OrderStatusSummary[]>,
+      providesTags: [{ type: "Order", id: "BARISTA_ALL" }],
     }),
 
     getBaristaOrder: builder.query<OrderResponse, UUID>({
@@ -321,6 +341,7 @@ export const {
   useCreateBaristaOrderMutation,
   useListBaristaOrdersQuery,
   useListAllBaristaOrdersQuery,
+  useGetBaristaOrderStatusSummaryQuery,
   useListBaristaDeliveryBoardQuery,
   useListBaristaAwaitingPickupQuery,
   useListBaristaAwaitingBakongConfirmationQuery,

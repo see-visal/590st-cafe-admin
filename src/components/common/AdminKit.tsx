@@ -910,6 +910,7 @@ export function PaginationFooter({
   totalElements,
   onPageChange,
   onSizeChange,
+  sizeOptions = PAGE_SIZE_CHOICES,
 }: {
   page?: number;
   totalPages?: number;
@@ -917,6 +918,7 @@ export function PaginationFooter({
   totalElements?: number;
   onPageChange?: (page: number) => void;
   onSizeChange?: (size: number) => void;
+  sizeOptions?: readonly number[];
 } = {}) {
   const { t } = useI18n();
   const pages = pageWindow(page, Math.max(totalPages, 1));
@@ -936,7 +938,7 @@ export function PaginationFooter({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="form_field_select_content">
-            {PAGE_SIZE_CHOICES.map((choice) => (
+            {sizeOptions.map((choice) => (
               <SelectItem key={choice} value={String(choice)} className="form_field_select_item">
                 {choice}
               </SelectItem>

@@ -81,8 +81,10 @@ export function InvoiceActions({
 
 export function PrintInvoiceIconButton({
   order,
+  className,
 }: {
   order: Pick<OrderResponse, "id" | "paidAt">;
+  className?: string;
 }) {
   const { printInvoice, isBusy } = useOrderInvoice();
   const { t } = useI18n();
@@ -96,7 +98,10 @@ export function PrintInvoiceIconButton({
       disabled={busy}
       aria-label={t("invoice.print_for_order", "Print invoice for order {number}", { number: orderNumber(order) })}
       title={t("actions.print_invoice", "Print invoice")}
-      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50"
+      className={cn(
+        "inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50",
+        className
+      )}
     >
       {busy ? (
         <Loader2 className="h-4 w-4 animate-spin" />

@@ -508,6 +508,27 @@ export interface OrderResponse {
   distanceMeters: Numeric | null;
 }
 
+export type OrderChannel = "WALK_IN" | "ONLINE";
+export type SortDirection = "ASC" | "DESC";
+
+/** Optional filters shared by the staff order lists and their per-status summary. */
+export interface OrderSearchParams {
+  /** Order number ("#A1B2C3D4" or its start), customer name or contact name. */
+  search?: string;
+  /** Shop days (yyyy-MM-dd) on which the order was placed; both ends are included. */
+  from?: string;
+  to?: string;
+  channel?: OrderChannel;
+  fulfillment?: FulfillmentMethod;
+  paymentMethod?: PaymentMethod;
+}
+
+export interface OrderStatusSummary {
+  status: OrderStatus;
+  count: number;
+  totalAmount: Numeric;
+}
+
 export interface OrderUpdateMessage {
   action: OrderAuditAction;
   order: OrderResponse;

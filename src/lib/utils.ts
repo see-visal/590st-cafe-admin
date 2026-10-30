@@ -85,10 +85,10 @@ export function formatByCurrency(
   return `$${amount.toFixed(2)}`;
 }
 
-export function timeAgo(value: string): string {
+export function timeAgo(value: string, now = Date.now()): string {
   const then = parseShopDateTime(value).getTime();
   if (Number.isNaN(then)) return "";
-  const minutes = Math.max(0, Math.round((Date.now() - then) / 60000));
+  const minutes = Math.max(0, Math.round((now - then) / 60000));
   if (minutes < 60) return translate("time.minutes_ago", "{count} min ago", { count: minutes });
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return translate("time.hours_ago", "{count} hr ago", { count: hours });
