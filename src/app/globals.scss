@@ -1,5 +1,5 @@
 @use "sass:map";
-@use "tailwindcss";
+@import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
 // Short windows (laptops at 768px tall and below): lets dense screens like the login page tighten their spacing.
